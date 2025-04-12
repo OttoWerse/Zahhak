@@ -13,7 +13,7 @@ from colorama import init, just_fix_windows_console, Fore, Style
 
 # TODO: Extract Flat causes only first page to be loaded. Bug is old, but certainly back: https://github.com/ytdl-org/youtube-dl/issues/28075
 # TODO: Look into using logger, progress_hooks, progress (https://github.com/yt-dlp/yt-dlp/issues/66)
-# TODO: Ignoring no format error leads to unavailable videos to also be in entries (videos) list (for playlists at least), this is now handeled by checking the date and passing if none can be found. Since this leaves us a bit open to ignoring date oddities, we should look into filtering these unavailable videos out (do NOT remove ingore no format error option, it will lead to ABORTION!) https://github.com/yt-dlp/yt-dlp/issues/9810
+# TODO: Ignoring no format error leads to unavailable videos to also be in entries (videos) list (for playlists at least), this is now handled by checking the date and passing if none can be found. Since this leaves us a bit open to ignoring date oddities, we should look into filtering these unavailable videos out (do NOT remove ingore no format error option, it will lead to ABORTION!) https://github.com/yt-dlp/yt-dlp/issues/9810
 # TODO https://www.reddit.com/r/youtubedl/comments/1berg2g/is_repeatedly_downloading_api_json_necessary/
 
 '''Download directory settings'''
@@ -170,6 +170,9 @@ regex_video_duplicate = re.compile(r'Duplicate entry')
 regex_error_connection = re.compile(r'Remote end closed connection without response')
 regex_error_timeout = re.compile(r'The read operation timed out')
 regex_error_getaddrinfo = re.compile(r'getaddrinfo failed')
+# noinspection RegExpRedundantEscape
+regex_val = re.compile(r'[^\.a-zA-Z0-9 -]')
+regex_caps = re.compile(r'[A-Z][A-Z]+')
 
 '''STRINGS'''
 playlist_name_livestreams = 'Livestreams'
@@ -189,6 +192,8 @@ DEBUG_json_video_add = False
 DEBUG_json_video_details = False
 DEBUG_error_connection = False
 DEBUG_add_unmonitored = False
+DEBUG_channel_id = False
+DEBUG_channel_playlists = False
 
 '''INIT'''
 # Path to use for download archive, best leave at default
@@ -200,7 +205,7 @@ DEFAULT_vpn_frequency = 100
 vpn_frequency = DEFAULT_vpn_frequency
 
 
-class CaptureLogger():
+class VoidLogger:
     def debug(self, msg):
         pass
 
@@ -357,7 +362,7 @@ def check_channel_availability(channel):
 
     # Set download options for YT-DLP
     channel_download_options = {
-        'logger': CaptureLogger(),
+        'logger': VoidLogger(),
         'playlist_items': '0',
         'skip_download': True,
         'allow_playlist_files': False,
@@ -417,8 +422,9 @@ def check_channel_availability(channel):
             return False
 
     if DEBUG_json_check_channel:
-        with open('DEBUG_check_channel.json', 'w', encoding='utf-8') as f:
-            json.dump(info_json, f, ensure_ascii=False, indent=4)
+        with open('DEBUG_check_channel.json', 'w', encoding='utf-8') as json_file:
+            # noinspection PyTypeChecker
+            json.dump(info_json, json_file, ensure_ascii=False, indent=4)
         input(f'Dumped JSON... Continue?')
 
     if info_json is not None:
@@ -463,7 +469,7 @@ def get_new_channel_videos_from_youtube(channel, ignore_errors, archive_set):
 
     # Set download options for YT-DLP
     channel_download_options = {
-        'logger': CaptureLogger(),
+        'logger': VoidLogger(),
         'extract_flat': extract_flat_channel,
         'skip_download': True,
         'allow_playlist_files': False,
@@ -525,8 +531,9 @@ def get_new_channel_videos_from_youtube(channel, ignore_errors, archive_set):
             return False
 
     if DEBUG_json_channel:
-        with open('debug.json', 'w', encoding='utf-8') as f:
-            json.dump(info_json, f, ensure_ascii=False, indent=4)
+        with open('debug.json', 'w', encoding='utf-8') as json_file:
+            # noinspection PyTypeChecker
+            json.dump(info_json, json_file, ensure_ascii=False, indent=4)
         input(f'Dumped JSON... Continue?')
 
     try:
@@ -609,7 +616,7 @@ def get_new_playlist_videos_from_youtube(playlist, ignore_errors, counter, archi
 
     # Set download options for YT-DLP
     playlist_download_options = {
-        'logger': CaptureLogger(),
+        'logger': VoidLogger(),
         'extract_flat': extract_flat_playlist,
         'skip_download': True,
         'allow_playlist_files': False,
@@ -667,8 +674,9 @@ def get_new_playlist_videos_from_youtube(playlist, ignore_errors, counter, archi
             return False
 
     if DEBUG_json_playlist:
-        with open('debug.json', 'w', encoding='utf-8') as f:
-            json.dump(info_json, f, ensure_ascii=False, indent=4)
+        with open('debug.json', 'w', encoding='utf-8') as json_file:
+            # noinspection PyTypeChecker
+            json.dump(info_json, json_file, ensure_ascii=False, indent=4)
         input(f'Dumped JSON... Continue?')
 
     try:
@@ -822,8 +830,9 @@ def get_video_details(video_id, archive_set):
     ilus.close()
 
     if DEBUG_json_video_details:
-        with open('debug.json', 'w', encoding='utf-8') as f:
-            json.dump(info_json, f, ensure_ascii=False, indent=4)
+        with open('debug.json', 'w', encoding='utf-8') as json_file:
+            # noinspection PyTypeChecker
+            json.dump(info_json, json_file, ensure_ascii=False, indent=4)
         input(f'Dumped JSON... Continue?')
 
     return info_json
@@ -832,6 +841,54 @@ def get_video_details(video_id, archive_set):
     # except Exception as e:
     # print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while getting details for video "{video_id}": {e}')
     # return None
+
+
+def get_channel_details(channel_url, ignore_errors):
+    print(f'{datetime.now()} Getting ID for channel "{channel_url}"')
+
+    # Set download options for YT-DLP
+    channel_download_options = {'extract_flat': True,
+                                'skip_download': True,
+                                'allow_playlist_files': False,
+                                'quiet': True,
+                                'no_warnings': True,
+                                # 'noplaylist': True,
+                                'playlist_items': '0',
+                                'ignoreerrors': ignore_errors,
+                                'download_archive': None,
+                                'extractor_args': {'youtube': {'skip': ['configs', 'webpage', 'js']}},
+                                'extractor_retries': retry_extraction_channel,
+                                'socket_timeout': timeout_channel,
+                                'source_address': external_ip
+                                }
+
+    # Try-Except Block to handle YT-DLP exceptions such as "playlist does not exist"
+    try:
+        # Run YT-DLP
+        with yt_dlp.YoutubeDL(channel_download_options) as ilus:
+            info_json = ilus.sanitize_info(ilus.extract_info(channel_url, process=True, download=False))
+        ilus.close()
+
+        if DEBUG_channel_id:
+            with open('debug.json', 'w', encoding='utf-8') as f:
+                json.dump(info_json, f, ensure_ascii=False, indent=4)
+            input(f'Dumped JSON... Continue?')
+
+        try:
+            info_json['id']
+            return info_json
+        except:
+            print(
+                f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} cannot find channel ID in Info JSON "{info_json}"')
+            return None
+            # TODO: To make this work properly, we need to count retries and give up at some point, I guess?
+            # return [] # This is to stop repeating to try in this (rare) case of not getting entries for playlist EVER (cause unknown, possibly related to single video lists or hidden videos etc.)
+
+    except KeyboardInterrupt:
+        sys.exit()
+    except Exception as e:
+        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding channel from URL "{channel_url}": {e}')
+        return None
 
 
 def add_video(video, channel_site, channel_id, playlist_id, download, archive_set):
@@ -843,8 +900,9 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
         return False
 
     if DEBUG_json_video_add:
-        with open('debug.json', 'w', encoding='utf-8') as f:
-            json.dump(video, f, ensure_ascii=False, indent=4)
+        with open('debug.json', 'w', encoding='utf-8') as json_file:
+            # noinspection PyTypeChecker
+            json.dump(video, json_file, ensure_ascii=False, indent=4)
         input(f'Dumped JSON... Continue?')
 
     try:
@@ -892,16 +950,18 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
 
             if DEBUG_force_date:
                 try:
-                    with open('DEBUG_info_json.json', 'w', encoding='utf-8') as f:
-                        json.dump(info_json, f, ensure_ascii=False, indent=4)
+                    with open('DEBUG_info_json.json', 'w', encoding='utf-8') as json_file:
+                        # noinspection PyTypeChecker
+                        json.dump(info_json, json_file, ensure_ascii=False, indent=4)
                 except KeyboardInterrupt:
                     sys.exit()
                 except Exception as exception_debug:
                     print(exception_debug)
 
                 try:
-                    with open('DEBUG_video.json', 'w', encoding='utf-8') as f:
-                        json.dump(video, f, ensure_ascii=False, indent=4)
+                    with open('DEBUG_video.json', 'w', encoding='utf-8') as json_file:
+                        # noinspection PyTypeChecker
+                        json.dump(video, json_file, ensure_ascii=False, indent=4)
                 except KeyboardInterrupt:
                     sys.exit()
                 except Exception as exception_debug:
@@ -1056,6 +1116,131 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
                 print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding video "{video_id}": '
                       f'{exception_add_video}')
                 return False
+
+
+def add_channel(channel_id, channel_name):
+    channel_site = 'youtube'
+
+    channel_priority = 100
+
+    try:
+        mydb = mysql.connector.connect(
+            host=mysql_host,
+            user=mysql_user,
+            password=mysql_password,
+            database=mysql_database)
+
+        mysql_cursor = mydb.cursor()
+
+        sql = "INSERT INTO channels (site, url, name, priority) VALUES (%s, %s, %s, %s)"
+        val = (channel_site, channel_id, channel_name, channel_priority)
+        mysql_cursor.execute(sql, val)
+        mydb.commit()
+
+        print(f'{datetime.now()} {Fore.GREEN}NEW CHANNEL{Style.RESET_ALL}: '
+              f'"{channel_name}" ({channel_site} {channel_id})')
+        print()
+
+    except KeyboardInterrupt:
+        sys.exit()
+    except Exception as e:
+        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding playlist '
+              f'"{channel_name}" ({channel_site} {channel_id}): {e}')
+        return None
+
+
+def add_playlist(playlist_id, playlist_name, channel_id, download):
+    playlist_site = 'youtube'
+
+    if channel_id == playlist_id:
+        playlist_priority = 0
+    elif download:
+        playlist_priority = 100
+    else:
+        playlist_priority = -1
+
+    try:
+        mydb = mysql.connector.connect(
+            host=mysql_host,
+            user=mysql_user,
+            password=mysql_password,
+            database=mysql_database)
+
+        mysql_cursor = mydb.cursor()
+
+        sql = "INSERT INTO playlists (site, url, name, channel, priority, download) VALUES (%s, %s, %s, %s, %s, %s)"
+        val = (playlist_site, playlist_id, playlist_name, channel_id, playlist_priority, download)
+        mysql_cursor.execute(sql, val)
+        mydb.commit()
+
+        print(f'{datetime.now()} {Fore.GREEN}NEW PLAYLIST{Style.RESET_ALL}: '
+              f'"{playlist_name}" ({playlist_site} {playlist_id})')
+        print()
+
+    except KeyboardInterrupt:
+        sys.exit()
+    except Exception as e:
+        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding playlist '
+              f'"{playlist_name}" ({playlist_site} {playlist_id}): {e}')
+        return None
+
+
+def sanitize_name(name, is_user=False):
+    name_sane = name
+    # TODO: This seems overcomplicated to implement ourselves, we should seek a pre-existing package that does this!
+
+    if regex_val.search(name_sane) or regex_caps.search(name):
+        # TODO: This way of doing things does not fix things written in ALL CAPS. We should look into how to best handle all ways of wirting
+
+        # German Umlaute
+        name_sane = re.sub(r'ä', 'ae', name_sane)
+        name_sane = re.sub(r'Ä', 'AE', name_sane)
+        name_sane = re.sub(r'ö', 'oe', name_sane)
+        name_sane = re.sub(r'Ö', 'OE', name_sane)
+        name_sane = re.sub(r'ü', 'ue', name_sane)
+        name_sane = re.sub(r'Ü', 'UE', name_sane)
+        name_sane = re.sub(r'ß', 'ss', name_sane)
+
+        # English Apostrophs
+        name_sane = re.sub(r"don't ", 'Do not ', name_sane)
+        name_sane = re.sub(r"Don't ", 'Do not ', name_sane)
+        name_sane = re.sub(r"I'm ", 'I am ', name_sane)
+        name_sane = re.sub(r"you're ", 'you are ', name_sane)
+        name_sane = re.sub(r"You're ", 'You are ', name_sane)
+        name_sane = re.sub(r"she's ", 'she is ', name_sane)
+        name_sane = re.sub(r"She's ", 'She is ', name_sane)
+        name_sane = re.sub(r"he's ", 'he is ', name_sane)
+        name_sane = re.sub(r"He's ", 'He is ', name_sane)
+        name_sane = re.sub(r"it's ", 'it is ', name_sane)
+        name_sane = re.sub(r"It's ", 'It is ', name_sane)
+        name_sane = re.sub(r"We're ", 'We are ', name_sane)
+        name_sane = re.sub(r"we're ", 'we are ', name_sane)
+
+        # Alternative hyphens to real hypens
+        name_sane = re.sub(r"–", '-', name_sane)
+
+        # &
+        name_sane = re.sub(r' & ', ' and ', name_sane)
+
+        # ": " is not allowed on Windows!
+        name_sane = re.sub(r': ', ' - ', name_sane)
+
+        # Remove all other unknown chars
+        name_sane = re.sub(regex_val, '', name_sane)
+
+        # Remove whitespace
+        name_sane = re.sub(r'^ +', '', name_sane)
+        name_sane = re.sub(r' +$', '', name_sane)
+        name_sane = re.sub(r'  +', '', name_sane)
+
+    if not is_user:
+        # Make proper title case
+        name_sane = name_sane.title()
+
+    if name != name_sane:
+        print(f'{datetime.now()} {Fore.CYAN}ATTENTION{Style.RESET_ALL} name sanitized from "{name}" to "{name_sane}"')
+
+    return name_sane
 
 
 def reconnect_vpn(counter):
@@ -1322,8 +1507,62 @@ def get_all_channel_videos_from_youtube(channel):
                                         archive_set=set())
 
 
-def get_all_channel_playlists_from_youtube(channel):
-    pass
+def get_all_channel_playlists_from_youtube(channel, ignore_errors):
+    """Returns a list of all online YouTube playlists for the given channel"""
+    channel_id = channel[1]
+    print(f'{datetime.now()} Collecting playlists for channel "{channel_id}"')
+
+    channel_playlists_url = f'https://www.youtube.com/channel/{channel_id}/playlists'
+
+    playlists = []
+
+    # Set download options for YT-DLP
+    channel_playlists_download_options = {'extract_flat': True,
+                                'skip_download': True,
+                                'allow_playlist_files': False,
+                                'quiet': True,
+                                'no_warnings': True,
+                                'ignoreerrors': ignore_errors,
+                                'download_archive': None,
+                                'extractor_args': {'youtube': {'skip': ['configs', 'webpage', 'js']}},
+                                'extractor_retries': retry_extraction_channel,
+                                'socket_timeout': timeout_channel,
+                                'source_address': external_ip
+                                }
+
+    # Try-Except Block to handle YT-DLP exceptions such as "playlist does not exist"
+    try:
+        # Run YT-DLP
+        with yt_dlp.YoutubeDL(channel_playlists_download_options) as ilus:
+            info_json = ilus.sanitize_info(ilus.extract_info(channel_playlists_url, process=True, download=False))
+        ilus.close()
+
+        if DEBUG_channel_playlists:
+            with open('debug.json', 'w', encoding='utf-8') as json_file:
+                # noinspection PyTypeChecker
+                json.dump(info_json, json_file, ensure_ascii=False, indent=4)
+            input(f'Dumped JSON... Continue?')
+
+        try:
+            playlists = info_json['entries']
+            if playlists[0] is not None:
+                playlists_count = len(playlists)
+                print(f'{datetime.now()} {Fore.GREEN}FOUND{Style.RESET_ALL} {playlists_count} playlists for channel '
+                      f'"{channel_id}"')
+                return playlists
+        except KeyboardInterrupt:
+            sys.exit()
+        except Exception as e:
+            print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} cannot find entries in Info JSON "{info_json}": '
+                  f'{e}')
+            return None
+
+    except KeyboardInterrupt:
+        sys.exit()
+    except Exception as e:
+        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while getting playlists for channel '
+              f'"{channel_id}": {e}')
+        return None
 
 
 def get_all_playlist_videos_from_youtube(playlist):
@@ -1512,6 +1751,122 @@ def update_subscriptions():
             else:
                 print(f'{datetime.now()} {Fore.RED}INCOMPLETE CHECK{Style.RESET_ALL} on channel '
                       f'"current_channel_name" ({current_channel_site} {current_channel_id})')
+
+
+def add_subscriptions():
+    database_channels = get_monitored_channels_from_db()
+    database_playlists = get_monitored_playlists_from_db()
+    channel_list = []
+    use_database = None
+
+    while use_database == None:
+        use_database_input = input(
+            f'Check playlists for all existing channels? {Fore.GREEN}Y{Style.RESET_ALL} or {Fore.RED}N{Style.RESET_ALL}: ')
+        if use_database_input.lower() == 'y':
+            use_database = True
+        elif use_database_input.lower() == 'n':
+            use_database = False
+        else:
+            continue
+
+    if use_database:
+        for database_channel in database_channels:
+            channel_list.append(f'https://www.youtube.com/channel/{database_channel}/videos')
+    else:
+        channel_url = input(f'Enter CHANNEL URL: ')
+        channel_list.append(channel_url)
+
+    for channel_url in channel_list:
+        print()
+
+        channel = get_channel_details(channel_url=channel_url, ignore_errors=DEFAULT_ignore_errors_channel)
+        channel_id = channel['id']
+        channel_name_online = channel['channel']
+
+        if channel_id in database_channels:
+            channel_name_sane = database_channels[channel_id]
+            print(f'{datetime.now()} Channel known as "{channel_name_sane}"')
+        else:
+            channel_name_sane = sanitize_name(name=channel_name_online)
+            channel_name_input = input(f'ENTER to keep default or type to change CHANNEL name: ')
+
+            if channel_name_input:
+                channel_name_sane = sanitize_name(name=channel_name_input, is_user=True)
+
+            add_channel(channel_id=channel_id, channel_name=channel_name_sane)
+
+        if channel_id in database_playlists:
+            print(f'{datetime.now()} {Fore.CYAN}ATTENTION{Style.RESET_ALL} All "Other" videos are already being downloaded!')
+
+        online_playlists = None
+        online_playlists = get_all_channel_playlists_from_youtube(channel=channel, ignore_errors=DEFAULT_ignore_errors_playlist)
+
+        if online_playlists is not None:
+            for online_playlist in online_playlists:
+                print()
+
+                playlist_id = online_playlist['id']
+                playlist_name_online = online_playlist['title']
+
+                if playlist_id in database_playlists:
+                    playlist_name_sane = database_playlists[playlist_id]
+                    print(f'{datetime.now()} Playlist known as "{playlist_name_sane}"')
+                else:
+                    playlist_name_sane = sanitize_name(name=playlist_name_online)
+                    skip_playlist = False
+                    while not skip_playlist:
+                        add_playlist_input = input(
+                            f'Download "{playlist_name_sane}" ({playlist_id}) {Fore.GREEN}Y{Style.RESET_ALL} (Yes), {Fore.RED}N{Style.RESET_ALL} (No) or {Fore.CYAN}S{Style.RESET_ALL} (Skip): ')
+                        if add_playlist_input.lower() == 'y':
+                            download_playlist = True
+                        elif add_playlist_input.lower() == 'n':
+                            download_playlist = False
+                        elif add_playlist_input.lower() == 's':
+                            break
+                        else:
+                            continue
+
+                        playlist_name_input = input(f'ENTER to keep default or type to change PLAYLIST name: ')
+
+                        if playlist_name_input:
+                            playlist_name_sane = sanitize_name(name=playlist_name_input, is_user=True)
+
+                        add_playlist(playlist_id=playlist_id, playlist_name=playlist_name_sane, channel_id=channel_id,
+                                     download=download_playlist)
+                        skip_playlist = True
+
+        # Handle "Other" playlist (channel video feed)
+        playlist_id = channel_id
+        playlist_name_online = 'Other'
+        print(
+            f'{datetime.now()} {Fore.CYAN}ATTENTION{Style.RESET_ALL} "Other" Playlist should only be added for channels where most videos are not on playlists!')
+
+        if playlist_id in database_playlists:
+            playlist_name_sane = database_playlists[playlist_id]
+            print(f'{datetime.now()} Playlist known as "{playlist_name_sane}"')
+        else:
+            playlist_name_sane = sanitize_name(name=playlist_name_online)
+            skip_playlist = False
+            while not skip_playlist:
+                add_playlist_input = input(
+                    f'Download "{playlist_name_sane}" ({playlist_id}) {Fore.GREEN}Y{Style.RESET_ALL} (Yes), {Fore.RED}N{Style.RESET_ALL} (No) or {Fore.CYAN}S{Style.RESET_ALL} (Skip): ')
+                if add_playlist_input.lower() == 'y':
+                    download_playlist = True
+                elif add_playlist_input.lower() == 'n':
+                    download_playlist = False
+                elif add_playlist_input.lower() == 's':
+                    break
+                else:
+                    continue
+
+                playlist_name_input = input(f'ENTER to keep default or type to change PLAYLIST name: ')
+
+                if playlist_name_input:
+                    playlist_name_sane = sanitize_name(name=playlist_name_input, is_user=True)
+
+                add_playlist(playlist_id=playlist_id, playlist_name=playlist_name_sane, channel_id=channel_id,
+                             download=download_playlist)
+                skip_playlist = True
 
 
 if __name__ == "__main__":
