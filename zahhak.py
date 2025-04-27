@@ -727,7 +727,12 @@ def get_monitored_channels_from_db():
     sql = ("SELECT channels.site, channels.url, channels.name, channels.priority "
            "FROM channels "
            "WHERE site = %s "
-           "AND channels.url IN(SELECT playlists.channel FROM playlists GROUP BY playlists.channel HAVING count(*) > 0) "
+           "AND channels.url IN("
+           "SELECT playlists.channel FROM playlists "
+           "WHERE playlists.done IS NOT TRUE "
+           "AND playlists.download IS TRUE "
+           "GROUP BY playlists.channel HAVING count(*) > 0"
+           ") "
            "ORDER BY channels.priority DESC, channels.date_checked ASC, RAND();")
     val = ('youtube',)  # DO NOT REMOVE COMMA, it is necessary for MySQL to work!
     mysql_cursor.execute(sql, val)
@@ -770,7 +775,8 @@ def get_channel_playlists_from_db(channel):
                "INNER JOIN channels on playlists.channel=channels.url "
                "WHERE playlists.site = %s "
                "AND playlists.channel = %s "
-               "AND playlists.done IS NOT true "
+               "AND playlists.done IS NOT TRUE "
+               "AND playlists.download IS TRUE "
                "AND NOT EXISTS ( SELECT 1 FROM videos WHERE videos.playlist = playlists.url ) "
                "ORDER BY playlists.priority DESC, playlists.date_checked ASC, RAND();")
         val = ('youtube', channel_id)
@@ -788,7 +794,8 @@ def get_channel_playlists_from_db(channel):
                "ON playlists.channel = channels.url "
                "WHERE playlists.site = %s "
                "AND playlists.channel = %s "
-               "AND playlists.done IS NOT true "
+               "AND playlists.done IS NOT TRUE "
+               "AND playlists.download IS TRUE "
                "AND EXISTS ( SELECT 1 FROM videos WHERE videos.playlist = playlists.url ) "
                "ORDER BY playlists.priority DESC, playlists.date_checked ASC, RAND();")
         val = ('youtube', channel_id)
@@ -1469,7 +1476,8 @@ def get_monitored_playlists_from_db():
                "FROM playlists "
                "INNER JOIN channels on playlists.channel=channels.url "
                "WHERE playlists.site = %s "
-               "AND playlists.done IS NOT true "
+               "AND playlists.done IS NOT TRUE "
+               "AND playlists.download IS TRUE "
                "AND NOT EXISTS ( SELECT 1 FROM videos WHERE videos.playlist = playlists.url ) "
                "ORDER BY playlists.priority DESC, playlists.date_checked ASC, RAND();")
         val = ('youtube',)
@@ -1486,7 +1494,8 @@ def get_monitored_playlists_from_db():
                "INNER JOIN channels "
                "ON playlists.channel = channels.url "
                "WHERE playlists.site = %s "
-               "AND playlists.done IS NOT true "
+               "AND playlists.done IS NOT TRUE "
+               "AND playlists.download IS TRUE "
                "AND EXISTS ( SELECT 1 FROM videos WHERE videos.playlist = playlists.url ) "
                "ORDER BY playlists.priority DESC, playlists.date_checked ASC, RAND();")
         val = ('youtube',)
