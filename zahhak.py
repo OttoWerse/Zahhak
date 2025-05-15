@@ -884,9 +884,11 @@ def get_channel_details(channel_url, ignore_errors):
         try:
             info_json['id']
             return info_json
-        except:
-            print(
-                f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} cannot find channel ID in Info JSON "{info_json}"')
+        except KeyboardInterrupt:
+            sys.exit()
+        except Exception as e:
+            print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} cannot find channel ID in Info JSON '
+                  f'"{info_json}" {e}')
             return None
             # TODO: To make this work properly, we need to count retries and give up at some point, I guess?
             # return [] # This is to stop repeating to try in this (rare) case of not getting entries for playlist EVER (cause unknown, possibly related to single video lists or hidden videos etc.)
@@ -1786,10 +1788,16 @@ def add_subscriptions():
         channel_list.append(channel_url)
 
     for channel_url in channel_list:
-        print()
-
         channel = get_channel_details(channel_url=channel_url, ignore_errors=DEFAULT_ignore_errors_channel)
-        channel_id = channel['id']
+        print()
+        try:
+            channel_id = channel['id']
+        except KeyboardInterrupt:
+            sys.exit()
+        except Exception as exception_get_channel_id:
+            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} {exception_get_channel_id}')
+            continue
+
         channel_name_online = channel['channel']
 
         if channel_id in database_channels:
