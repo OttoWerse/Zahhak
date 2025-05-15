@@ -757,11 +757,11 @@ def get_channel_playlists_from_db(channel):
     channel_id = channel[1]
     channel_name = channel[2]
 
-    print(f'{datetime.now()} Collecting playlists for "{channel_name}" ({channel_site} {channel_id})')
 
     playlists = []
     retry_db = True
     while retry_db:
+        print(f'{datetime.now()} Collecting playlists for "{channel_name}" ({channel_site} {channel_id})')
         mydb = connect_database()
 
         mysql_cursor = mydb.cursor()
@@ -1461,11 +1461,11 @@ def get_monitored_playlists_from_db():
       - channels.priority
       - playlists.download"""
 
-    print(f'{datetime.now()} Collecting all playlists')
 
     playlists = []
     retry_db = True
     while retry_db:
+        print(f'{datetime.now()} Collecting all playlists')
         mydb = connect_database()
 
         mysql_cursor = mydb.cursor()
