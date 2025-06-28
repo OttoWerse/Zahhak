@@ -1471,7 +1471,6 @@ def download_video(video):
             'throttledratelimit': 1000,
             'retries': 10,
             'concurrent_fragment_downloads': 20,
-            'overwrites': False,
             'writethumbnail': True,
             'embedthumbnail': True,
             'writesubtitles': True,
