@@ -1435,7 +1435,12 @@ def download_video(video):
         return False
 
     # Clear temp directory
-    shutil.rmtree(directory_download_temp)
+    try:
+        shutil.rmtree(directory_download_temp)
+    except KeyboardInterrupt:
+        sys.exit()
+    except Exception as exception_clear_temp:
+        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} {exception_clear_temp}')
 
     print(f'{datetime.now()} {Fore.CYAN}DOWNLOADING{Style.RESET_ALL} video "{video_site} - {video_id}"')
 
@@ -1526,17 +1531,24 @@ def download_video(video):
         try:
             # Run YT-DLP
             with yt_dlp.YoutubeDL(video_download_options) as ilus:
-                ilus.download(video_url)
+                # ilus.download(video_url)
+                meta = ilus.extract_info(video_url, download=True)
+                meta = ilus.sanitize_info(meta)
+                path = meta['requested_downloads'][0]['filepath']
+                # TODO: new format?
+                #  path = path[len(directory_download_home)+len(os.sep):len(path)-len('.mp4')]
+                path = path[len(directory_download_home)+len(os.sep):len(path)]
 
-            # TODO: What happens in the weird edge-case that YT-DLP ends with reaching all retries?
-            #  AFAIK it will write status as "fresh" to DB either way, since it is NOT an exception.
-            #  We NEED to check how to get this information reliably from YT-DLP or change it to raise an exception!
+            # What happens in the weird edge-case that YT-DLP ends with reaching all retries?
+            # It does not progress past this point, but also does not throw an exception. No IDK how/why.
+
+            # TODO: How to get path? progress_hooks are useless. Postprocessor?
             # Update DB
             try:
                 mydb = connect_database()
                 mysql_cursor = mydb.cursor()
-                sql = "UPDATE videos SET status = %s WHERE site = %s AND url = %s;"
-                val = ('fresh', video_site, video_id)
+                sql = "UPDATE videos SET status = %s, save_path = %s WHERE site = %s AND url = %s;"
+                val = ('fresh', path, video_site, video_id)
                 mysql_cursor.execute(sql, val)
                 mydb.commit()
                 print(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} video "{video_id}"')
