@@ -1,10 +1,11 @@
+import argparse
 import json
 import os
 import random
 import re
+import shutil
 import sys
 import time
-import argparse
 from datetime import datetime
 from subprocess import STDOUT, check_output
 
@@ -20,6 +21,9 @@ from colorama import init, just_fix_windows_console, Fore, Style
 '''Download directory settings'''
 directory_download_temp = os.getenv('ZAHHAK_DIR_DOWNLOAD_TEMP')  # TODO: Default?
 directory_download_home = os.getenv('ZAHHAK_DIR_DOWNLOAD_HOME')  # TODO: Default?
+if directory_download_temp is None or directory_download_home is None:
+    print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} Directories not defined!', end="\n")
+    sys.exit()
 
 '''MySQL settings'''
 mysql_host = os.getenv('ZAHHAK_MYSQL_HOSTNAME', 'localhost')
@@ -429,21 +433,18 @@ def check_channel_availability(channel):
             vpn_frequency = DEFAULT_vpn_frequency
             return False
         elif regex_channel_unavailable.search(str(exception_missing_videos_channel)):
-            print(
-                f'{datetime.now()} {Fore.RED}GEO BLOCKED{Style.RESET_ALL} while adding channel '
-                f'"{channel_name}" ({channel_site} {channel_id})')
+            print(f'{datetime.now()} {Fore.RED}GEO BLOCKED{Style.RESET_ALL} while adding channel '
+                  f'"{channel_name}" ({channel_site} {channel_id})')
             vpn_frequency = GEO_BLOCKED_vpn_frequency
             return False
         elif regex_channel_removed.search(str(exception_missing_videos_channel)):
-            print(
-                f'{datetime.now()} {Fore.RED}GUIDELINE VIOLATION{Style.RESET_ALL} while adding channel '
-                f'"{channel_name}" ({channel_site} {channel_id})')
+            print(f'{datetime.now()} {Fore.RED}GUIDELINE VIOLATION{Style.RESET_ALL} while adding channel '
+                  f'"{channel_name}" ({channel_site} {channel_id})')
             vpn_frequency = DEFAULT_vpn_frequency
             return False
         elif regex_channel_deleted.search(str(exception_missing_videos_channel)):
-            print(
-                f'{datetime.now()} {Fore.RED}NONEXISTENT{Style.RESET_ALL} while adding channel '
-                f'"{channel_name}" ({channel_site} {channel_id})')
+            print(f'{datetime.now()} {Fore.RED}NONEXISTENT{Style.RESET_ALL} while adding channel '
+                  f'"{channel_name}" ({channel_site} {channel_id})')
             vpn_frequency = DEFAULT_vpn_frequency
             return False
         else:
@@ -943,8 +944,8 @@ def get_channel_details(channel_url, ignore_errors):
     except KeyboardInterrupt:
         sys.exit()
     except Exception as e:
-        print(
-            f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding channel from URL "{channel_url}": {e}')
+        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding channel from URL "{channel_url}": '
+              f'{e}')
         return None
 
 
@@ -987,14 +988,14 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
         except KeyboardInterrupt:
             sys.exit()
         except Exception as exception_date:
-            print(exception_date)
+            print(f'{datetime.now()} {Fore.YELLOW}MISSING{Style.RESET_ALL} reading JSON field {exception_date}')
 
         try:
             release_date = video['release_date']
         except KeyboardInterrupt:
             sys.exit()
         except Exception as exception_date:
-            print(exception_date)
+            print(f'{datetime.now()} {Fore.YELLOW}MISSING{Style.RESET_ALL} reading JSON field {exception_date}')
 
     except KeyboardInterrupt:
         sys.exit()
@@ -1066,7 +1067,7 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
 
             elif regex_video_unavailable_geo.search(str(exception_add_video)):
                 print(f'{datetime.now()} {Fore.RED}GEO BLOCKED{Style.RESET_ALL} video "{video_id}"')
-                #TODO
+                # TODO
                 return False
 
             elif regex_video_private.search(str(exception_add_video)):
@@ -1411,7 +1412,6 @@ def download_all_videos():
                         continue
 
 
-
 def download_video(video):
     video_site = video[0]
     video_id = video[1]
@@ -1425,7 +1425,8 @@ def download_video(video):
         print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} download paths are not set!')
         return False
 
-    #  TODO: Clear temp directory!!!
+    # Clear temp directory
+    shutil.rmtree(directory_download_temp)
 
     print(f'{datetime.now()} {Fore.CYAN}DOWNLOADING{Style.RESET_ALL} video "{video_site} - {video_id}"')
 
@@ -1442,10 +1443,10 @@ def download_video(video):
 
         # Set download options for YT-DLP
         video_download_options = {
-            #'logger': VoidLogger(),  # TODO: This suppresses all errors, we should still see them in exception handling
+            # 'logger': VoidLogger(),  # TODO: This suppresses all errors, we should still see them in exception handling
             'quiet': quiet_download_info,
             'no_warnings': quiet_download_warnings,
-            'download_archive': None, # TODO: This is correct ,yes?
+            'download_archive': None,  # TODO: This is correct ,yes?
             'cachedir': False,
             'skip_unavailable_fragments': False,  # To abort on missing video parts (largely avoids re-downloading)
             'ignoreerrors': False,
@@ -2101,7 +2102,11 @@ def add_subscriptions():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Zahhak")
-    parser.add_argument("mode", help="'D' for Download, 'M' for Monitor Channels or empty to run in serial", type=str)
+    parser.add_argument("--mode",
+                        choices=('D', 'M'),
+                        help="'D' for Download, 'M' for Monitor Channels or empty to run in serial",
+                        type=str,
+                        required=False)
     args = parser.parse_args()
 
     init(convert=True)
@@ -2113,15 +2118,15 @@ if __name__ == "__main__":
             download_all_videos()
             update_subscriptions()
     elif len(args.mode) == 1:
-            if args.mode == 'D':
-                while True:
-                    print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: downloading videos')
-                    download_all_videos()
-            elif args.mode == 'M':
-                while True:
-                    print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: monitor channels')
-                    update_subscriptions()
-            else:
-                print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} no mode "{args.mode}" exists')
+        if args.mode == 'D':
+            while True:
+                print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: downloading videos')
+                download_all_videos()
+        elif args.mode == 'M':
+            while True:
+                print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: monitor channels')
+                update_subscriptions()
+        else:
+            print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} no mode "{args.mode}" exists')
     else:
         print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} malformed arguments found!')
