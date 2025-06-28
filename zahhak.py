@@ -121,7 +121,7 @@ sleep_time_mysql = 3
 external_ip = '0.0.0.0'
 
 # Only log warnings from yt-dlp and wrapper messages from Ilus
-quiet = False
+quiet = True
 if quiet:
     quiet_check_channel_info = True
     quiet_check_channel_warnings = True
@@ -1420,13 +1420,13 @@ def download_video(video):
                                  f'{channel_name} - {playlist_name} - '
                                  f'S%(release_date>%Y,upload_date>%Y)sE%(release_date>%j,upload_date>%j)s - '
                                  f'%(title)s.%(ext)s')
-        print(f'Path for video "{video_site} {video_id}": {full_path}')
+        # print(f'Path for video "{video_site} {video_id}": {full_path}')
 
         video_url = f'https://www.youtube.com/watch?v={video_id}'
 
         # Set download options for YT-DLP
         video_download_options = {
-            # 'logger': VoidLogger(),  # TODO: This suppresses all errors, we should still see them in exception handling
+            'logger': VoidLogger(),  # TODO: This suppresses all errors, we should still see them in exception handling
             'quiet': quiet_download_info,
             'no_warnings': quiet_download_warnings,
             'cachedir': False,
