@@ -1457,6 +1457,7 @@ def download_video(video):
             'no_warnings': quiet_download_warnings,
             'download_archive': None,  # TODO: This is correct ,yes?
             'cachedir': False,
+            'overwrites': True,
             'skip_unavailable_fragments': False,  # To abort on missing video parts (largely avoids re-downloading)
             'ignoreerrors': False,
             'ignore_no_formats_error': False,
