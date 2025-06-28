@@ -1400,8 +1400,10 @@ def download_all_videos():
     all_videos = get_wanted_videos_from_db()
 
     if len(all_videos) == 0:
+        print(f'{datetime.now()} {Fore.CYAN}DONE{Style.RESET_ALL} waiting {sleep_time_download_done} seconds')
         time.sleep(sleep_time_download_done)
     else:
+        print(f'{datetime.now()} {Fore.CYAN}FOUND{Style.RESET_ALL} {len(all_videos)} videos')
         for current_video in all_videos:
             video_downloaded = False
             vpn_counter_geo = 0
