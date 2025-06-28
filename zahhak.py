@@ -1468,7 +1468,7 @@ def download_video(video):
             'restrictfilenames': True,
             'windowsfilenames': True,
             'throttledratelimit': 1000,
-            'retries': 10,
+            'retries': 0,
             'concurrent_fragment_downloads': 20,
             'overwrites': True,
             'writethumbnail': True,
