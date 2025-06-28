@@ -4,6 +4,7 @@ import random
 import re
 import sys
 import time
+import argparse
 from datetime import datetime
 from subprocess import STDOUT, check_output
 
@@ -2112,9 +2113,28 @@ def add_subscriptions():
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser("Zahhak")
+    parser.add_argument("mode", help="'D' for Download, 'M' for Monitor Channels or empty to run in serial", type=str)
+    args = parser.parse_args()
+
     init(convert=True)
     just_fix_windows_console()
-
-    while True:
-        download_all_videos()
-        update_subscriptions()
+    if not args.mode:
+        print(f'{datetime.now()} {Fore.YELLOW}WARNING{Style.RESET_ALL} no operating mode was set. '
+              f'Running in simple serial mode!')
+        while True:
+            download_all_videos()
+            update_subscriptions()
+    elif len(args.mode) == 1:
+            if args.mode == 'D':
+                while True:
+                    print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: downloading videos')
+                    download_all_videos()
+            elif args.mode == 'M':
+                while True:
+                    print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: monitor channels')
+                    update_subscriptions()
+            else:
+                print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} no mode "{args.mode}" exists')
+    else:
+        print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} malformed arguments found!')
