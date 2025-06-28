@@ -1380,7 +1380,7 @@ def get_wanted_videos_from_db():
       - playlists.url
       """
 
-    print(f'{datetime.now()} Collecting channels...')
+    print(f'{datetime.now()} Collecting videos...')
 
     mydb = connect_database()
 
