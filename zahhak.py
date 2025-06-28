@@ -1996,9 +1996,10 @@ def update_subscriptions():
 def add_subscriptions():
     database_channels = get_monitored_channels_from_db()
     database_playlists = get_monitored_playlists_from_db()
-    channel_list = []
-    use_database = None
 
+    channel_list = []
+
+    use_database = None
     while use_database == None:
         use_database_input = input(
             f'Check playlists for all existing channels? {Fore.GREEN}Y{Style.RESET_ALL} or {Fore.RED}N{Style.RESET_ALL}: ')
@@ -2120,8 +2121,11 @@ def add_subscriptions():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Zahhak")
     parser.add_argument("--mode",
-                        choices=('D', 'M'),
-                        help="'D' for Download, 'M' for Monitor Channels or empty to run in serial",
+                        choices=('A', 'D', 'M'),
+                        help="'A' for Add Subscriptions, "
+                             "'D' for Download, "
+                             "'M' for Monitor Subscriptions, "
+                             "EMPTY to run in serial mode. ",
                         type=str,
                         required=False)
     args = parser.parse_args()
@@ -2129,21 +2133,31 @@ if __name__ == "__main__":
     init(convert=True)
     just_fix_windows_console()
     if not args.mode:
-        print(f'{datetime.now()} {Fore.YELLOW}WARNING{Style.RESET_ALL} no operating mode was set. '
-              f'Running in simple serial mode!')
+        print(f'{datetime.now()} {Fore.YELLOW}WARNING{Style.RESET_ALL}: '
+              f'no operating mode was set. Running in simple serial mode!')
         while True:
-            download_all_videos()
+            add_subscriptions()
             update_subscriptions()
+            download_all_videos()
     elif len(args.mode) == 1:
         if args.mode == 'D':
             while True:
-                print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: downloading videos')
+                print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
+                      f'downloading videos')
                 download_all_videos()
         elif args.mode == 'M':
             while True:
-                print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: monitor channels')
+                print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
+                      f'monitor channels')
                 update_subscriptions()
+        elif args.mode == 'A':
+            while True:
+                print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
+                      f'monitor channels')
+                add_subscriptions()
         else:
-            print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} no mode "{args.mode}" exists')
+            print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: '
+                  f'No mode "{args.mode}" exists')
     else:
-        print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} malformed arguments found!')
+        print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: '
+              f'Malformed arguments found!')
