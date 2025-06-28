@@ -1404,9 +1404,6 @@ def download_all_videos():
     global GEO_BLOCKED_vpn_countries
     global vpn_frequency
 
-    # Skips ALL processing of known videos to speed up skript
-    create_download_archive()
-
     all_videos = get_wanted_videos_from_db()
     for current_video in all_videos:
         video_downloaded = False
@@ -1459,6 +1456,7 @@ def download_video(video):
             'logger': VoidLogger(),  # TODO: This suppresses all errors, we should still see them in exception handling
             'quiet': quiet_download_info,
             'no_warnings': quiet_download_warnings,
+            'download_archive': None, # TODO: This is correct ,yes?
             'cachedir': False,
             'skip_unavailable_fragments': False,  # To abort on missing video parts (largely avoids re-downloading)
             'ignoreerrors': False,
