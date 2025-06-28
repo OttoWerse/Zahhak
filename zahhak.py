@@ -156,20 +156,26 @@ regex_live_channel = re.compile(r'.* LIVE$')
 regex_fake_channel = re.compile(r'^#.*$')
 
 # YT-DLP Error messages
-regex_empty_channel = re.compile(r'This channel does not have a videos tab')
-regex_channel_deleted = re.compile(r'This channel is not available')
+regex_channel_no_videos = re.compile(r'This channel does not have a videos tab')
+regex_channel_unavailable = re.compile(r'This channel is not available')
+regex_channel_removed = re.compile(r'This channel was removed because it violated our Community Guidelines')
+regex_channel_deleted = re.compile(r'This channel does not exist')
+
 regex_playlist_deleted = re.compile(r'The playlist does not exist')
+
 regex_video_age_restricted = re.compile(r'Sign in to confirm your age')
 regex_video_private = re.compile(r'Private video')
 regex_video_unavailable = re.compile(r'Video unavailable')
 regex_video_removed = re.compile(r'This video has been removed')
-regex_video_members_only = re.compile(
-    r'Join this channel to get access to members-only content like this video, and other exclusive perks')
+regex_video_members_only = re.compile(r'Join this channel to get access to members-only content like this video, and other exclusive perks')
 regex_video_members_tier = re.compile(r'This video is available to this channel')
 regex_video_duplicate = re.compile(r'Duplicate entry')
+
 regex_error_connection = re.compile(r'Remote end closed connection without response')
 regex_error_timeout = re.compile(r'The read operation timed out')
-regex_error_getaddrinfo = re.compile(r'getaddrinfo failed')
+regex_error_get_addr_info = re.compile(r'getaddrinfo failed')
+regex_error_win_10054 = re.compile(r'WinError 10054')
+
 # noinspection RegExpRedundantEscape
 regex_val = re.compile(r'[^\.a-zA-Z0-9 -]')
 regex_caps = re.compile(r'[A-Z][A-Z]+')
@@ -388,7 +394,7 @@ def check_channel_availability(channel):
         # return False
         sys.exit()
     except Exception as exception_missing_videos_channel:
-        if regex_empty_channel.search(str(exception_missing_videos_channel)):
+        if regex_channel_no_videos.search(str(exception_missing_videos_channel)):
             print(f'{datetime.now()} {Fore.RED}EMPTY{Style.RESET_ALL} channel '
                   f'"{channel_name}" ({channel_site} {channel_id})')
             # TODO: Update checked date? Return number etc. and in this case, return special case?
@@ -403,14 +409,31 @@ def check_channel_availability(channel):
                   f'"{channel_name}" ({channel_site} {channel_id})')
             vpn_frequency = DEFAULT_vpn_frequency
             return False
-        elif regex_error_getaddrinfo.search(str(exception_missing_videos_channel)):
+        elif regex_error_get_addr_info.search(str(exception_missing_videos_channel)):
             print(f'{datetime.now()} {Fore.RED}GET ADDR INFO FAILED{Style.RESET_ALL} while adding channel '
                   f'"{channel_name}" ({channel_site} {channel_id})')
             vpn_frequency = DEFAULT_vpn_frequency
             return False
-        elif regex_channel_deleted.search(str(exception_missing_videos_channel)):
+        elif regex_error_win_10054.search(str(exception_missing_videos_channel)):
+            print(f'{datetime.now()} {Fore.RED}CONNECTION CLOSED{Style.RESET_ALL} while adding channel '
+                  f'"{channel_name}" ({channel_site} {channel_id})')
+            vpn_frequency = DEFAULT_vpn_frequency
+            return False
+        elif regex_channel_unavailable.search(str(exception_missing_videos_channel)):
             print(
                 f'{datetime.now()} {Fore.RED}GEO BLOCKED{Style.RESET_ALL} while adding channel '
+                f'"{channel_name}" ({channel_site} {channel_id})')
+            vpn_frequency = DEFAULT_vpn_frequency
+            return False
+        elif regex_channel_removed.search(str(exception_missing_videos_channel)):
+            print(
+                f'{datetime.now()} {Fore.RED}GUIDELINE VIOLATION{Style.RESET_ALL} while adding channel '
+                f'"{channel_name}" ({channel_site} {channel_id})')
+            vpn_frequency = DEFAULT_vpn_frequency
+            return False
+        elif regex_channel_deleted.search(str(exception_missing_videos_channel)):
+            print(
+                f'{datetime.now()} {Fore.RED}NONEXISTENT{Style.RESET_ALL} while adding channel '
                 f'"{channel_name}" ({channel_site} {channel_id})')
             vpn_frequency = DEFAULT_vpn_frequency
             return False
@@ -498,7 +521,7 @@ def get_new_channel_videos_from_youtube(channel, ignore_errors, archive_set):
         # return False
         sys.exit()
     except Exception as exception_missing_videos_channel:
-        if regex_empty_channel.search(str(exception_missing_videos_channel)):
+        if regex_channel_no_videos.search(str(exception_missing_videos_channel)):
             print(f'{datetime.now()} {Fore.RED}EMPTY{Style.RESET_ALL} channel '
                   f'"{channel_name}" ({channel_site} {channel_id})')
             # TODO: Update checked date? Return number etc. and in this case, return special case?
@@ -513,13 +536,28 @@ def get_new_channel_videos_from_youtube(channel, ignore_errors, archive_set):
                   f'"{channel_name}" ({channel_site} {channel_id})')
             vpn_frequency = DEFAULT_vpn_frequency
             return None
-        elif regex_error_getaddrinfo.search(str(exception_missing_videos_channel)):
+        elif regex_error_get_addr_info.search(str(exception_missing_videos_channel)):
             print(f'{datetime.now()} {Fore.RED}GET ADDR INFO FAILED{Style.RESET_ALL} while adding channel '
                   f'"{channel_name}" ({channel_site} {channel_id})')
             vpn_frequency = DEFAULT_vpn_frequency
             return None
-        elif regex_channel_deleted.search(str(exception_missing_videos_channel)):
+        elif regex_error_win_10054.search(str(exception_missing_videos_channel)):
+            print(f'{datetime.now()} {Fore.RED}CONNECTION CLOSED{Style.RESET_ALL} while adding channel '
+                  f'"{channel_name}" ({channel_site} {channel_id})')
+            vpn_frequency = DEFAULT_vpn_frequency
+            return None
+        elif regex_channel_unavailable.search(str(exception_missing_videos_channel)):
             print(f'{datetime.now()} {Fore.RED}GEO BLOCKED{Style.RESET_ALL} while adding channel '
+                  f'"{channel_name}" ({channel_site} {channel_id})')
+            vpn_frequency = DEFAULT_vpn_frequency
+            return None
+        elif regex_channel_removed.search(str(exception_missing_videos_channel)):
+            print(f'{datetime.now()} {Fore.RED}GUIDELINE VIOLATION{Style.RESET_ALL} while adding channel '
+                  f'"{channel_name}" ({channel_site} {channel_id})')
+            vpn_frequency = DEFAULT_vpn_frequency
+            return None
+        elif regex_channel_deleted.search(str(exception_missing_videos_channel)):
+            print(f'{datetime.now()} {Fore.RED}NONEXISTENT{Style.RESET_ALL} while adding channel '
                   f'"{channel_name}" ({channel_site} {channel_id})')
             vpn_frequency = DEFAULT_vpn_frequency
             return None
@@ -650,22 +688,22 @@ def get_new_playlist_videos_from_youtube(playlist, ignore_errors, counter, archi
                   f'"{playlist_name}" ({playlist_site} {playlist_id})')
             # TODO: Return number etc. and in this case, return special case?
             return []
-
         elif regex_error_connection.search(str(exception_missing_videos_playlist)):
             print(f'{datetime.now()} {Fore.RED}CLOSED CONNECTION{Style.RESET_ALL} while adding playlist '
                   f'"{playlist_name}" ({playlist_site} {playlist_id})')
             return None
-
         elif regex_error_timeout.search(str(exception_missing_videos_playlist)):
             print(f'{datetime.now()} {Fore.RED}TIME OUT{Style.RESET_ALL} while adding playlist '
                   f'"{playlist_name}" ({playlist_site} {playlist_id})')
             return None
-
-        elif regex_error_getaddrinfo.search(str(exception_missing_videos_playlist)):
+        elif regex_error_get_addr_info.search(str(exception_missing_videos_playlist)):
             print(f'{datetime.now()} {Fore.RED}GET ADDR INFO FAILED{Style.RESET_ALL} while adding playlist '
                   f'"{playlist_name}" ({playlist_site} {playlist_id})')
             return None
-
+        elif regex_error_win_10054.search(str(exception_missing_videos_playlist)):
+            print(f'{datetime.now()} {Fore.RED}CONNECTION CLOSED{Style.RESET_ALL} while adding playlist '
+                  f'"{playlist_name}" ({playlist_site} {playlist_id})')
+            return None
         else:
             print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding playlist '
                   f'"{playlist_name}" ({playlist_site} {playlist_id}): {exception_missing_videos_playlist}')
@@ -882,7 +920,8 @@ def get_channel_details(channel_url, ignore_errors):
             input(f'Dumped JSON... Continue?')
 
         try:
-            info_json['id']
+            # Check if there is an ID in the JSON, otherwise we cannot use it.
+            json_id = info_json['id']
             return info_json
         except KeyboardInterrupt:
             sys.exit()
