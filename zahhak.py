@@ -124,25 +124,14 @@ sleep_time_mysql = 3
 external_ip = '0.0.0.0'
 
 # Only log warnings from yt-dlp and wrapper messages from Ilus
-quiet = True
-if quiet:
-    quiet_check_channel_info = True
-    quiet_check_channel_warnings = True
-    quiet_channel_info = True
-    quiet_channel_warnings = True
-    quiet_playlist_info = True
-    quiet_playlist_warnings = True
-    quiet_download_info = True
-    quiet_download_warnings = True
-else:
-    quiet_check_channel_info = False
-    quiet_check_channel_warnings = False
-    quiet_channel_info = False
-    quiet_channel_warnings = False
-    quiet_playlist_info = False
-    quiet_playlist_warnings = False
-    quiet_download_info = False
-    quiet_download_warnings = False
+quiet_check_channel_info = True
+quiet_check_channel_warnings = True
+quiet_channel_info = True
+quiet_channel_warnings = True
+quiet_playlist_info = True
+quiet_playlist_warnings = True
+quiet_download_info = False
+quiet_download_warnings = False
 
 # Extract FLAT
 # TODO: Combined with ignore Errors != False sometimes only loads first page?!?!?!
