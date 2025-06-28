@@ -35,7 +35,7 @@ sleep_time_vpn = 0
 retry_reconnect_new_vpn_node = 5
 
 # Countries to connect to with NordVPN
-vpn_countries = [
+DEFAULT_vpn_countries = [
     'Austria',
     'Belgium',
     'Bulgaria',
@@ -72,6 +72,8 @@ vpn_countries = [
     'United Kingdom',
 ]
 
+GEO_BLOCKED_vpn_countries = []
+
 # Timeout connecting VPN
 timeout_vpn = 15
 
@@ -87,9 +89,9 @@ retry_extraction_channel = 2
 # Times to try channel processing before reconnecting NordVPN (if enabled) - this repeats every X tries!
 retry_channel_before_reconnecting_vpn = 1
 # Times to try full channel video page processing before switching to using ignore_errors to accept partial processing
-retry_channel_before_ignoring_errors = len(vpn_countries) * 1 * retry_channel_before_reconnecting_vpn
+retry_channel_before_ignoring_errors = len(DEFAULT_vpn_countries) * 1 * retry_channel_before_reconnecting_vpn
 # Times to try channel video page processing before giving up entirely
-retry_channel_before_giving_up = len(vpn_countries) * 2 * retry_channel_before_reconnecting_vpn  #
+retry_channel_before_giving_up = len(DEFAULT_vpn_countries) * 2 * retry_channel_before_reconnecting_vpn  #
 
 # Timeout for channel video page extraction (in seconds)
 timeout_playlist = 24
@@ -98,9 +100,9 @@ retry_extraction_playlist = 2
 # Times to try playlist page processing before reconnecting NordVPN (if enabled) - this repeats every X tries!
 retry_playlist_before_reconnecting_vpn = 1
 # Times to try full playlist page processing before switching to using ignore_errors to accept partial processing
-retry_playlist_before_ignoring_errors = len(vpn_countries) * 1 * retry_playlist_before_reconnecting_vpn
+retry_playlist_before_ignoring_errors = len(DEFAULT_vpn_countries) * 1 * retry_playlist_before_reconnecting_vpn
 # Times to try playlist page processing before giving up entirely
-retry_playlist_before_giving_up = len(vpn_countries) * 2 * retry_playlist_before_reconnecting_vpn  #
+retry_playlist_before_giving_up = len(DEFAULT_vpn_countries) * 2 * retry_playlist_before_reconnecting_vpn  #
 
 # Timeout for video page extraction (in seconds)
 timeout_video = 12
@@ -178,9 +180,12 @@ regex_video_age_restricted = re.compile(r'Sign in to confirm your age')
 regex_video_private = re.compile(r'Private video')
 regex_video_unavailable = re.compile(r'Video unavailable')
 regex_video_unavailable_live = re.compile(r'This live stream recording is not available')
+regex_video_unavailable_geo = re.compile(r'The uploader has not made this video available in your country')
+regex_video_unavailable_geo_fix = re.compile(r'(?<=This video is available in ).*(?<!\.)')
 regex_video_removed = re.compile(r'This video has been removed')
-regex_video_members_only = re.compile(
-    r'Join this channel to get access to members-only content like this video, and other exclusive perks')
+regex_video_members_only = re.compile(r'Join this channel to get access to members-only content like this video, '
+                                      r'and other exclusive perks')
+
 regex_video_members_tier = re.compile(r'This video is available to this channel')
 regex_video_duplicate = re.compile(r'Duplicate entry')
 
@@ -1069,6 +1074,11 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
                 print(f'{datetime.now()} {Fore.RED}UNAVAILABLE{Style.RESET_ALL} video "{video_id}"')
                 return False
 
+            elif regex_video_unavailable_geo.search(str(exception_add_video)):
+                print(f'{datetime.now()} {Fore.RED}GEO BLOCKED{Style.RESET_ALL} video "{video_id}"')
+                #TODO
+                return False
+
             elif regex_video_private.search(str(exception_add_video)):
                 print(f'{datetime.now()} {Fore.RED}PRIVATE{Style.RESET_ALL} video "{video_id}"')
                 return False
@@ -1306,16 +1316,17 @@ def sanitize_name(name, is_user=False):
     return name_sane
 
 
-def reconnect_vpn(counter):
+def reconnect_vpn(counter, vpn_countries=None):
     """Reconnects NordVPN to a random country from list"""
-
     if enable_vpn:
-        timestamp = datetime.now()
-        time_difference = (timestamp - vpn_timestamp).total_seconds()
+        time_difference = (datetime.now() - vpn_timestamp).total_seconds()
         if time_difference < vpn_frequency:
             sleep_time = vpn_frequency - time_difference
             print(f'{datetime.now()} {Fore.YELLOW}WAITING{Style.RESET_ALL} {sleep_time}s before reconnecting', end='\n')
             time.sleep(sleep_time)
+
+        if vpn_countries is None:
+            vpn_countries = DEFAULT_vpn_countries
 
         if counter is None:
             counter = 0
@@ -1389,12 +1400,29 @@ def get_wanted_videos_from_db():
 
 
 def download_all_videos():
+    global GEO_BLOCKED_vpn_countries
+    global vpn_frequency
+
     # Skips ALL processing of known videos to speed up skript
     create_download_archive()
 
     all_videos = get_wanted_videos_from_db()
     for current_video in all_videos:
-        download_video(video=current_video)
+        video_downloaded = False
+        vpn_counter_geo = 0
+        GEO_BLOCKED_vpn_countries = []
+        while not video_downloaded:
+            video_downloaded = download_video(video=current_video)
+            if video_downloaded is True:
+                continue
+            else:
+                if GEO_BLOCKED_vpn_countries:
+                    vpn_frequency = GEO_BLOCKED_vpn_frequency
+                    vpn_counter_geo = reconnect_vpn(vpn_counter_geo, GEO_BLOCKED_vpn_countries)
+                    # To break endless loop
+                    if vpn_counter_geo == 0:
+                        continue
+
 
 
 def download_video(video):
@@ -1511,13 +1539,13 @@ def download_video(video):
                 mysql_cursor.execute(sql, val)
                 mydb.commit()
                 print(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} video "{video_id}"')
-                # TODO? return True
+                return True
             except KeyboardInterrupt:
                 sys.exit()
             except Exception as exception_update_db:
                 print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating video "{video_id}": '
                       f'{exception_update_db}')
-                # TODO? return False
+                return False
 
         except KeyboardInterrupt:
             sys.exit()
@@ -1534,13 +1562,13 @@ def download_video(video):
                     mysql_cursor.execute(sql, val)
                     mydb.commit()
                     print(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} video "{video_id}"')
-                    # TODO? return True
+                    return True
                 except KeyboardInterrupt:
                     sys.exit()
                 except Exception as exception_update_db:
                     print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating video "{video_id}": '
                           f'{exception_update_db}')
-                    # TODO? return False
+                    return False
 
             elif regex_video_removed.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}REMOVED{Style.RESET_ALL} video "{video_id}"')
@@ -1553,13 +1581,13 @@ def download_video(video):
                     mysql_cursor.execute(sql, val)
                     mydb.commit()
                     print(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} video "{video_id}"')
-                    # TODO? return True
+                    return True
                 except KeyboardInterrupt:
                     sys.exit()
                 except Exception as exception_update_db:
                     print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating video "{video_id}": '
                           f'{exception_update_db}')
-                    # TODO? return False
+                    return False
 
             elif (regex_video_unavailable.search(str(exception_download))
                   or regex_video_unavailable_live.search(str(exception_download))):
@@ -1573,13 +1601,31 @@ def download_video(video):
                     mysql_cursor.execute(sql, val)
                     mydb.commit()
                     print(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} video "{video_id}"')
-                    # TODO? return True
+                    return True
                 except KeyboardInterrupt:
                     sys.exit()
                 except Exception as exception_update_db:
                     print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating video "{video_id}": '
                           f'{exception_update_db}')
-                    # TODO? return False
+                    return False
+
+            elif regex_video_unavailable_geo.search(str(exception_download)):
+                print(f'{datetime.now()} {Fore.RED}GEO BLOCKED{Style.RESET_ALL} video "{video_id}"')
+                global GEO_BLOCKED_vpn_countries
+                if not GEO_BLOCKED_vpn_countries:
+                    try:
+                        countries_results = regex_video_unavailable_geo_fix.search(str(exception_download))
+                        countries_str = countries_results.group(0)
+                        countries_list = countries_str.split(', ')
+                        GEO_BLOCKED_vpn_countries = countries_list
+                        return False
+                    except KeyboardInterrupt:
+                        sys.exit()
+                    except Exception as exception_regex_geo_blocked:
+                        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL}: '
+                              f'{exception_regex_geo_blocked}')
+                        # To prevent external endless loop
+                        return True
 
             elif regex_video_private.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}PRIVATE{Style.RESET_ALL} video "{video_id}"')
@@ -1592,13 +1638,13 @@ def download_video(video):
                     mysql_cursor.execute(sql, val)
                     mydb.commit()
                     print(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} video "{video_id}"')
-                    # TODO? return True
+                    return True
                 except KeyboardInterrupt:
                     sys.exit()
                 except Exception as exception_update_db:
                     print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating video "{video_id}": '
                           f'{exception_update_db}')
-                    # TODO? return False
+                    return False
 
             elif regex_video_age_restricted.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}AGE RESTRICTED{Style.RESET_ALL} video "{video_id}"')
@@ -1611,16 +1657,17 @@ def download_video(video):
                     mysql_cursor.execute(sql, val)
                     mydb.commit()
                     print(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} video "{video_id}"')
-                    # TODO? return True
+                    return True
                 except KeyboardInterrupt:
                     sys.exit()
                 except Exception as exception_update_db:
                     print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating video "{video_id}": '
                           f'{exception_update_db}')
-                    # TODO? return False
+                    return False
 
             else:
                 print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} downloading video: {exception_download}')
+                return True
 
 
 def get_monitored_playlists_from_db():
@@ -1774,7 +1821,7 @@ def update_subscriptions():
     all_channels = get_monitored_channels_from_db()
     for current_channel in all_channels:
         # TESTING: random new order of countries each channel
-        random.shuffle(vpn_countries)
+        random.shuffle(DEFAULT_vpn_countries)
 
         current_channel_site = current_channel[0]
         current_channel_id = current_channel[1]
