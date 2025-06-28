@@ -1384,7 +1384,7 @@ def get_wanted_videos_from_db():
         "FROM videos "
         "INNER JOIN playlists ON videos.playlist=playlists.url "
         "INNER JOIN channels ON playlists.channel=channels.url "
-        "WHERE videos.status = 'wanted' "
+        "WHERE (videos.status = 'wanted' OR videos.status = 'broken') "
         "AND videos.download IS TRUE "
         "ORDER BY EXTRACT(year FROM videos.original_date) DESC, EXTRACT(month FROM videos.original_date) DESC, "
         "channels.priority DESC, channels.priority DESC, playlists.priority DESC, videos.original_date DESC;")
