@@ -221,6 +221,7 @@ global_archive_set = set()
 vpn_counter = 0
 vpn_timestamp = datetime.now()
 DEFAULT_vpn_frequency = 100
+GEO_BLOCKED_vpn_frequency = 30
 vpn_frequency = DEFAULT_vpn_frequency
 
 
@@ -436,7 +437,7 @@ def check_channel_availability(channel):
             print(
                 f'{datetime.now()} {Fore.RED}GEO BLOCKED{Style.RESET_ALL} while adding channel '
                 f'"{channel_name}" ({channel_site} {channel_id})')
-            vpn_frequency = DEFAULT_vpn_frequency
+            vpn_frequency = GEO_BLOCKED_vpn_frequency
             return False
         elif regex_channel_removed.search(str(exception_missing_videos_channel)):
             print(
@@ -562,7 +563,7 @@ def get_new_channel_videos_from_youtube(channel, ignore_errors, archive_set):
         elif regex_channel_unavailable.search(str(exception_missing_videos_channel)):
             print(f'{datetime.now()} {Fore.RED}GEO BLOCKED{Style.RESET_ALL} while adding channel '
                   f'"{channel_name}" ({channel_site} {channel_id})')
-            vpn_frequency = DEFAULT_vpn_frequency
+            vpn_frequency = GEO_BLOCKED_vpn_frequency
             return None
         elif regex_channel_removed.search(str(exception_missing_videos_channel)):
             print(f'{datetime.now()} {Fore.RED}GUIDELINE VIOLATION{Style.RESET_ALL} while adding channel '
