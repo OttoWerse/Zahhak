@@ -1527,7 +1527,10 @@ def download_video(video):
             # Run YT-DLP
             with yt_dlp.YoutubeDL(video_download_options) as ilus:
                 ilus.download(video_url)
-            ilus.close()
+
+            # TODO: What does this do?: ilus.close()
+
+            # TODO: This code was NEVER actually executed?! Is it because the above?! OR HWY?!
             # Update DB
             try:
                 mydb = connect_database()
