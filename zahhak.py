@@ -17,8 +17,8 @@ from colorama import init, just_fix_windows_console, Fore, Style
 # TODO https://www.reddit.com/r/youtubedl/comments/1berg2g/is_repeatedly_downloading_api_json_necessary/
 
 '''Download directory settings'''
-directory_download_temp = os.getenv('ZAHHAK_DIR_DOWNLOAD_TEMP', 'C:\#Temp\YouTube')
-directory_download_home = os.getenv('ZAHHAK_DIR_DOWNLOAD_HOME', 'D:\Plex\#Incomplete\YouTube')
+directory_download_temp = os.getenv('ZAHHAK_DIR_DOWNLOAD_TEMP')  # TODO: Default?
+directory_download_home = os.getenv('ZAHHAK_DIR_DOWNLOAD_HOME')  # TODO: Default?
 
 '''MySQL settings'''
 mysql_host = os.getenv('ZAHHAK_MYSQL_HOSTNAME', 'localhost')
@@ -121,14 +121,25 @@ sleep_time_mysql = 3
 external_ip = '0.0.0.0'
 
 # Only log warnings from yt-dlp and wrapper messages from Ilus
-quiet_check_channel_info = True
-quiet_check_channel_warnings = True
-quiet_channel_info = True
-quiet_channel_warnings = True
-quiet_playlist_info = True
-quiet_playlist_warnings = True
-quiet_download_info = False
-quiet_download_warnings = False
+quiet = False
+if quiet:
+    quiet_check_channel_info = True
+    quiet_check_channel_warnings = True
+    quiet_channel_info = True
+    quiet_channel_warnings = True
+    quiet_playlist_info = True
+    quiet_playlist_warnings = True
+    quiet_download_info = True
+    quiet_download_warnings = True
+else:
+    quiet_check_channel_info = False
+    quiet_check_channel_warnings = False
+    quiet_channel_info = False
+    quiet_channel_warnings = False
+    quiet_playlist_info = False
+    quiet_playlist_warnings = False
+    quiet_download_info = False
+    quiet_download_warnings = False
 
 # Extract FLAT
 # TODO: Combined with ignore Errors != False sometimes only loads first page?!?!?!
@@ -166,8 +177,10 @@ regex_playlist_deleted = re.compile(r'The playlist does not exist')
 regex_video_age_restricted = re.compile(r'Sign in to confirm your age')
 regex_video_private = re.compile(r'Private video')
 regex_video_unavailable = re.compile(r'Video unavailable')
+regex_video_unavailable_live = re.compile(r'This live stream recording is not available')
 regex_video_removed = re.compile(r'This video has been removed')
-regex_video_members_only = re.compile(r'Join this channel to get access to members-only content like this video, and other exclusive perks')
+regex_video_members_only = re.compile(
+    r'Join this channel to get access to members-only content like this video, and other exclusive perks')
 regex_video_members_tier = re.compile(r'This video is available to this channel')
 regex_video_duplicate = re.compile(r'Duplicate entry')
 
@@ -795,7 +808,6 @@ def get_channel_playlists_from_db(channel):
     channel_id = channel[1]
     channel_name = channel[2]
 
-
     playlists = []
     retry_db = True
     while retry_db:
@@ -935,7 +947,8 @@ def get_channel_details(channel_url, ignore_errors):
     except KeyboardInterrupt:
         sys.exit()
     except Exception as e:
-        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding channel from URL "{channel_url}": {e}')
+        print(
+            f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding channel from URL "{channel_url}": {e}')
         return None
 
 
@@ -1050,7 +1063,8 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
                 print(f'{datetime.now()} {Fore.RED}REMOVED{Style.RESET_ALL} video "{video_id}"')
                 return False
 
-            elif regex_video_unavailable.search(str(exception_add_video)):
+            elif (regex_video_unavailable.search(str(exception_add_video))
+                  or regex_video_unavailable_live.search(str(exception_add_video))):
                 print(f'{datetime.now()} {Fore.RED}UNAVAILABLE{Style.RESET_ALL} video "{video_id}"')
                 return False
 
@@ -1348,7 +1362,9 @@ def get_wanted_videos_from_db():
       - videos.url
       - videos.original_date
       - channels.name
+      - channels.url
       - playlists.name
+      - playlists.url
       """
 
     print(f'{datetime.now()} Collecting channels...')
@@ -1357,20 +1373,24 @@ def get_wanted_videos_from_db():
 
     mysql_cursor = mydb.cursor()
 
-    sql = ("SELECT videos.site, videos.url, videos.original_date, channels.name, playlists.name, "
-           "FROM videos "
-           "INNER JOIN playlists ON videos.playlist=playlists.url "
-           "INNER JOIN channels ON playlists.channel=channels.url "
-           "WHERE videos.status = 'wanted' "
-           "AND videos.download IS TRUE "
-           "ORDER BY EXTRACT(year FROM videos.original_date) DESC, EXTRACT(month FROM videos.original_date) DESC, "
-           "channels.priority DESC, channels.priority DESC, playlists.priority DESC, videos.original_date DESC;")
+    sql = (
+        "SELECT videos.site, videos.url, videos.original_date, channels.name, channels.url, playlists.name, playlists.url "
+        "FROM videos "
+        "INNER JOIN playlists ON videos.playlist=playlists.url "
+        "INNER JOIN channels ON playlists.channel=channels.url "
+        "WHERE videos.status = 'wanted' "
+        "AND videos.download IS TRUE "
+        "ORDER BY EXTRACT(year FROM videos.original_date) DESC, EXTRACT(month FROM videos.original_date) DESC, "
+        "channels.priority DESC, channels.priority DESC, playlists.priority DESC, videos.original_date DESC;")
     mysql_cursor.execute(sql)
     mysql_result = mysql_cursor.fetchall()
     return mysql_result
 
 
 def download_all_videos():
+    # Skips ALL processing of known videos to speed up skript
+    create_download_archive()
+
     all_videos = get_wanted_videos_from_db()
     for current_video in all_videos:
         download_video(video=current_video)
@@ -1381,9 +1401,15 @@ def download_video(video):
     video_id = video[1]
     video_date = video[2]
     channel_name = video[3]
-    playlist_name = video[4]
+    channel_id = video[4]
+    playlist_name = video[5]
+    playlist_id = video[6]
 
-    #  TODO: Clear temp directory
+    if directory_download_temp is None or directory_download_home is None:
+        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} download paths are not set!')
+        return False
+
+    #  TODO: Clear temp directory!!!
 
     print(f'{datetime.now()} {Fore.CYAN}DOWNLOADING{Style.RESET_ALL} video "{video_site} - {video_id}"')
 
@@ -1400,13 +1426,14 @@ def download_video(video):
 
         # Set download options for YT-DLP
         video_download_options = {
-            # 'logger': CaptureLogger(),
+            # 'logger': VoidLogger(),  # TODO: This suppresses all errors, we should still see them in exception handling
             'quiet': quiet_download_info,
             'no_warnings': quiet_download_warnings,
             'cachedir': False,
-            'skip_unavailable_fragments': False, # To abort on missing video parts (largely avoids re-downloading)
+            'skip_unavailable_fragments': False,  # To abort on missing video parts (largely avoids re-downloading)
             'ignoreerrors': False,
-            'ignore_no_formats_error': True, # To skip unavailable videos
+            'ignore_no_formats_error': False,
+            # TODO: "ignore_no_formats_error" was "True" to skip unavailable videos, but needs to be "False" to get error to handle in python
             'extractor_retries': retry_extraction_download,
             'socket_timeout': timeout_download,
             'source_address': external_ip,
@@ -1423,12 +1450,13 @@ def download_video(video):
             'writeautomaticsub': True,
             'writeinfojson': True,
             'allow_playlist_files': False,
-            #'check_formats': True,
-            #'format': 'bv*[ext=mp4]+ba*[ext=m4a]/b'
+            # 'check_formats': True,
+            # 'format': 'bv*[ext=mp4]+ba*[ext=m4a]/b'
             'format': 'bestvideo*[ext=mp4][height<=1080]+bestaudio[ext=m4a]',
             'allow_multiple_audio_streams': True,
             'merge_output_format': 'mp4',
-            'subtitleslangs': ['de-orig','en-orig'],
+            'subtitleslangs': ['de-orig', 'en-orig'],
+            'outtmpl': full_path,
             'paths': {
                 'temp': directory_download_temp,
                 'home': directory_download_home,
@@ -1448,43 +1476,150 @@ def download_video(video):
             }],
         }
 
+        r'''# leftover YT-DLP config
+    # Do not remove sponsored segments
+    --no-sponsorblock
+
+    --recode mp4
+
+    # Do not continue download started before (as this willl lead to corruption if initial download was interrupted in any way, including brief internet outages or packet loss)
+    --no-continue
+
+    # Set Retry Handeling
+    --retry-sleep 1
+    --file-access-retries 1000
+    --fragment-retries 30
+    --extractor-retries 3
+
+    # Abort when redirected to "Video Not Available"-page, pieces of video are missing, or any other errors happen
+    --break-match-filters "title!*=Video Not Available"
+        '''
+
         # Try-Except Block to handle YT-DLP exceptions such as "playlist does not exist"
         try:
-            info_json = None
             # Run YT-DLP
             with yt_dlp.YoutubeDL(video_download_options) as ilus:
-                info_json = ilus.sanitize_info(ilus.extract_info(video_url, process=True, download=True))
-                #ilus.download(video_url)
+                ilus.download(video_url)
             ilus.close()
+            # Update DB
+            try:
+                mydb = connect_database()
+                mysql_cursor = mydb.cursor()
+                sql = "UPDATE videos SET status = %s WHERE site = %s AND url = %s;"
+                val = ('fresh', video_site, video_id)
+                mysql_cursor.execute(sql, val)
+                mydb.commit()
+                print(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} video "{video_id}"')
+                # TODO? return True
+            except KeyboardInterrupt:
+                sys.exit()
+            except Exception as exception_update_db:
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating video "{video_id}": '
+                      f'{exception_update_db}')
+                # TODO? return False
 
         except KeyboardInterrupt:
             sys.exit()
         except Exception as exception_download:
-            print(exception_download)
+            if (regex_video_members_only.search(str(exception_download))
+                    or regex_video_members_tier.search(str(exception_download))):
+                print(f'{datetime.now()} {Fore.RED}MEMBERS ONLY{Style.RESET_ALL} video "{video_id}"')
+                # Update DB
+                try:
+                    mydb = connect_database()
+                    mysql_cursor = mydb.cursor()
+                    sql = "UPDATE videos SET status = %s WHERE site = %s AND url = %s;"
+                    val = ('members-only', video_site, video_id)
+                    mysql_cursor.execute(sql, val)
+                    mydb.commit()
+                    print(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} video "{video_id}"')
+                    # TODO? return True
+                except KeyboardInterrupt:
+                    sys.exit()
+                except Exception as exception_update_db:
+                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating video "{video_id}": '
+                          f'{exception_update_db}')
+                    # TODO? return False
 
-        # TODO: Update Database
+            elif regex_video_removed.search(str(exception_download)):
+                print(f'{datetime.now()} {Fore.RED}REMOVED{Style.RESET_ALL} video "{video_id}"')
+                # Update DB
+                try:
+                    mydb = connect_database()
+                    mysql_cursor = mydb.cursor()
+                    sql = "UPDATE videos SET status = %s WHERE site = %s AND url = %s;"
+                    val = ('removed', video_site, video_id)
+                    mysql_cursor.execute(sql, val)
+                    mydb.commit()
+                    print(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} video "{video_id}"')
+                    # TODO? return True
+                except KeyboardInterrupt:
+                    sys.exit()
+                except Exception as exception_update_db:
+                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating video "{video_id}": '
+                          f'{exception_update_db}')
+                    # TODO? return False
 
-    r'''# YT-DLP config
-# Do not remove sponsored segments
---no-sponsorblock
+            elif (regex_video_unavailable.search(str(exception_download))
+                  or regex_video_unavailable_live.search(str(exception_download))):
+                print(f'{datetime.now()} {Fore.RED}UNAVAILABLE{Style.RESET_ALL} video "{video_id}"')
+                # Update DB
+                try:
+                    mydb = connect_database()
+                    mysql_cursor = mydb.cursor()
+                    sql = "UPDATE videos SET status = %s WHERE site = %s AND url = %s;"
+                    val = ('unavailable', video_site, video_id)
+                    mysql_cursor.execute(sql, val)
+                    mydb.commit()
+                    print(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} video "{video_id}"')
+                    # TODO? return True
+                except KeyboardInterrupt:
+                    sys.exit()
+                except Exception as exception_update_db:
+                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating video "{video_id}": '
+                          f'{exception_update_db}')
+                    # TODO? return False
 
---recode mp4
+            elif regex_video_private.search(str(exception_download)):
+                print(f'{datetime.now()} {Fore.RED}PRIVATE{Style.RESET_ALL} video "{video_id}"')
+                # Update DB
+                try:
+                    mydb = connect_database()
+                    mysql_cursor = mydb.cursor()
+                    sql = "UPDATE videos SET status = %s WHERE site = %s AND url = %s;"
+                    val = ('private', video_site, video_id)
+                    mysql_cursor.execute(sql, val)
+                    mydb.commit()
+                    print(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} video "{video_id}"')
+                    # TODO? return True
+                except KeyboardInterrupt:
+                    sys.exit()
+                except Exception as exception_update_db:
+                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating video "{video_id}": '
+                          f'{exception_update_db}')
+                    # TODO? return False
 
-# Do not continue download started before (as this willl lead to corruption if initial download was interrupted in any way, including brief internet outages or packet loss)
---no-continue
+            elif regex_video_age_restricted.search(str(exception_download)):
+                print(f'{datetime.now()} {Fore.RED}AGE RESTRICTED{Style.RESET_ALL} video "{video_id}"')
+                # Update DB
+                try:
+                    mydb = connect_database()
+                    mysql_cursor = mydb.cursor()
+                    sql = "UPDATE videos SET status = %s WHERE site = %s AND url = %s;"
+                    val = ('age-restricted', video_site, video_id)
+                    mysql_cursor.execute(sql, val)
+                    mydb.commit()
+                    print(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} video "{video_id}"')
+                    # TODO? return True
+                except KeyboardInterrupt:
+                    sys.exit()
+                except Exception as exception_update_db:
+                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating video "{video_id}": '
+                          f'{exception_update_db}')
+                    # TODO? return False
 
-# Update MySQL
---exec "after_move:python .\update_database.py %(extractor)q %(id)q %(filepath)q"
-
-# Set Retry Handeling
---retry-sleep 1
---file-access-retries 1000
---fragment-retries 30
---extractor-retries 3
-
-# Abort when redirected to "Video Not Available"-page, pieces of video are missing, or any other errors happen
---break-match-filters "title!*=Video Not Available"
-    '''
+            else:
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} downloading video: {exception_download}')
 
 
 def get_monitored_playlists_from_db():
@@ -1499,7 +1634,6 @@ def get_monitored_playlists_from_db():
       - channels.name
       - channels.priority
       - playlists.download"""
-
 
     playlists = []
     retry_db = True
@@ -1568,17 +1702,17 @@ def get_all_channel_playlists_from_youtube(channel, ignore_errors):
 
     # Set download options for YT-DLP
     channel_playlists_download_options = {'extract_flat': True,
-                                'skip_download': True,
-                                'allow_playlist_files': False,
-                                'quiet': True,
-                                'no_warnings': True,
-                                'ignoreerrors': ignore_errors,
-                                'download_archive': None,
-                                'extractor_args': {'youtube': {'skip': ['configs', 'webpage', 'js']}},
-                                'extractor_retries': retry_extraction_channel,
-                                'socket_timeout': timeout_channel,
-                                'source_address': external_ip
-                                }
+                                          'skip_download': True,
+                                          'allow_playlist_files': False,
+                                          'quiet': True,
+                                          'no_warnings': True,
+                                          'ignoreerrors': ignore_errors,
+                                          'download_archive': None,
+                                          'extractor_args': {'youtube': {'skip': ['configs', 'webpage', 'js']}},
+                                          'extractor_retries': retry_extraction_channel,
+                                          'socket_timeout': timeout_channel,
+                                          'source_address': external_ip
+                                          }
 
     # Try-Except Block to handle YT-DLP exceptions such as "playlist does not exist"
     try:
@@ -1674,7 +1808,8 @@ def update_subscriptions():
                           f'"{current_channel_name}" ({current_channel_site} {current_channel_id})')
                     skip_channel = True
 
-        if not missing_videos_channel:
+        # noinspection PySimplifyBooleanCheck
+        if missing_videos_channel == False:
             print(f'{datetime.now()} {Fore.RED}CRITICAL ERROR{Style.RESET_ALL} while processing channel '
                   f'"{current_channel_name}" ({current_channel_site} {current_channel_id})')
         # After this point we can guarantee the presence of channel video list
@@ -1737,7 +1872,8 @@ def update_subscriptions():
                                 all_playlists_checked_successfully = False
                                 current_playlist_checked_successfully = False
 
-                    if not missing_videos_playlist:
+                    # noinspection PySimplifyBooleanCheck
+                    if missing_videos_playlist == False:
                         print(
                             f'{datetime.now()} {Fore.RED}CRITICAL ERROR{Style.RESET_ALL} while processing playlist "'
                             f'{current_playlist_name}" ({current_playlist_site} {current_playlist_id})')
@@ -1852,10 +1988,12 @@ def add_subscriptions():
             add_channel(channel_id=channel_id, channel_name=channel_name_sane)
 
         if channel_id in database_playlists:
-            print(f'{datetime.now()} {Fore.CYAN}ATTENTION{Style.RESET_ALL} All "Other" videos are already being downloaded!')
+            print(
+                f'{datetime.now()} {Fore.CYAN}ATTENTION{Style.RESET_ALL} All "Other" videos are already being downloaded!')
 
         online_playlists = None
-        online_playlists = get_all_channel_playlists_from_youtube(channel=channel, ignore_errors=DEFAULT_ignore_errors_playlist)
+        online_playlists = get_all_channel_playlists_from_youtube(channel=channel,
+                                                                  ignore_errors=DEFAULT_ignore_errors_playlist)
 
         if online_playlists is not None:
             for online_playlist in online_playlists:
@@ -1930,4 +2068,5 @@ if __name__ == "__main__":
     just_fix_windows_console()
 
     while True:
+        download_all_videos()
         update_subscriptions()
