@@ -1528,9 +1528,9 @@ def download_video(video):
             with yt_dlp.YoutubeDL(video_download_options) as ilus:
                 ilus.download(video_url)
 
-            # TODO: What does this do?: ilus.close()
-
-            # TODO: This code was NEVER actually executed?! Is it because the above?! OR HWY?!
+            # TODO: What happens in the weird edge-case that YT-DLP ends with reaching all retries?
+            #  AFAIK it will write status as "fresh" to DB either way, since it is NOT an exception.
+            #  We NEED to check how to get this information reliably from YT-DLP or change it to raise an exception!
             # Update DB
             try:
                 mydb = connect_database()
