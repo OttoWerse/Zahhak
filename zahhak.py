@@ -124,6 +124,9 @@ retry_extraction_download = 2
 # Sleep time after failed MySQL requests (in seconds)
 sleep_time_mysql = 3
 
+# Sleep time when there is no more videos to download (in seconds)
+sleep_time_download_done = 300
+
 # Use 0.0.0.0 to force IPv4
 external_ip = '0.0.0.0'
 
@@ -1395,21 +1398,25 @@ def download_all_videos():
     global vpn_frequency
 
     all_videos = get_wanted_videos_from_db()
-    for current_video in all_videos:
-        video_downloaded = False
-        vpn_counter_geo = 0
-        GEO_BLOCKED_vpn_countries = []
-        while not video_downloaded:
-            video_downloaded = download_video(video=current_video)
-            if video_downloaded is True:
-                continue
-            else:
-                if GEO_BLOCKED_vpn_countries:
-                    vpn_frequency = GEO_BLOCKED_vpn_frequency
-                    vpn_counter_geo = reconnect_vpn(vpn_counter_geo, GEO_BLOCKED_vpn_countries)
-                    # To break endless loop
-                    if vpn_counter_geo == 0:
-                        continue
+
+    if len(all_videos) == 0:
+        time.sleep(sleep_time_download_done)
+    else:
+        for current_video in all_videos:
+            video_downloaded = False
+            vpn_counter_geo = 0
+            GEO_BLOCKED_vpn_countries = []
+            while not video_downloaded:
+                video_downloaded = download_video(video=current_video)
+                if video_downloaded is True:
+                    continue
+                else:
+                    if GEO_BLOCKED_vpn_countries:
+                        vpn_frequency = GEO_BLOCKED_vpn_frequency
+                        vpn_counter_geo = reconnect_vpn(vpn_counter_geo, GEO_BLOCKED_vpn_countries)
+                        # To break endless loop
+                        if vpn_counter_geo == 0:
+                            continue
 
 
 def download_video(video):
@@ -1535,7 +1542,6 @@ def download_video(video):
                 print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating video "{video_id}": '
                       f'{exception_update_db}')
                 return False
-
         except KeyboardInterrupt:
             sys.exit()
         except Exception as exception_download:
@@ -1558,7 +1564,6 @@ def download_video(video):
                     print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating video "{video_id}": '
                           f'{exception_update_db}')
                     return False
-
             elif regex_video_removed.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}REMOVED{Style.RESET_ALL} video "{video_id}"')
                 # Update DB
@@ -1577,7 +1582,6 @@ def download_video(video):
                     print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating video "{video_id}": '
                           f'{exception_update_db}')
                     return False
-
             elif (regex_video_unavailable.search(str(exception_download))
                   or regex_video_unavailable_live.search(str(exception_download))):
                 print(f'{datetime.now()} {Fore.RED}UNAVAILABLE{Style.RESET_ALL} video "{video_id}"')
@@ -1597,7 +1601,6 @@ def download_video(video):
                     print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating video "{video_id}": '
                           f'{exception_update_db}')
                     return False
-
             elif regex_video_unavailable_geo.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}GEO BLOCKED{Style.RESET_ALL} video "{video_id}"')
                 global GEO_BLOCKED_vpn_countries
@@ -1615,7 +1618,6 @@ def download_video(video):
                               f'{exception_regex_geo_blocked}')
                         # To prevent external endless loop
                         return True
-
             elif regex_video_private.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}PRIVATE{Style.RESET_ALL} video "{video_id}"')
                 # Update DB
@@ -1634,7 +1636,6 @@ def download_video(video):
                     print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating video "{video_id}": '
                           f'{exception_update_db}')
                     return False
-
             elif regex_video_age_restricted.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}AGE RESTRICTED{Style.RESET_ALL} video "{video_id}"')
                 # Update DB
@@ -1653,7 +1654,6 @@ def download_video(video):
                     print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating video "{video_id}": '
                           f'{exception_update_db}')
                     return False
-
             else:
                 print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} downloading video: {exception_download}')
                 return True
