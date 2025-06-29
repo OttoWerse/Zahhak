@@ -1436,7 +1436,9 @@ def download_video(video):
 
     # Clear temp directory
     try:
+        print(f'{datetime.now()} {Fore.CYAN}DELETING TEMP DIRECTORY{Style.RESET_ALL} {directory_download_temp}', end='\r')
         shutil.rmtree(directory_download_temp)
+        print(f'{datetime.now()} {Fore.CYAN}DELETED TEMP DIRECTORY{Style.RESET_ALL} {directory_download_temp}', end='\n')
     except KeyboardInterrupt:
         sys.exit()
     except Exception as exception_clear_temp:
@@ -1460,6 +1462,7 @@ def download_video(video):
             # 'logger': VoidLogger(),  # TODO: This suppresses all errors, we should still see them in exception handling
             'quiet': quiet_download_info,
             'no_warnings': quiet_download_warnings,
+            'verbose': True,
             'download_archive': None,  # TODO: This is correct ,yes?
             'cachedir': False,
             'skip_unavailable_fragments': False,  # To abort on missing video parts (largely avoids re-downloading)
@@ -1477,7 +1480,7 @@ def download_video(video):
             'concurrent_fragment_downloads': 20,
             'overwrites': True,
             'writethumbnail': True,
-            #'embedthumbnail': True,
+            'embedthumbnail': True,
             'writesubtitles': True,
             'writeautomaticsub': True,
             'writeinfojson': True,
@@ -1502,9 +1505,10 @@ def download_video(video):
                     'key': 'FFmpegMetadata',
                     'add_metadata': True,
                 },
-                {
-                    'key': 'EmbedThumbnail',
-                },
+                # This BREAKS thumbnail downloading, use config "'embedthumbnail': True" instead!
+                #{
+                #    'key': 'EmbedThumbnail',
+                #},
                 {
                     'key': 'FFmpegThumbnailsConvertor',
                     'format': 'png',
