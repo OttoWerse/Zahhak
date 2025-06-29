@@ -1462,7 +1462,7 @@ def download_video(video):
             # 'logger': VoidLogger(),  # TODO: This suppresses all errors, we should still see them in exception handling
             'quiet': quiet_download_info,
             'no_warnings': quiet_download_warnings,
-            'verbose': True,
+            #'verbose': True,
             'download_archive': None,  # TODO: This is correct ,yes?
             'cachedir': False,
             'skip_unavailable_fragments': False,  # To abort on missing video parts (largely avoids re-downloading)
