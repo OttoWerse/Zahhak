@@ -1477,7 +1477,7 @@ def download_video(video):
             'concurrent_fragment_downloads': 20,
             'overwrites': True,
             'writethumbnail': True,
-            'embedthumbnail': True,
+            #'embedthumbnail': True,
             'writesubtitles': True,
             'writeautomaticsub': True,
             'writeinfojson': True,
@@ -1493,19 +1493,24 @@ def download_video(video):
                 'temp': directory_download_temp,
                 'home': directory_download_home,
             },
-            'postprocessors': [{
-                'key': 'FFmpegVideoConvertor',
-                'preferedformat': 'mp4'
-            }, {
-                'key': 'FFmpegMetadata',
-                'add_metadata': True,
-            }, {
-                'key': 'EmbedThumbnail',
-            }, {
-                'key': 'FFmpegThumbnailsConvertor',
-                'format': 'png',
-                'when': 'before_dl'
-            }],
+            'postprocessors': [
+                {
+                    'key': 'FFmpegVideoConvertor',
+                    'preferedformat': 'mp4',
+                },
+                {
+                    'key': 'FFmpegMetadata',
+                    'add_metadata': True,
+                },
+                {
+                    'key': 'EmbedThumbnail',
+                },
+                {
+                    'key': 'FFmpegThumbnailsConvertor',
+                    'format': 'png',
+                    'when': 'before_dl',
+                }
+            ],
         }
 
         r'''# leftover YT-DLP config
@@ -1537,7 +1542,7 @@ def download_video(video):
                 path = meta['requested_downloads'][0]['filepath']
                 # TODO: new format?
                 #  path = path[len(directory_download_home)+len(os.sep):len(path)-len('.mp4')]
-                path = path[len(directory_download_home)+len(os.sep):len(path)]
+                path = path[len(directory_download_home) + len(os.sep):len(path)]
 
             # What happens in the weird edge-case that YT-DLP ends with reaching all retries?
             # It does not progress past this point, but also does not throw an exception. No IDK how/why.
