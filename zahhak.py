@@ -1505,10 +1505,10 @@ def download_video(video):
                     'key': 'FFmpegMetadata',
                     'add_metadata': True,
                 },
-                # This BREAKS thumbnail downloading, use config "'embedthumbnail': True" instead!
-                #{
-                #    'key': 'EmbedThumbnail',
-                #},
+                {
+                    'key': 'EmbedThumbnail',
+                    'already_have_thumbnail': True,
+                },
                 {
                     'key': 'FFmpegThumbnailsConvertor',
                     'format': 'png',
