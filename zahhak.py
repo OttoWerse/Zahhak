@@ -147,7 +147,12 @@ extract_flat_playlist = False  # Leave as False to avoid extraction of every sin
 
 # Availability Filter
 # filter_availability = 'availability=public,unlisted,needs_auth,subscriber_only,premium_only'
-filter_availability = 'availability=public,unlisted'
+filter_availability = 'availability=public,unlisted '
+# TODO: Neither of these filters work for actually filtering shorts on the playlist/channel level!
+# filter_shorts = '& tags !*= shorts & original_url!=/shorts/ & url!=/shorts/ '
+filter_shorts = '& media_type != short '
+filter_livestream_current = '& !is_live '
+filter_livestream_recording = '& !was_live '
 
 # Set ignore error options
 # TODO: Look into what happens if you use False, catch an error like "Private Video" and then do nothing with it. e.g. will yt-dlp continue on
@@ -404,7 +409,7 @@ def check_channel_availability(channel):
         # Run YT-DLP
         with yt_dlp.YoutubeDL(channel_download_options) as ilus:
             info_json = ilus.sanitize_info(ilus.extract_info(channel_url, process=True, download=False))
-        ilus.close()
+
     except KeyboardInterrupt:
         # DEBUG: Skip problematic channels
         # return False
@@ -497,11 +502,13 @@ def get_new_channel_videos_from_youtube(channel, ignore_errors, archive_set):
         # TODO: Update checked date? Return number etc. and in this case, return special case?
         return ['FAKE']
 
-    # Filter out members only content on the channel lavel
+    # Filter out members only content on the channel level
     filter_text = filter_availability
 
     # Set channel URL
-    channel_url = f'https://www.youtube.com/channel/{channel_id}/videos'
+    # channel_url = f'https://www.youtube.com/channel/{channel_id}/videos'
+    # TODO: This will lead to shorts being added regardless of filter!
+    channel_url = f'https://www.youtube.com/playlist?list={re.sub('^UC', 'UU', channel_id)}'
 
     # Set download options for YT-DLP
     channel_download_options = {
@@ -528,7 +535,7 @@ def get_new_channel_videos_from_youtube(channel, ignore_errors, archive_set):
         # Run YT-DLP
         with yt_dlp.YoutubeDL(channel_download_options) as ilus:
             info_json = ilus.sanitize_info(ilus.extract_info(channel_url, process=True, download=False))
-        ilus.close()
+
     except KeyboardInterrupt:
         # DEBUG: Skip problematic channels
         # return False
@@ -603,7 +610,7 @@ def get_new_channel_videos_from_youtube(channel, ignore_errors, archive_set):
 
             return videos
         else:
-            # TODO: IDK if channel handeling in main can handle this, so I am just sending None as in other error cases
+            # TODO: IDK if channel handling in main can handle this, so I am just sending None as in other error cases
             # return False
             return None
 
@@ -635,19 +642,21 @@ def get_new_playlist_videos_from_youtube(playlist, ignore_errors, counter, archi
     if playlist_name == playlist_name_livestreams or regex_live_channel.search(channel_name):
         print(f'{datetime.now()} {Fore.CYAN}LIVE{Style.RESET_ALL} playlist '
               f'"{playlist_name}" ({playlist_site} {playlist_id})')
-        filter_text = filter_availability + ' & !is_live & tags !*= shorts'
+        filter_text = (filter_availability + filter_livestream_current + filter_shorts)
     elif playlist_name == playlist_name_shorts:
         print(f'{datetime.now()} {Fore.CYAN}SHORTS{Style.RESET_ALL} playlist '
               f'"{playlist_name}" ({playlist_site} {playlist_id})')
-        filter_text = filter_availability + ' & !is_live & !was_live'
+        filter_text = (filter_availability + filter_livestream_current + filter_livestream_recording)
     else:
-        filter_text = filter_availability + ' & !is_live & !was_live & tags !*= shorts'
+        filter_text = (filter_availability + filter_livestream_current + filter_livestream_recording + filter_shorts)
 
     # Set playlist URL
     # User Channel
     if re.search("^UC.*$", playlist_id):
         # Standard format for YouTube channel IDs (e.g. all videos "playlist")
-        playlist_url = f'https://www.youtube.com/channel/{playlist_id}/videos'
+        # playlist_url = f'https://www.youtube.com/channel/{playlist_id}/videos'
+        # TODO: This leads to shorts being added regardless of filter!
+        playlist_url = f'https://www.youtube.com/playlist?list={re.sub('^UC', 'UU', channel_id)}'
         timeout = timeout_channel
 
         if counter > 3:
@@ -691,7 +700,6 @@ def get_new_playlist_videos_from_youtube(playlist, ignore_errors, counter, archi
         # Run YT-DLP
         with yt_dlp.YoutubeDL(playlist_download_options) as ilus:
             info_json = ilus.sanitize_info(ilus.extract_info(playlist_url, process=True, download=False))
-        ilus.close()
 
     except KeyboardInterrupt:
         sys.exit()
@@ -884,7 +892,6 @@ def get_video_details(video_id, archive_set):
     # Run YT-DLP
     with yt_dlp.YoutubeDL(video_download_options) as ilus:
         info_json = ilus.sanitize_info(ilus.extract_info(video_url, process=True, download=False))
-    ilus.close()
 
     if DEBUG_json_video_details:
         with open('debug.json', 'w', encoding='utf-8') as json_file:
@@ -924,7 +931,6 @@ def get_channel_details(channel_url, ignore_errors):
         # Run YT-DLP
         with yt_dlp.YoutubeDL(channel_download_options) as ilus:
             info_json = ilus.sanitize_info(ilus.extract_info(channel_url, process=True, download=False))
-        ilus.close()
 
         if DEBUG_channel_id:
             with open('debug.json', 'w', encoding='utf-8') as f:
@@ -952,7 +958,7 @@ def get_channel_details(channel_url, ignore_errors):
         return None
 
 
-def add_video(video, channel_site, channel_id, playlist_id, download, archive_set):
+def add_video(video, channel_site, channel_id, playlist_id, download, archive_set, add_short, add_livestream):
     """Adds a video to given playlist/channel in database"""
     if video is None:
         print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} no video!')
@@ -976,6 +982,21 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
               f'{exception_add_video}')
         return False
 
+    try:
+        video_type = video['media_type']
+        if video_type == 'short' and not add_short:
+            print(f'{datetime.now()} {Fore.YELLOW}SKIPPING{Style.RESET_ALL} video "{video_id}" type "{video_type}"')
+            return False
+        if video_type == 'livestream' and not add_livestream:
+            print(f'{datetime.now()} {Fore.YELLOW}SKIPPING{Style.RESET_ALL} video "{video_id}" type "{video_type}"')
+            return False
+    except KeyboardInterrupt:
+        sys.exit()
+    except Exception as exception_video_type:
+        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding video "{video}": '
+              f'{exception_video_type}')
+        return False
+
     # Reset dates
     original_date = None
     upload_date = None
@@ -991,14 +1012,14 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
         except KeyboardInterrupt:
             sys.exit()
         except Exception as exception_date:
-            print(f'{datetime.now()} {Fore.YELLOW}MISSING{Style.RESET_ALL} reading JSON field {exception_date}')
+            print(f'{datetime.now()} {Fore.YELLOW}MISSING{Style.RESET_ALL} JSON field {exception_date}')
 
         try:
             release_date = video['release_date']
         except KeyboardInterrupt:
             sys.exit()
         except Exception as exception_date:
-            print(f'{datetime.now()} {Fore.YELLOW}MISSING{Style.RESET_ALL} reading JSON field {exception_date}')
+            print(f'{datetime.now()} {Fore.YELLOW}MISSING{Style.RESET_ALL} JSON field {exception_date}')
 
     except KeyboardInterrupt:
         sys.exit()
@@ -1070,11 +1091,12 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
 
             elif regex_video_unavailable_geo.search(str(exception_add_video)):
                 print(f'{datetime.now()} {Fore.RED}GEO BLOCKED{Style.RESET_ALL} video "{video_id}"')
-                # TODO
+                # TODO: Handle geo location change?
                 return False
 
             elif regex_video_private.search(str(exception_add_video)):
                 print(f'{datetime.now()} {Fore.RED}PRIVATE{Style.RESET_ALL} video "{video_id}"')
+                # TODO: Add to DB as private? (needs frequent re-checking of all private videos to get pre-uploaded videos)
                 return False
 
             elif regex_video_age_restricted.search(str(exception_add_video)):
@@ -1170,7 +1192,7 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
 
             archive_set.add(f'{video_site} {video_id}')
 
-            print(f'{datetime.now()} {Fore.GREEN}ADDED{Style.RESET_ALL} video "{video_id}"')
+            print(f'{datetime.now()} {Fore.GREEN}ADDED{Style.RESET_ALL} video "{video_id}"      ', end='\n')
             return True
 
         except KeyboardInterrupt:
@@ -1436,9 +1458,11 @@ def download_video(video):
 
     # Clear temp directory
     try:
-        print(f'{datetime.now()} {Fore.CYAN}DELETING TEMP DIRECTORY{Style.RESET_ALL} {directory_download_temp}', end='\r')
+        print(f'{datetime.now()} {Fore.CYAN}DELETING TEMP DIRECTORY{Style.RESET_ALL} {directory_download_temp}',
+              end='\r')
         shutil.rmtree(directory_download_temp)
-        print(f'{datetime.now()} {Fore.CYAN}DELETED TEMP DIRECTORY{Style.RESET_ALL} {directory_download_temp}', end='\n')
+        print(f'{datetime.now()} {Fore.CYAN}DELETED TEMP DIRECTORY{Style.RESET_ALL} {directory_download_temp} ',
+              end='\n')
     except KeyboardInterrupt:
         sys.exit()
     except Exception as exception_clear_temp:
@@ -1462,7 +1486,7 @@ def download_video(video):
             # 'logger': VoidLogger(),  # TODO: This suppresses all errors, we should still see them in exception handling
             'quiet': quiet_download_info,
             'no_warnings': quiet_download_warnings,
-            #'verbose': True,
+            # 'verbose': True,
             'download_archive': None,  # TODO: This is correct ,yes?
             'cachedir': False,
             'skip_unavailable_fragments': False,  # To abort on missing video parts (largely avoids re-downloading)
@@ -1782,7 +1806,6 @@ def get_all_channel_playlists_from_youtube(channel, ignore_errors):
         # Run YT-DLP
         with yt_dlp.YoutubeDL(channel_playlists_download_options) as ilus:
             info_json = ilus.sanitize_info(ilus.extract_info(channel_playlists_url, process=True, download=False))
-        ilus.close()
 
         if DEBUG_channel_playlists:
             with open('debug.json', 'w', encoding='utf-8') as json_file:
@@ -1958,7 +1981,12 @@ def update_subscriptions():
                                                             channel_id=current_channel_id,
                                                             playlist_id=current_playlist_id,
                                                             download=current_playlist_download,
-                                                            archive_set=global_archive_set)
+                                                            archive_set=global_archive_set,
+                                                            add_short=current_playlist_name == playlist_name_shorts,
+                                                            add_livestream=(
+                                                                    current_playlist_name == playlist_name_livestreams
+                                                                    or regex_live_channel.search(current_channel_name)
+                                                            ))
 
                                     counter_process_video += 1
 
