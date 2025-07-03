@@ -1084,20 +1084,22 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
                 final_download = download
             else:
                 final_download = False
-            add_playlist(playlist_id=final_playlist_id,
-                         playlist_name=playlist_name_shorts,
-                         channel_id=channel_id,
-                         download=final_download, )
+            # TODO: This is not matching our data model, it leads to just ONE playlist for all shorts which changes channel ownership
+            # add_playlist(playlist_id=final_playlist_id,
+            #              playlist_name=playlist_name_shorts,
+            #              channel_id=channel_id,
+            #              download=final_download, )
         elif video_type == 'livestream':
             final_playlist_id = '#livestreams'
             if download_livestreams:
                 final_download = download
             else:
                 final_download = False
-            add_playlist(playlist_id=final_playlist_id,
-                         playlist_name=playlist_name_livestreams,
-                         channel_id=channel_id,
-                         download=final_download, )
+            # TODO: This is not matching our data model, it leads to just ONE playlist for all livestreams which changes channel ownership
+            # add_playlist(playlist_id=final_playlist_id,
+            #              playlist_name=playlist_name_livestreams,
+            #              channel_id=channel_id,
+            #              download=final_download, )
     except KeyboardInterrupt:
         sys.exit()
     except Exception as exception_media_type:
@@ -1889,6 +1891,7 @@ def get_all_playlist_videos_from_youtube(playlist):
                                          ignore_errors=DEFAULT_ignore_errors_channel,
                                          archive_set=set(),
                                          counter=0)
+
 
 def add_playlist_videos(videos):
     pass
