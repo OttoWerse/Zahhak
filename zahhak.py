@@ -15,7 +15,7 @@ from colorama import init, just_fix_windows_console, Fore, Style
 
 # TODO: Extract Flat causes only first page to be loaded. Bug is old, but certainly back: https://github.com/ytdl-org/youtube-dl/issues/28075
 # TODO: Look into using logger, progress_hooks, progress (https://github.com/yt-dlp/yt-dlp/issues/66)
-# TODO: Ignoring no format error leads to unavailable videos to also be in entries (videos) list (for playlists at least), this is now handled by checking the date and passing if none can be found. Since this leaves us a bit open to ignoring date oddities, we should look into filtering these unavailable videos out (do NOT remove ingore no format error option, it will lead to ABORTION!) https://github.com/yt-dlp/yt-dlp/issues/9810
+# TODO: Ignoring no format error leads to unavailable videos to also be in entries (videos) list (for playlists at least), this is now handled by checking the date and passing if none can be found. Since this leaves us a bit open to ignoring date oddities, we should look into filtering these unavailable videos out (do NOT remove ignore no format error option, it will lead to ABORTION!) https://github.com/yt-dlp/yt-dlp/issues/9810
 # TODO https://www.reddit.com/r/youtubedl/comments/1berg2g/is_repeatedly_downloading_api_json_necessary/
 
 '''Download directory settings'''
@@ -137,8 +137,8 @@ quiet_channel_info = True
 quiet_channel_warnings = True
 quiet_playlist_info = True
 quiet_playlist_warnings = True
-quiet_download_info = False
-quiet_download_warnings = False
+quiet_download_info = True
+quiet_download_warnings = True
 
 # Extract FLAT
 # TODO: Combined with ignore Errors != False sometimes only loads first page?!?!?!
@@ -164,11 +164,19 @@ DEFAULT_ignore_errors_playlist = False
 # DEFAULT_ignore_errors_channel           = 'only_download'
 # DEFAULT_ignore_errors_playlist          = 'only_download'
 
+'''Media Types'''
+download_shorts = False
+download_livestreams = False
+
+'''STRINGS'''
+playlist_name_shorts = 'Shorts'
+playlist_name_livestreams = 'Livestreams'
 
 '''REGEX'''
 # Channel names
 regex_live_channel = re.compile(r'.* LIVE$')
 regex_fake_channel = re.compile(r'^#.*$')
+regex_fake_playlist = re.compile(r'^#.*$')
 
 # YT-DLP Error messages
 regex_channel_no_videos = re.compile(r'This channel does not have a videos tab')
@@ -189,25 +197,23 @@ regex_video_members_only = re.compile(r'Join this channel to get access to membe
                                       r'and other exclusive perks')
 
 regex_video_members_tier = re.compile(r'This video is available to this channel')
-regex_video_duplicate = re.compile(r'Duplicate entry')
 
 regex_error_connection = re.compile(r'Remote end closed connection without response')
 regex_error_timeout = re.compile(r'The read operation timed out')
 regex_error_get_addr_info = re.compile(r'getaddrinfo failed')
 regex_error_win_10054 = re.compile(r'WinError 10054')
 
+regex_sql_duplicate = re.compile(r'Duplicate entry')
+
 # noinspection RegExpRedundantEscape
 regex_val = re.compile(r'[^\.a-zA-Z0-9 -]')
 regex_caps = re.compile(r'[A-Z][A-Z]+')
-
-'''STRINGS'''
-playlist_name_livestreams = 'Livestreams'
-playlist_name_shorts = 'Shorts'
 
 '''DEBUG'''
 DEBUG_empty_video = False
 DEBUG_add_video = False
 DEBUG_force_date = False
+DEBUG_log_date_fields_missing = False
 DEBUG_unavailable = False
 DEBUG_update_channel = False
 DEBUG_update_playlist = False
@@ -311,7 +317,7 @@ def update_channel(date, channel):
         mydb.commit()
 
         print(f'{datetime.now()} {Fore.CYAN}MARKED{Style.RESET_ALL} channel '
-              f'"{channel_site} {channel_id}" as checked on {date}')
+              f'"{channel_site} {channel_id}" as checked')
         return True
 
     except KeyboardInterrupt:
@@ -346,7 +352,7 @@ def update_playlist(date, playlist):
         mydb.commit()
 
         print(f'{datetime.now()} {Fore.CYAN}MARKED{Style.RESET_ALL} playlist '
-              f'"{playlist_name}" ({playlist_site} {playlist_id}) as checked on {date}')
+              f'"{playlist_name}" ({playlist_site} {playlist_id}) as checked')
         return True
 
     except KeyboardInterrupt:
@@ -384,7 +390,7 @@ def check_channel_availability(channel):
     # Set channel URL
     channel_url = f'https://www.youtube.com/channel/{channel_id}/videos'
 
-    # Ingoring errors here would be uniwse, I think...
+    # Ignoring errors here would be unwise, I think...
     ignore_errors = False
 
     # Set download options for YT-DLP
@@ -642,10 +648,12 @@ def get_new_playlist_videos_from_youtube(playlist, ignore_errors, counter, archi
     if playlist_name == playlist_name_livestreams or regex_live_channel.search(channel_name):
         print(f'{datetime.now()} {Fore.CYAN}LIVE{Style.RESET_ALL} playlist '
               f'"{playlist_name}" ({playlist_site} {playlist_id})')
+        # TODO: get this info into add_video method?
         filter_text = (filter_availability + filter_livestream_current + filter_shorts)
     elif playlist_name == playlist_name_shorts:
         print(f'{datetime.now()} {Fore.CYAN}SHORTS{Style.RESET_ALL} playlist '
               f'"{playlist_name}" ({playlist_site} {playlist_id})')
+        # TODO: get this info into add_video method?
         filter_text = (filter_availability + filter_livestream_current + filter_livestream_recording)
     else:
         filter_text = (filter_availability + filter_livestream_current + filter_livestream_recording + filter_shorts)
@@ -667,6 +675,11 @@ def get_new_playlist_videos_from_youtube(playlist, ignore_errors, counter, archi
         # Standard format for YouTube playlist IDs
         playlist_url = f'https://www.youtube.com/playlist?list={playlist_id}'
         timeout = timeout_playlist
+
+    # Skip fake playlists created for shorts and livestreams
+    elif regex_fake_playlist.search(playlist_id):
+        print(f'{datetime.now()} {Fore.YELLOW}SKIPPING{Style.RESET_ALL} playlist "{playlist_id}" ({playlist_id})')
+        return []  # Return empty list to not trigger continuous retry on playlists with unknown format
 
     else:
         # ID format unknown
@@ -754,7 +767,7 @@ def get_new_playlist_videos_from_youtube(playlist, ignore_errors, counter, archi
 
             return videos
         else:
-            # TODO: IDK if playlist handeling in main can handle this, so I am just sending None as in other error cases
+            # TODO: IDK if playlist handling in main can handle this, so I am just sending None as in other error cases
             # return False
             return None
 
@@ -916,7 +929,6 @@ def get_channel_details(channel_url, ignore_errors):
                                 'allow_playlist_files': False,
                                 'quiet': True,
                                 'no_warnings': True,
-                                # 'noplaylist': True,
                                 'playlist_items': '0',
                                 'ignoreerrors': ignore_errors,
                                 'download_archive': None,
@@ -934,12 +946,15 @@ def get_channel_details(channel_url, ignore_errors):
 
         if DEBUG_channel_id:
             with open('debug.json', 'w', encoding='utf-8') as f:
+                # noinspection PyTypeChecker
                 json.dump(info_json, f, ensure_ascii=False, indent=4)
             input(f'Dumped JSON... Continue?')
 
         try:
             # Check if there is an ID in the JSON, otherwise we cannot use it.
             json_id = info_json['id']
+            print(f'{datetime.now()} {Fore.GREEN}FOUND{Style.RESET_ALL} channel ID  "{json_id}" in Info JSON ',
+                  end='\r')
             return info_json
         except KeyboardInterrupt:
             sys.exit()
@@ -958,7 +973,79 @@ def get_channel_details(channel_url, ignore_errors):
         return None
 
 
-def add_video(video, channel_site, channel_id, playlist_id, download, archive_set, add_short, add_livestream):
+def add_channel(channel_id, channel_name):
+    channel_site = 'youtube'
+
+    channel_priority = 100
+
+    try:
+        mydb = mysql.connector.connect(
+            host=mysql_host,
+            user=mysql_user,
+            password=mysql_password,
+            database=mysql_database)
+
+        mysql_cursor = mydb.cursor()
+
+        sql = "INSERT INTO channels (site, url, name, priority) VALUES (%s, %s, %s, %s)"
+        val = (channel_site, channel_id, channel_name, channel_priority)
+        mysql_cursor.execute(sql, val)
+        mydb.commit()
+
+        print(f'{datetime.now()} {Fore.GREEN}NEW CHANNEL{Style.RESET_ALL}: '
+              f'"{channel_name}" ({channel_site} {channel_id})')
+        print()
+
+    except KeyboardInterrupt:
+        sys.exit()
+    except Exception as e:
+        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding playlist '
+              f'"{channel_name}" ({channel_site} {channel_id}): {e}')
+        return None
+
+
+def add_playlist(playlist_id, playlist_name, channel_id, download):
+    playlist_site = 'youtube'
+
+    if channel_id == playlist_id:
+        playlist_priority = 0
+    elif download:
+        playlist_priority = 100
+    else:
+        # TODO: WHY did we ever add this? It seems convoluted, we need to rework the whole idea of "unwanted" videos!
+        playlist_priority = -1
+
+    try:
+        mydb = mysql.connector.connect(
+            host=mysql_host,
+            user=mysql_user,
+            password=mysql_password,
+            database=mysql_database)
+
+        mysql_cursor = mydb.cursor()
+
+        sql = "INSERT INTO playlists (site, url, name, channel, priority, download) VALUES (%s, %s, %s, %s, %s, %s)"
+        val = (playlist_site, playlist_id, playlist_name, channel_id, playlist_priority, download)
+        mysql_cursor.execute(sql, val)
+        mydb.commit()
+
+        print(f'{datetime.now()} {Fore.GREEN}NEW PLAYLIST{Style.RESET_ALL}: '
+              f'"{playlist_name}" ({playlist_site} {playlist_id})')
+        print()
+
+    except KeyboardInterrupt:
+        sys.exit()
+    except Exception as exception_add_video:
+        if regex_sql_duplicate.search(str(exception_add_video)):
+            # TODO: return parameter of this needs reworking but cannot be bothered right now FR
+            pass
+        else:
+            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding playlist '
+                  f'"{playlist_name}" ({playlist_site} {playlist_id}): {exception_add_video}')
+            return None
+
+
+def add_video(video, channel_site, channel_id, playlist_id, download, archive_set):
     """Adds a video to given playlist/channel in database"""
     if video is None:
         print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} no video!')
@@ -982,19 +1069,36 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
               f'{exception_add_video}')
         return False
 
+    # Get Media Type
+    final_playlist_id = playlist_id
+    final_download = download
     try:
         video_type = video['media_type']
-        if video_type == 'short' and not add_short:
-            print(f'{datetime.now()} {Fore.YELLOW}SKIPPING{Style.RESET_ALL} video "{video_id}" type "{video_type}"')
-            return False
-        if video_type == 'livestream' and not add_livestream:
-            print(f'{datetime.now()} {Fore.YELLOW}SKIPPING{Style.RESET_ALL} video "{video_id}" type "{video_type}"')
-            return False
+        if video_type == 'short':
+            final_playlist_id = '#shorts'
+            if download_shorts:
+                final_download = download
+            else:
+                final_download = False
+            add_playlist(playlist_id=final_playlist_id,
+                         playlist_name=playlist_name_shorts,
+                         channel_id=channel_id,
+                         download=final_download, )
+        elif video_type == 'livestream':
+            final_playlist_id = '#livestreams'
+            if download_livestreams:
+                final_download = download
+            else:
+                final_download = False
+            add_playlist(playlist_id=final_playlist_id,
+                         playlist_name=playlist_name_livestreams,
+                         channel_id=channel_id,
+                         download=final_download, )
     except KeyboardInterrupt:
         sys.exit()
-    except Exception as exception_video_type:
-        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding video "{video}": '
-              f'{exception_video_type}')
+    except Exception as exception_media_type:
+        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while getting media type for video "{video}": '
+              f'{exception_media_type}')
         return False
 
     # Reset dates
@@ -1012,14 +1116,16 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
         except KeyboardInterrupt:
             sys.exit()
         except Exception as exception_date:
-            print(f'{datetime.now()} {Fore.YELLOW}MISSING{Style.RESET_ALL} JSON field {exception_date}')
+            if DEBUG_log_date_fields_missing:
+                print(f'{datetime.now()} {Fore.YELLOW}MISSING{Style.RESET_ALL} JSON field {exception_date}')
 
         try:
             release_date = video['release_date']
         except KeyboardInterrupt:
             sys.exit()
         except Exception as exception_date:
-            print(f'{datetime.now()} {Fore.YELLOW}MISSING{Style.RESET_ALL} JSON field {exception_date}')
+            if DEBUG_log_date_fields_missing:
+                print(f'{datetime.now()} {Fore.YELLOW}MISSING{Style.RESET_ALL} JSON field {exception_date}')
 
     except KeyboardInterrupt:
         sys.exit()
@@ -1069,9 +1175,6 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
                 except Exception as exception_date:
                     print(exception_date)
 
-            # video_id = info_json['id']
-            # site = info_json['extractor']
-
         except KeyboardInterrupt:
             sys.exit()
         except Exception as exception_add_video:
@@ -1110,7 +1213,7 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
 
                     sql = ("INSERT INTO videos (channel, playlist, site, url, status, download) "
                            "VALUES (%s, %s, %s, %s, %s, %s);")
-                    val = (channel_id, playlist_id, channel_site, video_id, 'age-restricted', download)
+                    val = (channel_id, final_playlist_id, channel_site, video_id, 'age-restricted', final_download)
 
                     if DEBUG_unavailable:
                         input(val)
@@ -1126,7 +1229,7 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
                 except KeyboardInterrupt:
                     sys.exit()
                 except Exception as exception_add_video:
-                    if regex_video_duplicate.search(str(exception_add_video)):
+                    if regex_sql_duplicate.search(str(exception_add_video)):
                         print(f'{datetime.now()} {Fore.RED}DUPLICATE{Style.RESET_ALL} video "{video_id}"')
                         return True
                     else:
@@ -1172,11 +1275,14 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
     # Update DB
     if original_date is not None:
         try:
-            print(f'{datetime.now()} {Fore.GREEN}FOUND{Style.RESET_ALL} missing video {video_id}', end='\r')
 
-            if download:
+            if final_download:
+                print(f'{datetime.now()} {Fore.CYAN}ADDING{Style.RESET_ALL} video {video_id} type "{video_type}"',
+                      end='\r')
                 video_status = 'wanted'
             else:
+                print(f'{datetime.now()} {Fore.CYAN}SKIPPING{Style.RESET_ALL} video "{video_id}" type "{video_type}"',
+                      end='\r')
                 video_status = 'unwanted'
 
             mydb = connect_database()
@@ -1184,7 +1290,8 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
             mysql_cursor = mydb.cursor()
             sql = ("INSERT INTO videos (channel, playlist, site, url, status, original_date, download) "
                    "VALUES (%s, %s, %s, %s, %s, %s, %s)")
-            val = (video_channel_id, playlist_id, video_site, video_id, video_status, original_date, download)
+            val = (
+                video_channel_id, final_playlist_id, video_site, video_id, video_status, original_date, final_download)
             if DEBUG_add_video:
                 input(val)
             mysql_cursor.execute(sql, val)
@@ -1192,13 +1299,18 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
 
             archive_set.add(f'{video_site} {video_id}')
 
-            print(f'{datetime.now()} {Fore.GREEN}ADDED{Style.RESET_ALL} video "{video_id}"      ', end='\n')
+            if final_download:
+                print(f'{datetime.now()} {Fore.GREEN}ADDED{Style.RESET_ALL} video "{video_id}" type "{video_type}"'
+                      f'        ', end='\n')
+            else:
+                print(f'{datetime.now()} {Fore.YELLOW}SKIPPED{Style.RESET_ALL} video "{video_id}" type "{video_type}"'
+                      f'        ', end='\n')
             return True
 
         except KeyboardInterrupt:
             sys.exit()
         except Exception as exception_add_video:
-            if regex_video_duplicate.search(str(exception_add_video)):
+            if regex_sql_duplicate.search(str(exception_add_video)):
                 print(f'{datetime.now()} {Fore.RED}DUPLICATE{Style.RESET_ALL} video "{video_id}"')
                 return True
             else:
@@ -1207,81 +1319,14 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
                 return False
 
 
-def add_channel(channel_id, channel_name):
-    channel_site = 'youtube'
-
-    channel_priority = 100
-
-    try:
-        mydb = mysql.connector.connect(
-            host=mysql_host,
-            user=mysql_user,
-            password=mysql_password,
-            database=mysql_database)
-
-        mysql_cursor = mydb.cursor()
-
-        sql = "INSERT INTO channels (site, url, name, priority) VALUES (%s, %s, %s, %s)"
-        val = (channel_site, channel_id, channel_name, channel_priority)
-        mysql_cursor.execute(sql, val)
-        mydb.commit()
-
-        print(f'{datetime.now()} {Fore.GREEN}NEW CHANNEL{Style.RESET_ALL}: '
-              f'"{channel_name}" ({channel_site} {channel_id})')
-        print()
-
-    except KeyboardInterrupt:
-        sys.exit()
-    except Exception as e:
-        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding playlist '
-              f'"{channel_name}" ({channel_site} {channel_id}): {e}')
-        return None
-
-
-def add_playlist(playlist_id, playlist_name, channel_id, download):
-    playlist_site = 'youtube'
-
-    if channel_id == playlist_id:
-        playlist_priority = 0
-    elif download:
-        playlist_priority = 100
-    else:
-        playlist_priority = -1
-
-    try:
-        mydb = mysql.connector.connect(
-            host=mysql_host,
-            user=mysql_user,
-            password=mysql_password,
-            database=mysql_database)
-
-        mysql_cursor = mydb.cursor()
-
-        sql = "INSERT INTO playlists (site, url, name, channel, priority, download) VALUES (%s, %s, %s, %s, %s, %s)"
-        val = (playlist_site, playlist_id, playlist_name, channel_id, playlist_priority, download)
-        mysql_cursor.execute(sql, val)
-        mydb.commit()
-
-        print(f'{datetime.now()} {Fore.GREEN}NEW PLAYLIST{Style.RESET_ALL}: '
-              f'"{playlist_name}" ({playlist_site} {playlist_id})')
-        print()
-
-    except KeyboardInterrupt:
-        sys.exit()
-    except Exception as e:
-        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding playlist '
-              f'"{playlist_name}" ({playlist_site} {playlist_id}): {e}')
-        return None
-
-
 def sanitize_name(name, is_user=False):
     name_sane = name
     # TODO: This seems overcomplicated to implement ourselves, we should seek a pre-existing package that does this!
 
     if regex_val.search(name_sane) or regex_caps.search(name):
-        # TODO: This way of doing things does not fix things written in ALL CAPS. We should look into how to best handle all ways of wirting
+        # TODO: This way of doing things does not fix things written in ALL CAPS. We should look into how to best handle all ways of wiring
 
-        # German Umlaute
+        # German Umlaut
         name_sane = re.sub(r'ä', 'ae', name_sane)
         name_sane = re.sub(r'Ä', 'AE', name_sane)
         name_sane = re.sub(r'ö', 'oe', name_sane)
@@ -1290,7 +1335,7 @@ def sanitize_name(name, is_user=False):
         name_sane = re.sub(r'Ü', 'UE', name_sane)
         name_sane = re.sub(r'ß', 'ss', name_sane)
 
-        # English Apostrophs
+        # English Apostrophes
         name_sane = re.sub(r"don't ", 'Do not ', name_sane)
         name_sane = re.sub(r"Don't ", 'Do not ', name_sane)
         name_sane = re.sub(r"I'm ", 'I am ', name_sane)
@@ -1305,7 +1350,7 @@ def sanitize_name(name, is_user=False):
         name_sane = re.sub(r"We're ", 'We are ', name_sane)
         name_sane = re.sub(r"we're ", 'we are ', name_sane)
 
-        # Alternative hyphens to real hypens
+        # Alternative hyphens to real hypes
         name_sane = re.sub(r"–", '-', name_sane)
 
         # &
@@ -1547,10 +1592,10 @@ def download_video(video):
 
     --recode mp4
 
-    # Do not continue download started before (as this willl lead to corruption if initial download was interrupted in any way, including brief internet outages or packet loss)
+    # Do not continue download started before (as this will lead to corruption if initial download was interrupted in any way, including brief internet outages or packet loss)
     --no-continue
 
-    # Set Retry Handeling
+    # Set Retry Handling
     --retry-sleep 1
     --file-access-retries 1000
     --fragment-retries 30
@@ -1981,12 +2026,7 @@ def update_subscriptions():
                                                             channel_id=current_channel_id,
                                                             playlist_id=current_playlist_id,
                                                             download=current_playlist_download,
-                                                            archive_set=global_archive_set,
-                                                            add_short=current_playlist_name == playlist_name_shorts,
-                                                            add_livestream=(
-                                                                    current_playlist_name == playlist_name_livestreams
-                                                                    or regex_live_channel.search(current_channel_name)
-                                                            ))
+                                                            archive_set=global_archive_set, )
 
                                     counter_process_video += 1
 
@@ -2037,7 +2077,7 @@ def add_subscriptions():
     channel_list = []
 
     use_database = None
-    while use_database == None:
+    while use_database is None:
         use_database_input = input(
             f'Check playlists for all existing channels? {Fore.GREEN}Y{Style.RESET_ALL} or {Fore.RED}N{Style.RESET_ALL}: ')
         if use_database_input.lower() == 'y':
