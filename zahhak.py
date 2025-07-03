@@ -998,10 +998,14 @@ def add_channel(channel_id, channel_name):
 
     except KeyboardInterrupt:
         sys.exit()
-    except Exception as e:
-        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding playlist '
-              f'"{channel_name}" ({channel_site} {channel_id}): {e}')
-        return None
+    except Exception as exception_add_channel:
+        if regex_sql_duplicate.search(str(exception_add_channel)):
+            # TODO: return parameter of this needs reworking but cannot be bothered right now FR
+            pass
+        else:
+            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding playlist '
+                  f'"{channel_name}" ({channel_site} {channel_id}): {exception_add_channel}')
+            return None
 
 
 def add_playlist(playlist_id, playlist_name, channel_id, download):
@@ -1035,13 +1039,13 @@ def add_playlist(playlist_id, playlist_name, channel_id, download):
 
     except KeyboardInterrupt:
         sys.exit()
-    except Exception as exception_add_video:
-        if regex_sql_duplicate.search(str(exception_add_video)):
+    except Exception as exception_add_playlist:
+        if regex_sql_duplicate.search(str(exception_add_playlist)):
             # TODO: return parameter of this needs reworking but cannot be bothered right now FR
             pass
         else:
             print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding playlist '
-                  f'"{playlist_name}" ({playlist_site} {playlist_id}): {exception_add_video}')
+                  f'"{playlist_name}" ({playlist_site} {playlist_id}): {exception_add_playlist}')
             return None
 
 
@@ -1885,7 +1889,6 @@ def get_all_playlist_videos_from_youtube(playlist):
                                          ignore_errors=DEFAULT_ignore_errors_channel,
                                          archive_set=set(),
                                          counter=0)
-
 
 def add_playlist_videos(videos):
     pass
