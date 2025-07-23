@@ -6,12 +6,12 @@ import re
 import shutil
 import sys
 import time
+import mysql.connector
+import yt_dlp
+from colorama import init, Fore, Style, just_fix_windows_console
 from datetime import datetime
 from subprocess import STDOUT, check_output
 
-import mysql.connector
-import yt_dlp
-from colorama import init, just_fix_windows_console, Fore, Style
 
 # TODO: Extract Flat causes only first page to be loaded. Bug is old, but certainly back: https://github.com/ytdl-org/youtube-dl/issues/28075
 # TODO: Look into using logger, progress_hooks, progress (https://github.com/yt-dlp/yt-dlp/issues/66)
@@ -990,7 +990,7 @@ def get_video_details(video_id, archive_set):
             return info_json
 
         except KeyboardInterrupt:
-           sys.exit()
+            sys.exit()
 
         except Exception as e:
             if regex_bot.search(str(e)):
@@ -999,7 +999,8 @@ def get_video_details(video_id, archive_set):
                 vpn_counter = reconnect_vpn(vpn_counter)
 
             else:
-                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while getting details for video "{video_id}": {e}')
+                print(
+                    f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while getting details for video "{video_id}": {e}')
                 raise
 
 
@@ -2099,7 +2100,7 @@ def update_subscriptions():
                                                             playlist_id=current_playlist_id,
                                                             download=current_playlist_download,
                                                             archive_set=global_archive_set,
-                                                            database = database)
+                                                            database=database)
 
                                     counter_process_video += 1
 
@@ -2128,8 +2129,8 @@ def update_subscriptions():
                             playlist_updated = False
                             while not playlist_updated:
                                 playlist_updated = update_playlist(date=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                                                                  playlist=current_playlist,
-                                                                  database=database)
+                                                                   playlist=current_playlist,
+                                                                   database=database)
                                 if not playlist_updated:
                                     database = connect_database()
                         else:
@@ -2144,8 +2145,8 @@ def update_subscriptions():
                 channel_updated = False
                 while not channel_updated:
                     channel_updated = update_channel(date=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                                                    channel=current_channel,
-                                                    database=database)
+                                                     channel=current_channel,
+                                                     database=database)
                     if not channel_updated:
                         database = connect_database()
             else:
@@ -2153,9 +2154,62 @@ def update_subscriptions():
                       f'"current_channel_name" ({current_channel_site} {current_channel_id})')
 
 
+# TODO: This is redundant and needs to be merged with get_monitored_channels_from_db()
+def get_database_channel_names():
+    """
+    Returns a list of all known YouTube channels
+    Field order:
+        - channels.url
+        - channels.name
+    """
+
+    print(f'{datetime.now()} Collecting channel names...')
+
+    mydb = mysql.connector.connect(
+        host=mysql_host,
+        user=mysql_user,
+        password=mysql_password,
+        database=mysql_database)
+
+    mysql_cursor = mydb.cursor()
+
+    sql = "select channels.url, channels.name from channels WHERE site = %s AND url not like '%#%';"
+    val = ('youtube',)  # DO NOT REMOVE COMMA, it is neccessarry for MySQL to work!
+    mysql_cursor.execute(sql, val)
+    mysql_result = mysql_cursor.fetchall()
+
+    return dict(mysql_result)
+
+
+# TODO: This is redundant and needs to be merged with get_monitored_playlists_from_db()
+def get_database_playlist_names():
+    """
+    Returns a list of all known YouTube playlists
+        Field order:
+            - playlists.url
+            - playlists.name
+    """
+    print(f'{datetime.now()} Collecting playlists...')
+
+    mydb = mysql.connector.connect(
+        host=mysql_host,
+        user=mysql_user,
+        password=mysql_password,
+        database=mysql_database)
+
+    mysql_cursor = mydb.cursor()
+
+    sql = "select playlists.url, playlists.name from playlists WHERE site = %s;"
+    val = ('youtube',)  # DO NOT REMOVE COMMA, it is neccessarry for MySQL to work!
+    mysql_cursor.execute(sql, val)
+    mysql_result = mysql_cursor.fetchall()
+
+    return dict(mysql_result)
+
+
 def add_subscriptions():
-    database_channels = get_monitored_channels_from_db()
-    database_playlists = get_monitored_playlists_from_db()
+    database_channels = get_database_channel_names()
+    database_playlists = get_database_playlist_names()
 
     channel_list = []
 
