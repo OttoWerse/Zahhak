@@ -868,7 +868,8 @@ def get_monitored_channels_from_db():
            "AND channels.url IN("
            "SELECT playlists.channel FROM playlists "
            "WHERE playlists.done IS NOT TRUE "
-           "AND playlists.download IS TRUE "
+           # "AND playlists.download IS TRUE "
+           "AND playlists.monitor IS TRUE "
            "GROUP BY playlists.channel HAVING count(*) > 0) "
            "ORDER BY channels.priority DESC, EXTRACT(year FROM channels.date_checked) ASC, "
            "EXTRACT(month FROM channels.date_checked) ASC, EXTRACT(day FROM channels.date_checked) ASC, "
@@ -914,7 +915,8 @@ def get_channel_playlists_from_db(channel):
                "WHERE playlists.site = %s "
                "AND playlists.channel = %s "
                "AND playlists.done IS NOT TRUE "
-               "AND playlists.download IS TRUE "
+               # "AND playlists.download IS TRUE "
+               "AND playlists.monitor IS TRUE "
                "AND NOT EXISTS ( SELECT 1 FROM videos WHERE videos.playlist = playlists.url ) "
                "ORDER BY playlists.priority DESC, EXTRACT(year FROM playlists.date_checked) ASC, "
                "EXTRACT(month FROM playlists.date_checked) ASC, EXTRACT(day FROM playlists.date_checked) ASC, "
@@ -935,7 +937,8 @@ def get_channel_playlists_from_db(channel):
                "WHERE playlists.site = %s "
                "AND playlists.channel = %s "
                "AND playlists.done IS NOT TRUE "
-               "AND playlists.download IS TRUE "
+               # "AND playlists.download IS TRUE "
+               "AND playlists.monitor IS TRUE "
                "AND EXISTS ( SELECT 1 FROM videos WHERE videos.playlist = playlists.url ) "
                "ORDER BY playlists.priority DESC, EXTRACT(year FROM playlists.date_checked) ASC, "
                "EXTRACT(month FROM playlists.date_checked) ASC, EXTRACT(day FROM playlists.date_checked) ASC, "
@@ -1092,7 +1095,7 @@ def add_channel(channel_id, channel_name):
             return None
 
 
-def add_playlist(playlist_id, playlist_name, channel_id, download):
+def add_playlist(playlist_id, playlist_name, channel_id, download, monitor):
     playlist_site = 'youtube'
 
     if channel_id == playlist_id:
@@ -1112,8 +1115,8 @@ def add_playlist(playlist_id, playlist_name, channel_id, download):
 
         mysql_cursor = mydb.cursor()
 
-        sql = "INSERT INTO playlists (site, url, name, channel, priority, download) VALUES (%s, %s, %s, %s, %s, %s)"
-        val = (playlist_site, playlist_id, playlist_name, channel_id, playlist_priority, download)
+        sql = "INSERT INTO playlists (site, url, name, channel, priority, download) VALUES (%s, %s, %s, %s, %s, %s, %s)"
+        val = (playlist_site, playlist_id, playlist_name, channel_id, playlist_priority, download, monitor)
         mysql_cursor.execute(sql, val)
         mydb.commit()
 
@@ -1260,7 +1263,8 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
         # add_playlist(playlist_id=final_playlist_id,
         #              playlist_name=playlist_name_shorts,
         #              channel_id=channel_id,
-        #              download=final_download, )
+        #              download=final_download,
+        #              monitor= )
     elif video_type == 'livestream':
         final_playlist_id = '#livestreams'
         if download_livestreams:
@@ -1271,7 +1275,8 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
         # add_playlist(playlist_id=final_playlist_id,
         #              playlist_name=playlist_name_livestreams,
         #              channel_id=channel_id,
-        #              download=final_download, )
+        #              download=final_download,
+        #              monitor= )
 
     # Reset dates
     original_date = None
@@ -1851,7 +1856,8 @@ def get_monitored_playlists_from_db():
                "INNER JOIN channels on playlists.channel=channels.url "
                "WHERE playlists.site = %s "
                "AND playlists.done IS NOT TRUE "
-               "AND playlists.download IS TRUE "
+               # "AND playlists.download IS TRUE "
+               "AND playlists.monitor IS TRUE "
                "AND NOT EXISTS ( SELECT 1 FROM videos WHERE videos.playlist = playlists.url ) "
                "ORDER BY playlists.priority DESC, EXTRACT(year FROM playlists.date_checked) ASC, "
                "EXTRACT(month FROM playlists.date_checked) ASC, EXTRACT(day FROM playlists.date_checked) ASC, RAND();")
@@ -1870,7 +1876,8 @@ def get_monitored_playlists_from_db():
                "ON playlists.channel = channels.url "
                "WHERE playlists.site = %s "
                "AND playlists.done IS NOT TRUE "
-               "AND playlists.download IS TRUE "
+               # "AND playlists.download IS TRUE "
+               "AND playlists.monitor IS TRUE "
                "AND EXISTS ( SELECT 1 FROM videos WHERE videos.playlist = playlists.url ) "
                "ORDER BY playlists.priority DESC, EXTRACT(year FROM playlists.date_checked) ASC, "
                "EXTRACT(month FROM playlists.date_checked) ASC, EXTRACT(day FROM playlists.date_checked) ASC, RAND();")
@@ -2280,21 +2287,24 @@ def add_subscriptions():
                         add_playlist_input = input(
                             f'Download "{playlist_name_sane}" ({playlist_id}) {Fore.GREEN}Y{Style.RESET_ALL} (Yes), {Fore.RED}N{Style.RESET_ALL} (No) or {Fore.CYAN}S{Style.RESET_ALL} (Skip): ')
                         if add_playlist_input.lower() == 'y':
+                            monitor_playlist = True
                             download_playlist = True
                         elif add_playlist_input.lower() == 'n':
+                            monitor_playlist = True
                             download_playlist = False
                         elif add_playlist_input.lower() == 's':
-                            break
+                            monitor_playlist = False
+                            download_playlist = None
                         else:
                             continue
 
-                        playlist_name_input = input(f'ENTER to keep default or type to change PLAYLIST name: ')
-
-                        if playlist_name_input:
-                            playlist_name_sane = sanitize_name(name=playlist_name_input, is_user=True)
+                        if monitor_playlist:
+                            playlist_name_input = input(f'ENTER to keep default or type to change PLAYLIST name: ')
+                            if playlist_name_input:
+                                playlist_name_sane = sanitize_name(name=playlist_name_input, is_user=True)
 
                         add_playlist(playlist_id=playlist_id, playlist_name=playlist_name_sane, channel_id=channel_id,
-                                     download=download_playlist)
+                                     download=download_playlist, monitor=monitor_playlist)
                         skip_playlist = True
 
         # Handle "Other" playlist (channel video feed)
@@ -2313,21 +2323,24 @@ def add_subscriptions():
                 add_playlist_input = input(
                     f'Download "{playlist_name_sane}" ({playlist_id}) {Fore.GREEN}Y{Style.RESET_ALL} (Yes), {Fore.RED}N{Style.RESET_ALL} (No) or {Fore.CYAN}S{Style.RESET_ALL} (Skip): ')
                 if add_playlist_input.lower() == 'y':
+                    monitor_playlist = True
                     download_playlist = True
                 elif add_playlist_input.lower() == 'n':
+                    monitor_playlist = True
                     download_playlist = False
                 elif add_playlist_input.lower() == 's':
-                    break
+                    monitor_playlist = False
+                    download_playlist = None
                 else:
                     continue
 
-                playlist_name_input = input(f'ENTER to keep default or type to change PLAYLIST name: ')
-
-                if playlist_name_input:
-                    playlist_name_sane = sanitize_name(name=playlist_name_input, is_user=True)
+                if monitor_playlist:
+                    playlist_name_input = input(f'ENTER to keep default or type to change PLAYLIST name: ')
+                    if playlist_name_input:
+                        playlist_name_sane = sanitize_name(name=playlist_name_input, is_user=True)
 
                 add_playlist(playlist_id=playlist_id, playlist_name=playlist_name_sane, channel_id=channel_id,
-                             download=download_playlist)
+                             download=download_playlist, monitor=monitor_playlist)
                 skip_playlist = True
 
 
