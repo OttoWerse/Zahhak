@@ -6,12 +6,12 @@ import re
 import shutil
 import sys
 import time
-import mysql.connector
-import yt_dlp
-from colorama import init, Fore, Style, just_fix_windows_console
 from datetime import datetime
 from subprocess import STDOUT, check_output
 
+import mysql.connector
+import yt_dlp
+from colorama import init, Fore, Style, just_fix_windows_console
 
 # TODO: Extract Flat causes only first page to be loaded. Bug is old, but certainly back: https://github.com/ytdl-org/youtube-dl/issues/28075
 # TODO: Look into using logger, progress_hooks, progress (https://github.com/yt-dlp/yt-dlp/issues/66)
@@ -1115,7 +1115,7 @@ def add_playlist(playlist_id, playlist_name, channel_id, download, monitor):
 
         mysql_cursor = mydb.cursor()
 
-        sql = "INSERT INTO playlists (site, url, name, channel, priority, download) VALUES (%s, %s, %s, %s, %s, %s, %s)"
+        sql = "INSERT INTO playlists (site, url, name, channel, priority, download, monitor) VALUES (%s, %s, %s, %s, %s, %s, %s)"
         val = (playlist_site, playlist_id, playlist_name, channel_id, playlist_priority, download, monitor)
         mysql_cursor.execute(sql, val)
         mydb.commit()
