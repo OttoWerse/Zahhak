@@ -35,7 +35,7 @@ mysql_password = os.getenv('ZAHHAK_MYSQL_PASSWORD', 'admin')
 # Enable or disable VPN reconnect functionality
 enable_vpn = True
 # Frequency to reconnect VPN (in seconds)
-sleep_time_vpn = 0
+sleep_time_vpn = 10
 # How often to retry connecting to a VPN country before giving up
 retry_reconnect_new_vpn_node = 5
 
@@ -60,7 +60,7 @@ DEFAULT_vpn_countries = [
     'Latvia',
     'Lithuania',
     'Luxembourg',
-    'Moldova',
+    # 'Moldova',
     'Netherlands',
     'North Macedonia',
     'Norway',
@@ -143,7 +143,7 @@ quiet_download_warnings = True
 # Extract FLAT
 # TODO: Combined with ignore Errors != False sometimes only loads first page?!?!?!
 extract_flat_channel = True  # Can be True for faster processing IF ignore_errors is False and NOT 'only_download'! (causes frequent incomplete checks of channel state, which can prevent playlist checking from happening!)
-extract_flat_playlist = False  # Leave as False to avoid extraction of every single video AFTER playlist (often detected as bot!)
+extract_flat_playlist = True  # TODO: just reconnect_vpn upon bot detection - Previous comment: Leave as False to avoid extraction of every single video AFTER playlist (often detected as bot!)
 
 # Availability Filter
 # filter_availability = 'availability=public,unlisted,needs_auth,subscriber_only,premium_only'
@@ -195,13 +195,14 @@ regex_video_unavailable_geo_fix = re.compile(r'(?<=This video is available in ).
 regex_video_removed = re.compile(r'This video has been removed')
 regex_video_members_only = re.compile(r'Join this channel to get access to members-only content like this video, '
                                       r'and other exclusive perks')
-
 regex_video_members_tier = re.compile(r'This video is available to this channel')
 
 regex_error_connection = re.compile(r'Remote end closed connection without response')
 regex_error_timeout = re.compile(r'The read operation timed out')
 regex_error_get_addr_info = re.compile(r'getaddrinfo failed')
 regex_error_win_10054 = re.compile(r'WinError 10054')
+
+regex_bot = re.compile(r"Sign in to confirm you're not a bot")
 
 regex_sql_duplicate = re.compile(r'Duplicate entry')
 
@@ -233,9 +234,63 @@ global_archive_set = set()
 # VPN changer
 vpn_counter = 0
 vpn_timestamp = datetime.now()
-DEFAULT_vpn_frequency = 100
+DEFAULT_vpn_frequency = 60  # TODO: recheck if can be reached continuously until timeout is reached instead of just waiting. Possibly split this into two values, one for the new and one for the old functionality. Plus also wait time before even trying to get video after trying to reconnect vpn!
 GEO_BLOCKED_vpn_frequency = 30
 vpn_frequency = DEFAULT_vpn_frequency
+
+
+class Playlist:
+    def __init__(self, url_site, url_id, db_name):
+        self.url_site = url_site
+        self.url_id = url_id
+        self.db_name = db_name
+
+    def __eq__(self, other):
+        if not isinstance(other, Playlist):
+            return NotImplemented
+        else:
+            same = True
+            if not self.url_site == other.url_site:
+                same = False
+            if not self.url_id == other.url_id:
+                same = False
+            return same
+
+
+class Channel:
+    def __init__(self, url_site, url_id, db_name):
+        self.url_site = url_site
+        self.url_id = url_id
+        self.db_name = db_name
+
+    def __eq__(self, other):
+        if not isinstance(other, Channel):
+            return NotImplemented
+        else:
+            same = True
+            if not self.url_site == other.url_site:
+                same = False
+            if not self.url_id == other.url_id:
+                same = False
+            return same
+
+
+class MediaItem:
+    def __init__(self, url_site, url_id, media_type):
+        self.url_site = url_site
+        self.url_id = url_id
+        self.media_type = media_type
+
+    def __eq__(self, other):
+        if not isinstance(other, MediaItem):
+            return NotImplemented
+        else:
+            same = True
+            if not self.url_site == other.url_site:
+                same = False
+            if not self.url_id == other.url_id:
+                same = False
+            return same
 
 
 class VoidLogger:
@@ -295,16 +350,20 @@ def create_download_archive():
             time.sleep(sleep_time_mysql)
 
 
-def update_channel(date, channel):
+def update_channel(date, channel, database):
     """Updates last checked date for channel"""
 
     channel_site = channel[0]
     channel_id = channel[1]
     channel_name = channel[2]
 
+    print(f'{datetime.now()} {Fore.CYAN}MARKING{Style.RESET_ALL} channel '
+          f'"{channel_site} {channel_id}" as checked', end='\r')
+
     # Update DB
     try:
-        mydb = connect_database()
+        # mydb = connect_database()
+        mydb = database
         mysql_cursor = mydb.cursor()
 
         sql = "UPDATE channels SET date_checked = %s WHERE site = %s AND url = %s;"
@@ -317,7 +376,7 @@ def update_channel(date, channel):
         mydb.commit()
 
         print(f'{datetime.now()} {Fore.CYAN}MARKED{Style.RESET_ALL} channel '
-              f'"{channel_site} {channel_id}" as checked')
+              f'"{channel_site} {channel_id}" as checked', end='\n')
         return True
 
     except KeyboardInterrupt:
@@ -329,17 +388,20 @@ def update_channel(date, channel):
         return False
 
 
-def update_playlist(date, playlist):
+def update_playlist(date, playlist, database):
     """Updates last checked date for playlist"""
 
     playlist_site = playlist[0]
     playlist_id = playlist[1]
     playlist_name = playlist[2]
 
+    print(f'{datetime.now()} {Fore.CYAN}MARKING{Style.RESET_ALL} playlist '
+          f'"{playlist_name}" ({playlist_site} {playlist_id}) as checked', end='\r')
+
     # Update DB
     try:
-        mydb = connect_database()
-
+        # mydb = connect_database()
+        mydb = database
         mysql_cursor = mydb.cursor()
 
         sql = "UPDATE playlists SET date_checked = %s WHERE site = %s AND url = %s;"
@@ -352,7 +414,7 @@ def update_playlist(date, playlist):
         mydb.commit()
 
         print(f'{datetime.now()} {Fore.CYAN}MARKED{Style.RESET_ALL} playlist '
-              f'"{playlist_name}" ({playlist_site} {playlist_id}) as checked')
+              f'"{playlist_name}" ({playlist_site} {playlist_id}) as checked', end='\n')
         return True
 
     except KeyboardInterrupt:
@@ -514,7 +576,8 @@ def get_new_channel_videos_from_youtube(channel, ignore_errors, archive_set):
     # Set channel URL
     # channel_url = f'https://www.youtube.com/channel/{channel_id}/videos'
     # TODO: This will lead to shorts being added regardless of filter!
-    channel_url = f'https://www.youtube.com/playlist?list={re.sub('^UC', 'UU', channel_id)}'
+    upload_playlist = re.sub('^UC', 'UU', channel_id)
+    channel_url = f'https://www.youtube.com/playlist?list={upload_playlist}'
 
     # Set download options for YT-DLP
     channel_download_options = {
@@ -664,8 +727,10 @@ def get_new_playlist_videos_from_youtube(playlist, ignore_errors, counter, archi
         # Standard format for YouTube channel IDs (e.g. all videos "playlist")
         # playlist_url = f'https://www.youtube.com/channel/{playlist_id}/videos'
         # TODO: This leads to shorts being added regardless of filter!
-        playlist_url = f'https://www.youtube.com/playlist?list={re.sub('^UC', 'UU', channel_id)}'
+        upload_playlist = re.sub('^UC', 'UU', channel_id)
+        playlist_url = f'https://www.youtube.com/playlist?list={upload_playlist}'
         timeout = timeout_channel
+        extract_flat = extract_flat_channel
 
         if counter > 3:
             # TODO: This needs to be aware of outer counter and only happen once variable retry_full_channel_before_ignoring_errors is reached (in next version maybe)
@@ -675,6 +740,7 @@ def get_new_playlist_videos_from_youtube(playlist, ignore_errors, counter, archi
         # Standard format for YouTube playlist IDs
         playlist_url = f'https://www.youtube.com/playlist?list={playlist_id}'
         timeout = timeout_playlist
+        extract_flat = extract_flat_playlist
 
     # Skip fake playlists created for shorts and livestreams
     elif regex_fake_playlist.search(playlist_id):
@@ -690,7 +756,7 @@ def get_new_playlist_videos_from_youtube(playlist, ignore_errors, counter, archi
     # Set download options for YT-DLP
     playlist_download_options = {
         'logger': VoidLogger(),
-        'extract_flat': extract_flat_playlist,
+        'extract_flat': extract_flat,
         'skip_download': True,
         'allow_playlist_files': False,
         'lazy_playlist': True,
@@ -803,9 +869,10 @@ def get_monitored_channels_from_db():
            "SELECT playlists.channel FROM playlists "
            "WHERE playlists.done IS NOT TRUE "
            "AND playlists.download IS TRUE "
-           "GROUP BY playlists.channel HAVING count(*) > 0"
-           ") "
-           "ORDER BY channels.priority DESC, channels.date_checked ASC, RAND();")
+           "GROUP BY playlists.channel HAVING count(*) > 0) "
+           "ORDER BY channels.priority DESC, EXTRACT(year FROM channels.date_checked) ASC, "
+           "EXTRACT(month FROM channels.date_checked) ASC, EXTRACT(day FROM channels.date_checked) ASC, "
+           "EXTRACT(hour FROM channels.date_checked) ASC, RAND();")
     val = ('youtube',)  # DO NOT REMOVE COMMA, it is necessary for MySQL to work!
     mysql_cursor.execute(sql, val)
     mysql_result = mysql_cursor.fetchall()
@@ -849,7 +916,9 @@ def get_channel_playlists_from_db(channel):
                "AND playlists.done IS NOT TRUE "
                "AND playlists.download IS TRUE "
                "AND NOT EXISTS ( SELECT 1 FROM videos WHERE videos.playlist = playlists.url ) "
-               "ORDER BY playlists.priority DESC, playlists.date_checked ASC, RAND();")
+               "ORDER BY playlists.priority DESC, EXTRACT(year FROM playlists.date_checked) ASC, "
+               "EXTRACT(month FROM playlists.date_checked) ASC, EXTRACT(day FROM playlists.date_checked) ASC, "
+               "EXTRACT(hour FROM playlists.date_checked) ASC, RAND();")
         val = ('youtube', channel_id)
         mysql_cursor.execute(sql, val)
         mysql_result = mysql_cursor.fetchall()
@@ -868,7 +937,9 @@ def get_channel_playlists_from_db(channel):
                "AND playlists.done IS NOT TRUE "
                "AND playlists.download IS TRUE "
                "AND EXISTS ( SELECT 1 FROM videos WHERE videos.playlist = playlists.url ) "
-               "ORDER BY playlists.priority DESC, playlists.date_checked ASC, RAND();")
+               "ORDER BY playlists.priority DESC, EXTRACT(year FROM playlists.date_checked) ASC, "
+               "EXTRACT(month FROM playlists.date_checked) ASC, EXTRACT(day FROM playlists.date_checked) ASC, "
+               "EXTRACT(hour FROM playlists.date_checked) ASC, RAND();")
         val = ('youtube', channel_id)
         mysql_cursor.execute(sql, val)
         mysql_result = mysql_cursor.fetchall()
@@ -883,41 +954,53 @@ def get_channel_playlists_from_db(channel):
 
 def get_video_details(video_id, archive_set):
     """Fills the details for a video by its ID"""
+    global vpn_frequency
+    vpn_counter = 0
+    done = False
 
-    # Try-Except Block to handle YT-DLP exceptions such as "playlist does not exist"
-    # try:
-    #
-    video_url = f'https://www.youtube.com/watch?v={video_id}'
+    while not done:
+        # Try-Except Block to handle YT-DLP exceptions such as "playlist does not exist"
+        try:
+            video_url = f'https://www.youtube.com/watch?v={video_id}'
 
-    # Set download options for YT-DLP
-    video_download_options = {
-        'skip_download': True,
-        'allow_playlist_files': False,
-        'cachedir': False,
-        'ignoreerrors': False,
-        'download_archive': archive_set,
-        'extractor_args': {'youtube': {'skip': ['configs', 'webpage', 'js']}},
-        'extractor_retries': retry_extraction_video,
-        'socket_timeout': timeout_video,
-        'source_address': external_ip
-    }
+            # Set download options for YT-DLP
+            video_download_options = {
+                'logger': VoidLogger(),
+                'skip_download': True,
+                'allow_playlist_files': False,
+                'cachedir': False,
+                'ignoreerrors': False,
+                'download_archive': archive_set,
+                'extractor_args': {'youtube': {'skip': ['configs', 'webpage', 'js']}},
+                'extractor_retries': retry_extraction_video,
+                'socket_timeout': timeout_video,
+                'source_address': external_ip
+            }
 
-    # Run YT-DLP
-    with yt_dlp.YoutubeDL(video_download_options) as ilus:
-        info_json = ilus.sanitize_info(ilus.extract_info(video_url, process=True, download=False))
+            # Run YT-DLP
+            with yt_dlp.YoutubeDL(video_download_options) as ilus:
+                info_json = ilus.sanitize_info(ilus.extract_info(video_url, process=True, download=False))
 
-    if DEBUG_json_video_details:
-        with open('debug.json', 'w', encoding='utf-8') as json_file:
-            # noinspection PyTypeChecker
-            json.dump(info_json, json_file, ensure_ascii=False, indent=4)
-        input(f'Dumped JSON... Continue?')
+            if DEBUG_json_video_details:
+                with open('debug.json', 'w', encoding='utf-8') as json_file:
+                    # noinspection PyTypeChecker
+                    json.dump(info_json, json_file, ensure_ascii=False, indent=4)
+                input(f'Dumped JSON... Continue?')
 
-    return info_json
-    # except KeyboardInterrupt:
-    #    sys.exit()
-    # except Exception as e:
-    # print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while getting details for video "{video_id}": {e}')
-    # return None
+            return info_json
+
+        except KeyboardInterrupt:
+           sys.exit()
+
+        except Exception as e:
+            if regex_bot.search(str(e)):
+                print(f'{datetime.now()} {Fore.RED}BOT DETECTED{Style.RESET_ALL}')
+                vpn_frequency = DEFAULT_vpn_frequency
+                vpn_counter = reconnect_vpn(vpn_counter)
+
+            else:
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while getting details for video "{video_id}": {e}')
+                raise
 
 
 def get_channel_details(channel_url, ignore_errors):
@@ -1049,13 +1132,10 @@ def add_playlist(playlist_id, playlist_name, channel_id, download):
             return None
 
 
-def add_video(video, channel_site, channel_id, playlist_id, download, archive_set):
+def add_video(video, channel_site, channel_id, playlist_id, download, archive_set, database):
     """Adds a video to given playlist/channel in database"""
-    if video is None:
-        print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} no video!')
-        if DEBUG_empty_video:
-            input('Continue?')
-        return False
+
+    mydb = database
 
     if DEBUG_json_video_add:
         with open('debug.json', 'w', encoding='utf-8') as json_file:
@@ -1063,6 +1143,14 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
             json.dump(video, json_file, ensure_ascii=False, indent=4)
         input(f'Dumped JSON... Continue?')
 
+    # Skip input error
+    if video is None:
+        print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} no video!')
+        if DEBUG_empty_video:
+            input('Continue?')
+        return False
+
+    # Get key fields
     try:
         video_site = channel_site
         video_id = video['id']
@@ -1073,66 +1161,11 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
               f'{exception_add_video}')
         return False
 
-    # Get Media Type
-    final_playlist_id = playlist_id
-    final_download = download
-    try:
-        video_type = video['media_type']
-        if video_type == 'short':
-            final_playlist_id = '#shorts'
-            if download_shorts:
-                final_download = download
-            else:
-                final_download = False
-            # TODO: This is not matching our data model, it leads to just ONE playlist for all shorts which changes channel ownership
-            # add_playlist(playlist_id=final_playlist_id,
-            #              playlist_name=playlist_name_shorts,
-            #              channel_id=channel_id,
-            #              download=final_download, )
-        elif video_type == 'livestream':
-            final_playlist_id = '#livestreams'
-            if download_livestreams:
-                final_download = download
-            else:
-                final_download = False
-            # TODO: This is not matching our data model, it leads to just ONE playlist for all livestreams which changes channel ownership
-            # add_playlist(playlist_id=final_playlist_id,
-            #              playlist_name=playlist_name_livestreams,
-            #              channel_id=channel_id,
-            #              download=final_download, )
-    except KeyboardInterrupt:
-        sys.exit()
-    except Exception as exception_media_type:
-        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while getting media type for video "{video}": '
-              f'{exception_media_type}')
-        return False
-
-    # Reset dates
-    original_date = None
-    upload_date = None
-    release_date = None
-
-    # Set info fields for use in database entry
+    # Check that video has all details (full extract) or extract info (flat extract)
     try:
         # This is NOT in flat playlist JSON, if we want to use flat, we need to extract videos individually!
         video_channel_id = video['channel_id']
-
-        try:
-            upload_date = video['upload_date']
-        except KeyboardInterrupt:
-            sys.exit()
-        except Exception as exception_date:
-            if DEBUG_log_date_fields_missing:
-                print(f'{datetime.now()} {Fore.YELLOW}MISSING{Style.RESET_ALL} JSON field {exception_date}')
-
-        try:
-            release_date = video['release_date']
-        except KeyboardInterrupt:
-            sys.exit()
-        except Exception as exception_date:
-            if DEBUG_log_date_fields_missing:
-                print(f'{datetime.now()} {Fore.YELLOW}MISSING{Style.RESET_ALL} JSON field {exception_date}')
-
+        video_type = video['media_type']
     except KeyboardInterrupt:
         sys.exit()
     except Exception as exception_add_video:
@@ -1140,46 +1173,9 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
               f'({exception_add_video})')
         try:
             # Get all info for video online (necessary in case of flat extraction)
-            info_json = get_video_details(video_id, global_archive_set)
-
-            if DEBUG_force_date:
-                try:
-                    with open('DEBUG_info_json.json', 'w', encoding='utf-8') as json_file:
-                        # noinspection PyTypeChecker
-                        json.dump(info_json, json_file, ensure_ascii=False, indent=4)
-                except KeyboardInterrupt:
-                    sys.exit()
-                except Exception as exception_debug:
-                    print(exception_debug)
-
-                try:
-                    with open('DEBUG_video.json', 'w', encoding='utf-8') as json_file:
-                        # noinspection PyTypeChecker
-                        json.dump(video, json_file, ensure_ascii=False, indent=4)
-                except KeyboardInterrupt:
-                    sys.exit()
-                except Exception as exception_debug:
-                    print(exception_debug)
-
-                input(f'Dumped JSON... Continue?')
-
-            video_channel_id = info_json['channel_id']
-
-            if upload_date is None:
-                try:
-                    upload_date = info_json['upload_date']
-                except KeyboardInterrupt:
-                    sys.exit()
-                except Exception as exception_date:
-                    print(exception_date)
-
-            if release_date is None:
-                try:
-                    release_date = info_json['release_date']
-                except KeyboardInterrupt:
-                    sys.exit()
-                except Exception as exception_date:
-                    print(exception_date)
+            video = get_video_details(video_id, global_archive_set)
+            video_channel_id = video['channel_id']
+            video_type = video['media_type']
 
         except KeyboardInterrupt:
             sys.exit()
@@ -1209,17 +1205,18 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
                 return False
 
             elif regex_video_age_restricted.search(str(exception_add_video)):
+                # TODO: This is not really elegant!
                 print(f'{datetime.now()} {Fore.RED}AGE RESTRICTED{Style.RESET_ALL} video "{video_id}"')
 
                 # Update DB
                 try:
-                    mydb = connect_database()
-
+                    # mydb = connect_database()
+                    # mydb = database
                     mysql_cursor = mydb.cursor()
 
                     sql = ("INSERT INTO videos (channel, playlist, site, url, status, download) "
                            "VALUES (%s, %s, %s, %s, %s, %s);")
-                    val = (channel_id, final_playlist_id, channel_site, video_id, 'age-restricted', final_download)
+                    val = (channel_id, playlist_id, channel_site, video_id, 'age-restricted', download)
 
                     if DEBUG_unavailable:
                         input(val)
@@ -1248,6 +1245,66 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
                       f'{exception_add_video}')
                 # Return None to trigger retry
                 return None
+
+    # Get Media Type
+    final_playlist_id = playlist_id
+    final_download = download
+    if video_type == 'short':
+        final_playlist_id = '#shorts'
+        if download_shorts:
+            final_download = download
+        else:
+            final_download = False
+        # TODO: This is not matching our data model, it leads to just ONE playlist for all shorts which changes channel ownership
+        # add_playlist(playlist_id=final_playlist_id,
+        #              playlist_name=playlist_name_shorts,
+        #              channel_id=channel_id,
+        #              download=final_download, )
+    elif video_type == 'livestream':
+        final_playlist_id = '#livestreams'
+        if download_livestreams:
+            final_download = download
+        else:
+            final_download = False
+        # TODO: This is not matching our data model, it leads to just ONE playlist for all livestreams which changes channel ownership
+        # add_playlist(playlist_id=final_playlist_id,
+        #              playlist_name=playlist_name_livestreams,
+        #              channel_id=channel_id,
+        #              download=final_download, )
+
+    # Reset dates
+    original_date = None
+    upload_date = None
+    release_date = None
+
+    # Set info fields for use in database entry
+
+    try:
+        upload_date = video['upload_date']
+    except KeyboardInterrupt:
+        sys.exit()
+    except Exception as exception_date:
+        if DEBUG_log_date_fields_missing:
+            print(f'{datetime.now()} {Fore.YELLOW}MISSING{Style.RESET_ALL} JSON field {exception_date}')
+
+    try:
+        release_date = video['release_date']
+    except KeyboardInterrupt:
+        sys.exit()
+    except Exception as exception_date:
+        if DEBUG_log_date_fields_missing:
+            print(f'{datetime.now()} {Fore.YELLOW}MISSING{Style.RESET_ALL} JSON field {exception_date}')
+        if DEBUG_force_date and not upload_date:
+            try:
+                with open('DEBUG_info_json.json', 'w', encoding='utf-8') as json_file:
+                    # noinspection PyTypeChecker
+                    json.dump(video, json_file, ensure_ascii=False, indent=4)
+            except KeyboardInterrupt:
+                sys.exit()
+            except Exception as exception_debug:
+                print(exception_debug)
+
+            input(f'Dumped JSON... Continue?')
 
     try:
         if video['availability'] is None:
@@ -1291,8 +1348,8 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
                       end='\r')
                 video_status = 'unwanted'
 
-            mydb = connect_database()
-
+            # mydb = connect_database()
+            # mydb = database
             mysql_cursor = mydb.cursor()
             sql = ("INSERT INTO videos (channel, playlist, site, url, status, original_date, download) "
                    "VALUES (%s, %s, %s, %s, %s, %s, %s)")
@@ -1451,7 +1508,7 @@ def get_wanted_videos_from_db():
     mydb = connect_database()
 
     mysql_cursor = mydb.cursor()
-
+    # TODO: Make limit configurable and possibly dynamic
     sql = (
         "SELECT videos.site, videos.url, videos.original_date, channels.name, channels.url, playlists.name, playlists.url "
         "FROM videos "
@@ -1460,7 +1517,8 @@ def get_wanted_videos_from_db():
         "WHERE (videos.status = 'wanted' OR videos.status = 'broken') "
         "AND videos.download IS TRUE "
         "ORDER BY EXTRACT(year FROM videos.original_date) DESC, EXTRACT(month FROM videos.original_date) DESC, "
-        "channels.priority DESC, channels.priority DESC, playlists.priority DESC, videos.original_date DESC;")
+        "EXTRACT(day FROM videos.original_date) DESC, channels.priority DESC, channels.priority DESC, "
+        "playlists.priority DESC, videos.original_date DESC LIMIT 3;")
     mysql_cursor.execute(sql)
     mysql_result = mysql_cursor.fetchall()
     return mysql_result
@@ -1485,6 +1543,8 @@ def download_all_videos():
                 video_downloaded = download_video(video=current_video)
                 if video_downloaded is True:
                     continue
+                elif video_downloaded is None:
+                    return
                 else:
                     if GEO_BLOCKED_vpn_countries:
                         vpn_frequency = GEO_BLOCKED_vpn_frequency
@@ -1792,7 +1852,8 @@ def get_monitored_playlists_from_db():
                "AND playlists.done IS NOT TRUE "
                "AND playlists.download IS TRUE "
                "AND NOT EXISTS ( SELECT 1 FROM videos WHERE videos.playlist = playlists.url ) "
-               "ORDER BY playlists.priority DESC, playlists.date_checked ASC, RAND();")
+               "ORDER BY playlists.priority DESC, EXTRACT(year FROM playlists.date_checked) ASC, "
+               "EXTRACT(month FROM playlists.date_checked) ASC, EXTRACT(day FROM playlists.date_checked) ASC, RAND();")
         val = ('youtube',)
         mysql_cursor.execute(sql, val)
         mysql_result = mysql_cursor.fetchall()
@@ -1810,7 +1871,8 @@ def get_monitored_playlists_from_db():
                "AND playlists.done IS NOT TRUE "
                "AND playlists.download IS TRUE "
                "AND EXISTS ( SELECT 1 FROM videos WHERE videos.playlist = playlists.url ) "
-               "ORDER BY playlists.priority DESC, playlists.date_checked ASC, RAND();")
+               "ORDER BY playlists.priority DESC, EXTRACT(year FROM playlists.date_checked) ASC, "
+               "EXTRACT(month FROM playlists.date_checked) ASC, EXTRACT(day FROM playlists.date_checked) ASC, RAND();")
         val = ('youtube',)
         mysql_cursor.execute(sql, val)
         mysql_result = mysql_cursor.fetchall()
@@ -1894,11 +1956,13 @@ def get_all_playlist_videos_from_youtube(playlist):
 
 
 def add_playlist_videos(videos):
-    pass
+    for video in videos:
+        add_video(video)
 
 
 def add_channel_videos(videos):
-    pass
+    for video in videos:
+        add_video(video)
 
 
 def update_subscriptions():
@@ -1909,6 +1973,8 @@ def update_subscriptions():
     global vpn_counter
     all_channels = get_monitored_channels_from_db()
     for current_channel in all_channels:
+        database = connect_database()
+
         # TESTING: random new order of countries each channel
         random.shuffle(DEFAULT_vpn_countries)
 
@@ -2032,7 +2098,8 @@ def update_subscriptions():
                                                             channel_id=current_channel_id,
                                                             playlist_id=current_playlist_id,
                                                             download=current_playlist_download,
-                                                            archive_set=global_archive_set, )
+                                                            archive_set=global_archive_set,
+                                                            database = database)
 
                                     counter_process_video += 1
 
@@ -2058,8 +2125,13 @@ def update_subscriptions():
                         # A: All videos have been processed or already known
                         # B: The playlist had no (new) videos
                         if current_playlist_checked_successfully:
-                            update_playlist(date=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                                            playlist=current_playlist)
+                            playlist_updated = False
+                            while not playlist_updated:
+                                playlist_updated = update_playlist(date=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                                                  playlist=current_playlist,
+                                                                  database=database)
+                                if not playlist_updated:
+                                    database = connect_database()
                         else:
                             print(f'{datetime.now()} {Fore.RED}INCOMPLETE CHECK{Style.RESET_ALL} on playlist '
                                   f'"{current_playlist_name}" ({current_playlist_site} {current_playlist_id})')
@@ -2069,8 +2141,13 @@ def update_subscriptions():
             # B: All new channel videos have been found on a playlist
             # C: The channel had no new videos
             if all_playlists_checked_successfully:
-                update_channel(date=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                               channel=current_channel)
+                channel_updated = False
+                while not channel_updated:
+                    channel_updated = update_channel(date=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                                    channel=current_channel,
+                                                    database=database)
+                    if not channel_updated:
+                        database = connect_database()
             else:
                 print(f'{datetime.now()} {Fore.RED}INCOMPLETE CHECK{Style.RESET_ALL} on channel '
                       f'"current_channel_name" ({current_channel_site} {current_channel_id})')
@@ -2206,7 +2283,7 @@ if __name__ == "__main__":
     parser.add_argument("--mode",
                         choices=('A', 'D', 'M'),
                         help="'A' for Add Subscriptions, "
-                             "'D' for Download, "
+                             "'D' for Download Media, "
                              "'M' for Monitor Subscriptions, "
                              "EMPTY to run in serial mode. ",
                         type=str,
@@ -2226,17 +2303,17 @@ if __name__ == "__main__":
         if args.mode == 'D':
             while True:
                 print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
-                      f'downloading videos')
+                      f'Download Media')
                 download_all_videos()
         elif args.mode == 'M':
             while True:
                 print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
-                      f'monitor channels')
+                      f'Monitor Subscriptions')
                 update_subscriptions()
         elif args.mode == 'A':
             while True:
                 print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
-                      f'monitor channels')
+                      f'Add Subscriptions')
                 add_subscriptions()
         else:
             print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: '
