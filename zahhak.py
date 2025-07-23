@@ -2302,6 +2302,8 @@ def add_subscriptions():
                             playlist_name_input = input(f'ENTER to keep default or type to change PLAYLIST name: ')
                             if playlist_name_input:
                                 playlist_name_sane = sanitize_name(name=playlist_name_input, is_user=True)
+                        else:
+                            playlist_name_sane = None
 
                         add_playlist(playlist_id=playlist_id, playlist_name=playlist_name_sane, channel_id=channel_id,
                                      download=download_playlist, monitor=monitor_playlist)
@@ -2338,6 +2340,8 @@ def add_subscriptions():
                     playlist_name_input = input(f'ENTER to keep default or type to change PLAYLIST name: ')
                     if playlist_name_input:
                         playlist_name_sane = sanitize_name(name=playlist_name_input, is_user=True)
+                else:
+                    playlist_name_sane = None
 
                 add_playlist(playlist_id=playlist_id, playlist_name=playlist_name_sane, channel_id=channel_id,
                              download=download_playlist, monitor=monitor_playlist)
