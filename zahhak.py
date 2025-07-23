@@ -1892,9 +1892,8 @@ def get_all_channel_videos_from_youtube(channel):
                                         archive_set=set())
 
 
-def get_all_channel_playlists_from_youtube(channel, ignore_errors):
+def get_all_channel_playlists_from_youtube(channel_id, ignore_errors):
     """Returns a list of all online YouTube playlists for the given channel"""
-    channel_id = channel[1]
     print(f'{datetime.now()} Collecting playlists for channel "{channel_id}"')
 
     channel_playlists_url = f'https://www.youtube.com/channel/{channel_id}/playlists'
@@ -2261,7 +2260,7 @@ def add_subscriptions():
                 f'{datetime.now()} {Fore.CYAN}ATTENTION{Style.RESET_ALL} All "Other" videos are already being downloaded!')
 
         online_playlists = None
-        online_playlists = get_all_channel_playlists_from_youtube(channel=channel,
+        online_playlists = get_all_channel_playlists_from_youtube(channel_id=channel_id,
                                                                   ignore_errors=DEFAULT_ignore_errors_playlist)
 
         if online_playlists is not None:
