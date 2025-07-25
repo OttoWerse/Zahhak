@@ -13,9 +13,6 @@ import mysql.connector
 import yt_dlp
 from colorama import init, Fore, Style, just_fix_windows_console
 
-# TODO: Extract Flat causes only first page to be loaded. Bug is old, but certainly back: https://github.com/ytdl-org/youtube-dl/issues/28075
-# TODO: Look into using logger, progress_hooks, progress (https://github.com/yt-dlp/yt-dlp/issues/66)
-# TODO: Ignoring no format error leads to unavailable videos to also be in entries (videos) list (for playlists at least), this is now handled by checking the date and passing if none can be found. Since this leaves us a bit open to ignoring date oddities, we should look into filtering these unavailable videos out (do NOT remove ignore no format error option, it will lead to ABORTION!) https://github.com/yt-dlp/yt-dlp/issues/9810
 # TODO https://www.reddit.com/r/youtubedl/comments/1berg2g/is_repeatedly_downloading_api_json_necessary/
 
 '''Download directory settings'''
@@ -142,6 +139,7 @@ quiet_download_warnings = True
 
 # Extract FLAT
 # TODO: Combined with ignore Errors != False sometimes only loads first page?!?!?!
+#  Bug is old, but certainly back: https://github.com/ytdl-org/youtube-dl/issues/28075
 extract_flat_channel = True  # Can be True for faster processing IF ignore_errors is False and NOT 'only_download'! (causes frequent incomplete checks of channel state, which can prevent playlist checking from happening!)
 extract_flat_playlist = True  # TODO: just reconnect_vpn upon bot detection - Previous comment: Leave as False to avoid extraction of every single video AFTER playlist (often detected as bot!)
 
@@ -309,6 +307,7 @@ class MediaItem:
             return same
 
 
+# TODO: Look into using logger, progress_hooks, progress (https://github.com/yt-dlp/yt-dlp/issues/66) effectively!
 class VoidLogger:
     def debug(self, msg):
         pass
@@ -481,7 +480,7 @@ def check_channel_availability(channel):
         'no_warnings': quiet_check_channel_warnings,
         'cachedir': False,
         'ignoreerrors': ignore_errors,
-        'ignore_no_formats_error': True,
+        'ignore_no_formats_error': True,  # Keep "True" https://github.com/yt-dlp/yt-dlp/issues/9810
         'extractor_args': {'youtube': {'skip': ['configs', 'webpage', 'js']}},
         'extractor_retries': retry_extraction_check_channel,
         'socket_timeout': timeout_check_channel,
@@ -606,7 +605,7 @@ def get_new_channel_videos_from_youtube(channel, ignore_errors, archive_set):
         'no_warnings': quiet_channel_warnings,
         'cachedir': False,
         'ignoreerrors': ignore_errors,
-        'ignore_no_formats_error': True,
+        'ignore_no_formats_error': True, # Keep "True" https://github.com/yt-dlp/yt-dlp/issues/9810
         'download_archive': archive_set,
         'extractor_args': {'youtube': {'skip': ['configs', 'webpage', 'js']}},
         'extractor_retries': retry_extraction_channel,
@@ -780,7 +779,7 @@ def get_new_playlist_videos_from_youtube(playlist, ignore_errors, counter, archi
         'no_warnings': quiet_playlist_warnings,
         'cachedir': False,
         'ignoreerrors': ignore_errors,
-        'ignore_no_formats_error': True,
+        'ignore_no_formats_error': True, # Keep "True" https://github.com/yt-dlp/yt-dlp/issues/9810
         'download_archive': archive_set,
         'extractor_args': {'youtube': {'skip': ['configs', 'webpage', 'js']}},
         'extractor_retries': retry_extraction_playlist,
@@ -1706,8 +1705,7 @@ def download_video(video):
             'cachedir': False,
             'skip_unavailable_fragments': False,  # To abort on missing video parts (largely avoids re-downloading)
             'ignoreerrors': False,
-            'ignore_no_formats_error': False,
-            # TODO: "ignore_no_formats_error" was "True" to skip unavailable videos, but needs to be "False" to get error to handle in python
+            'ignore_no_formats_error': False, # Keep "False" to get exception to handle in python!
             'extractor_retries': retry_extraction_download,
             'socket_timeout': timeout_download,
             'source_address': external_ip,
