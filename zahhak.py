@@ -201,6 +201,7 @@ regex_error_connection = re.compile(r'Remote end closed connection without respo
 regex_error_timeout = re.compile(r'The read operation timed out')
 regex_error_get_addr_info = re.compile(r'getaddrinfo failed')
 regex_error_win_10054 = re.compile(r'WinError 10054')
+regex_error_win_2 = re.compile(r'WinError 2')
 
 regex_bot = re.compile(r"Sign in to confirm you're not a bot")
 
@@ -209,6 +210,21 @@ regex_sql_duplicate = re.compile(r'Duplicate entry')
 # noinspection RegExpRedundantEscape
 regex_val = re.compile(r'[^\.a-zA-Z0-9 -]')
 regex_caps = re.compile(r'[A-Z][A-Z]+')
+
+'''Status values'''
+STATUS_UNWANTED = 'unwanted'
+STATUS_WANTED = 'wanted'
+STATUS_MEMBERS_ONLY = 'members-only'
+STATUS_AGE_RESTRICTED = 'age-restricted'
+STATUS_UNAVAILABLE = 'unavailable'
+STATUS_PRIVATE = 'private'
+STATUS_REMOVED = 'removed'
+STATUS_VERIFIED = 'verified'
+STATUS_UNCERTAIN = 'uncertain'
+STATUS_BROKEN = 'broken'
+STATUS_BROKEN_UNAVAILABLE = 'broken-unavailable'
+STATUS_CURSED = 'cursed'
+STATUS_DONE = 'done'
 
 '''DEBUG'''
 DEBUG_empty_video = False
@@ -955,7 +971,7 @@ def get_channel_playlists_from_db(channel):
     return playlists
 
 
-def get_video_details(video_id, archive_set):
+def get_video_details(video_id, ignore_errors, archive_set):
     """Fills the details for a video by its ID"""
     global vpn_frequency
     vpn_counter = 0
@@ -972,7 +988,7 @@ def get_video_details(video_id, archive_set):
                 'skip_download': True,
                 'allow_playlist_files': False,
                 'cachedir': False,
-                'ignoreerrors': False,
+                'ignoreerrors': ignore_errors,
                 'download_archive': archive_set,
                 'extractor_args': {'youtube': {'skip': ['configs', 'webpage', 'js']}},
                 'extractor_retries': retry_extraction_video,
@@ -1002,8 +1018,7 @@ def get_video_details(video_id, archive_set):
                 vpn_counter = reconnect_vpn(vpn_counter)
 
             else:
-                print(
-                    f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while getting details for video "{video_id}": {e}')
+                # print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while getting details for video "{video_id}": {e}')
                 raise
 
 
@@ -1136,11 +1151,34 @@ def add_playlist(playlist_id, playlist_name, channel_id, download, monitor):
             return None
 
 
-def add_video(video, channel_site, channel_id, playlist_id, download, archive_set, database):
-    """Adds a video to given playlist/channel in database"""
+def add_video(video_site, video_id, video_channel, video_playlist, video_status, video_date, download, database=None):
+    """Adds a video to given playlist & channel in database with the given status fields"""
+    if not database:
+        mydb = connect_database()
+    else:
+        mydb = database
 
-    mydb = database
+    global global_archive_set
 
+    mysql_cursor = mydb.cursor()
+    sql = ("INSERT INTO videos(site, url, channel, playlist, status, original_date, download) "
+           "VALUES(%s, %s, %s, %s, %s, %s, %s) "
+           "ON DUPLICATE KEY UPDATE status = VALUES(status);")
+    val = (video_site, video_id, video_channel, video_playlist, video_status, video_date, download)
+    mysql_cursor.execute(sql, val)
+    mydb.commit()
+
+    if f'{video_site} {video_id}' in global_archive_set:
+        input(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} video "{video_site} {video_id}" '
+              f'to status "{video_status}"')
+    else:
+        global_archive_set.add(f'{video_site} {video_id}')
+        print(f'{datetime.now()} {Fore.GREEN}ADDED{Style.RESET_ALL} video "{video_site} {video_id}" '
+              f'with status "{video_status}"')
+
+
+def process_video(video, channel_site, channel_id, playlist_id, download, archive_set, database):
+    """Processes a video and adds it to database depending on results and settings"""
     if DEBUG_json_video_add:
         with open('debug.json', 'w', encoding='utf-8') as json_file:
             # noinspection PyTypeChecker
@@ -1165,6 +1203,9 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
               f'{exception_add_video}')
         return False
 
+    # CLEAR date
+    original_date = None
+
     # Check that video has all details (full extract) or extract info (flat extract)
     try:
         # This is NOT in flat playlist JSON, if we want to use flat, we need to extract videos individually!
@@ -1173,30 +1214,78 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
     except KeyboardInterrupt:
         sys.exit()
     except Exception as exception_add_video:
-        print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} reading local video details, retrying online '
-              f'({exception_add_video})')
+        if not extract_flat_playlist:  # retrying online is expected to happen then extract_flat_playlist is True
+            print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} reading local video details, retrying online')
         try:
             # Get all info for video online (necessary in case of flat extraction)
-            video = get_video_details(video_id, global_archive_set)
+            video = get_video_details(video_id=video_id, ignore_errors=False, archive_set=archive_set)
             video_channel_id = video['channel_id']
             video_type = video['media_type']
 
         except KeyboardInterrupt:
             sys.exit()
         except Exception as exception_add_video:
-            if regex_video_members_only.search(str(exception_add_video)) or regex_video_members_tier.search(
-                    str(exception_add_video)):
+            if (regex_video_members_only.search(str(exception_add_video))
+                    or regex_video_members_tier.search(str(exception_add_video))):
                 print(f'{datetime.now()} {Fore.RED}MEMBERS ONLY{Style.RESET_ALL} video "{video_id}"')
-                return False
+                # Update DB
+                try:
+                    add_video(video_site=video_site,
+                              video_id=video_id,
+                              video_channel=channel_id,
+                              video_playlist=playlist_id,
+                              video_status=STATUS_MEMBERS_ONLY,
+                              video_date=original_date,
+                              download=download,
+                              database=database)
+                    return True
+                except KeyboardInterrupt:
+                    sys.exit()
+                except Exception as exception_update_db:
+                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating video "{video_id}": '
+                          f'{exception_update_db}')
+                    return False
 
             elif regex_video_removed.search(str(exception_add_video)):
                 print(f'{datetime.now()} {Fore.RED}REMOVED{Style.RESET_ALL} video "{video_id}"')
-                return False
+                # Update DB
+                try:
+                    add_video(video_site=video_site,
+                              video_id=video_id,
+                              video_channel=channel_id,
+                              video_playlist=playlist_id,
+                              video_status=STATUS_REMOVED,
+                              video_date=original_date,
+                              download=download,
+                              database=database)
+                    return True
+                except KeyboardInterrupt:
+                    sys.exit()
+                except Exception as exception_update_db:
+                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating video "{video_id}": '
+                          f'{exception_update_db}')
+                    return False
 
             elif (regex_video_unavailable.search(str(exception_add_video))
                   or regex_video_unavailable_live.search(str(exception_add_video))):
                 print(f'{datetime.now()} {Fore.RED}UNAVAILABLE{Style.RESET_ALL} video "{video_id}"')
-                return False
+                # Update DB
+                try:
+                    add_video(video_site=video_site,
+                              video_id=video_id,
+                              video_channel=channel_id,
+                              video_playlist=playlist_id,
+                              video_status=STATUS_UNAVAILABLE,
+                              video_date=original_date,
+                              download=download,
+                              database=database)
+                    return True
+                except KeyboardInterrupt:
+                    sys.exit()
+                except Exception as exception_update_db:
+                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating video "{video_id}": '
+                          f'{exception_update_db}')
+                    return False
 
             elif regex_video_unavailable_geo.search(str(exception_add_video)):
                 print(f'{datetime.now()} {Fore.RED}GEO BLOCKED{Style.RESET_ALL} video "{video_id}"')
@@ -1205,32 +1294,36 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
 
             elif regex_video_private.search(str(exception_add_video)):
                 print(f'{datetime.now()} {Fore.RED}PRIVATE{Style.RESET_ALL} video "{video_id}"')
-                # TODO: Add to DB as private? (needs frequent re-checking of all private videos to get pre-uploaded videos)
-                return False
-
-            elif regex_video_age_restricted.search(str(exception_add_video)):
-                # TODO: This is not really elegant!
-                print(f'{datetime.now()} {Fore.RED}AGE RESTRICTED{Style.RESET_ALL} video "{video_id}"')
-
                 # Update DB
                 try:
-                    # mydb = connect_database()
-                    # mydb = database
-                    mysql_cursor = mydb.cursor()
+                    add_video(video_site=video_site,
+                              video_id=video_id,
+                              video_channel=channel_id,
+                              video_playlist=playlist_id,
+                              video_status=STATUS_PRIVATE,
+                              video_date=original_date,
+                              download=download,
+                              database=database)
+                    return True
+                except KeyboardInterrupt:
+                    sys.exit()
+                except Exception as exception_update_db:
+                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating video "{video_id}": '
+                          f'{exception_update_db}')
+                    return False
 
-                    sql = ("INSERT INTO videos (channel, playlist, site, url, status, download) "
-                           "VALUES (%s, %s, %s, %s, %s, %s);")
-                    val = (channel_id, playlist_id, channel_site, video_id, 'age-restricted', download)
-
-                    if DEBUG_unavailable:
-                        input(val)
-
-                    mysql_cursor.execute(sql, val)
-                    mydb.commit()
-
-                    archive_set.add(f'{channel_site} {video_id}')
-
-                    print(f'{datetime.now()} {Fore.CYAN}ADDED AGE RESTRICTED{Style.RESET_ALL} video "{video_id}"')
+            elif regex_video_age_restricted.search(str(exception_add_video)):
+                print(f'{datetime.now()} {Fore.RED}AGE RESTRICTED{Style.RESET_ALL} video "{video_id}"')
+                # Update DB
+                try:
+                    add_video(video_site=video_site,
+                              video_id=video_id,
+                              video_channel=channel_id,
+                              video_playlist=playlist_id,
+                              video_status=STATUS_AGE_RESTRICTED,
+                              video_date=original_date,
+                              download=download,
+                              database=database)
                     return True
 
                 except KeyboardInterrupt:
@@ -1249,6 +1342,27 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
                       f'{exception_add_video}')
                 # Return None to trigger retry
                 return None
+
+    # Get date
+    if original_date is None:
+        try:
+            original_date = datetime.strptime(video['upload_date'], '%Y%m%d').strftime('%Y-%m-%d')
+        except KeyboardInterrupt:
+            sys.exit()
+        except Exception as exception_date:
+            if DEBUG_log_date_fields_missing:
+                print(f'{datetime.now()} {Fore.YELLOW}MISSING{Style.RESET_ALL} JSON field {exception_date}')
+    if original_date is None:
+        try:
+            original_date = datetime.strptime(video['release_date'], '%Y%m%d').strftime('%Y-%m-%d')
+        except KeyboardInterrupt:
+            sys.exit()
+        except Exception as exception_date:
+            if DEBUG_log_date_fields_missing:
+                print(f'{datetime.now()} {Fore.YELLOW}MISSING{Style.RESET_ALL} JSON field {exception_date}')
+    if original_date is None:
+        print(f'{datetime.now()} {Fore.RED}NO DATE{Style.RESET_ALL} aborting!')
+        return False
 
     # Get Media Type
     final_playlist_id = playlist_id
@@ -1278,68 +1392,32 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
         #              download=final_download,
         #              monitor= )
 
-    # Reset dates
-    original_date = None
-    upload_date = None
-    release_date = None
-
-    # Set info fields for use in database entry
-
-    try:
-        upload_date = video['upload_date']
-    except KeyboardInterrupt:
-        sys.exit()
-    except Exception as exception_date:
-        if DEBUG_log_date_fields_missing:
-            print(f'{datetime.now()} {Fore.YELLOW}MISSING{Style.RESET_ALL} JSON field {exception_date}')
-
-    try:
-        release_date = video['release_date']
-    except KeyboardInterrupt:
-        sys.exit()
-    except Exception as exception_date:
-        if DEBUG_log_date_fields_missing:
-            print(f'{datetime.now()} {Fore.YELLOW}MISSING{Style.RESET_ALL} JSON field {exception_date}')
-        if DEBUG_force_date and not upload_date:
-            try:
-                with open('DEBUG_info_json.json', 'w', encoding='utf-8') as json_file:
-                    # noinspection PyTypeChecker
-                    json.dump(video, json_file, ensure_ascii=False, indent=4)
-            except KeyboardInterrupt:
-                sys.exit()
-            except Exception as exception_debug:
-                print(exception_debug)
-
-            input(f'Dumped JSON... Continue?')
-
     try:
         if video['availability'] is None:
             print(f'{datetime.now()} {Fore.RED}PRIVATE{Style.RESET_ALL} video "{video_id}"')
-            return False
+            # Update DB
+            try:
+                add_video(video_site=video_site,
+                          video_id=video_id,
+                          video_channel=channel_id,
+                          video_playlist=playlist_id,
+                          video_status=STATUS_PRIVATE,
+                          video_date=original_date,
+                          download=download,
+                          database=database)
+                return True
+            except KeyboardInterrupt:
+                sys.exit()
+            except Exception as exception_update_db:
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating video "{video_id}": '
+                      f'{exception_update_db}')
+                return False
     except KeyboardInterrupt:
         sys.exit()
     except Exception as exception_check_private:
         print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} checking private video: '
               f'{exception_check_private}')
         return True
-
-    # Get date
-    if original_date is None:
-        try:
-            original_date = datetime.strptime(upload_date, '%Y%m%d').strftime('%Y-%m-%d')
-        except KeyboardInterrupt:
-            sys.exit()
-        except Exception as exception_add_video:
-            print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: No upload date in info JSON! '
-                  f'({exception_add_video})')
-    if original_date is None:
-        try:
-            original_date = datetime.strptime(release_date, '%Y%m%d').strftime('%Y-%m-%d')
-        except KeyboardInterrupt:
-            sys.exit()
-        except Exception as exception_add_video:
-            print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: No release date in info JSON! '
-                  f'({exception_add_video})')
 
     # Update DB
     if original_date is not None:
@@ -1348,25 +1426,20 @@ def add_video(video, channel_site, channel_id, playlist_id, download, archive_se
             if final_download:
                 print(f'{datetime.now()} {Fore.CYAN}ADDING{Style.RESET_ALL} video {video_id} type "{video_type}"',
                       end='\r')
-                video_status = 'wanted'
+                video_status = STATUS_WANTED
             else:
                 print(f'{datetime.now()} {Fore.CYAN}SKIPPING{Style.RESET_ALL} video "{video_id}" type "{video_type}"',
                       end='\r')
-                video_status = 'unwanted'
+                video_status = STATUS_UNWANTED
 
-            # mydb = connect_database()
-            # mydb = database
-            mysql_cursor = mydb.cursor()
-            sql = ("INSERT INTO videos (channel, playlist, site, url, status, original_date, download) "
-                   "VALUES (%s, %s, %s, %s, %s, %s, %s)")
-            val = (
-                video_channel_id, final_playlist_id, video_site, video_id, video_status, original_date, final_download)
-            if DEBUG_add_video:
-                input(val)
-            mysql_cursor.execute(sql, val)
-            mydb.commit()
-
-            archive_set.add(f'{video_site} {video_id}')
+            add_video(video_site=video_site,
+                      video_id=video_id,
+                      video_channel=video_channel_id,
+                      video_playlist=final_playlist_id,
+                      video_status=video_status,
+                      video_date=original_date,
+                      download=final_download,
+                      database=database)
 
             if final_download:
                 print(f'{datetime.now()} {Fore.GREEN}ADDED{Style.RESET_ALL} video "{video_id}" type "{video_type}"'
@@ -1496,45 +1569,68 @@ def reconnect_vpn(counter, vpn_countries=None):
         print(f'{datetime.now()} {Fore.CYAN}VPN DISABLED{Style.RESET_ALL}')
 
 
-def get_wanted_videos_from_db():
+def get_videos_from_db(status=STATUS_WANTED):
     """
     Returns a list of all wanted YouTube videos als list of lists
     Inner list field order is as follows:
       - videos.site
       - videos.url
       - videos.original_date
+      - videos.status
       - channels.name
       - channels.url
       - playlists.name
       - playlists.url
       """
 
-    print(f'{datetime.now()} Collecting videos...')
+    print(f'{datetime.now()} Collecting {status} videos...')
 
     mydb = connect_database()
 
     mysql_cursor = mydb.cursor()
-    # TODO: Make limit configurable and possibly dynamic
+
     sql = (
-        "SELECT videos.site, videos.url, videos.original_date, channels.name, channels.url, playlists.name, playlists.url "
+        "SELECT videos.site, videos.url, videos.original_date, videos.status, "
+        "channels.name, channels.url, "
+        "playlists.name, playlists.url "
         "FROM videos "
         "INNER JOIN playlists ON videos.playlist=playlists.url "
         "INNER JOIN channels ON playlists.channel=channels.url "
-        "WHERE (videos.status = 'wanted' OR videos.status = 'broken') "
+        "WHERE (videos.status = %s) "
         "AND videos.download IS TRUE "
-        "ORDER BY EXTRACT(year FROM videos.original_date) DESC, EXTRACT(month FROM videos.original_date) DESC, "
-        "EXTRACT(day FROM videos.original_date) DESC, channels.priority DESC, channels.priority DESC, "
-        "playlists.priority DESC, videos.original_date DESC LIMIT 3;")
-    mysql_cursor.execute(sql)
+        "ORDER BY "
+        "EXTRACT(year FROM videos.original_date) DESC, "
+        "EXTRACT(month FROM videos.original_date) DESC, "
+        "EXTRACT(day FROM videos.original_date) DESC, "
+        "channels.priority DESC, "
+        "playlists.priority DESC, "
+        "RAND();")
+
+    val = (status,)
+
+    mysql_cursor.execute(sql, val)
+
     mysql_result = mysql_cursor.fetchall()
+
     return mysql_result
 
 
 def download_all_videos():
     global GEO_BLOCKED_vpn_countries
     global vpn_frequency
-
-    all_videos = get_wanted_videos_from_db()
+    # Collect videos of various status indicating download ability
+    all_videos = []
+    # Videos not yet successfully downloaded and verified
+    all_videos.extend(get_videos_from_db(status=STATUS_BROKEN))
+    all_videos.extend(get_videos_from_db(status=STATUS_WANTED))
+    # Videos with age restriction, can only be downloaded using YT account
+    # TODO all_videos.extend(get_videos_from_db(status=STATUS_AGE_RESTRICTED))
+    # Videos which could have been unreleased before (or simply taken private for other reasons, sadly no way to tell)
+    all_videos.extend(get_videos_from_db(status=STATUS_PRIVATE))
+    # Videos in other error states (slim chance we can ever gat these downloaded TBH)
+    # TODO all_videos.extend(get_videos_from_db(status=STATUS_UNAVAILABLE))
+    # TODO all_videos.extend(get_videos_from_db(status=STATUS_BROKEN_UNAVAILABLE))
+    # TODO all_videos.extend(get_videos_from_db(status=STATUS_REMOVED))
 
     if len(all_videos) == 0:
         print(f'{datetime.now()} {Fore.CYAN}DONE{Style.RESET_ALL} waiting {sleep_time_download_done} seconds')
@@ -1563,11 +1659,12 @@ def download_all_videos():
 def download_video(video):
     video_site = video[0]
     video_id = video[1]
-    video_date = video[2]
-    channel_name = video[3]
-    channel_id = video[4]
-    playlist_name = video[5]
-    playlist_id = video[6]
+    original_date = video[2]
+    video_status = video[3]
+    channel_name = video[4]
+    channel_id = video[5]
+    playlist_name = video[6]
+    playlist_id = video[7]
 
     if directory_download_temp is None or directory_download_home is None:
         print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} download paths are not set!')
@@ -1583,7 +1680,8 @@ def download_video(video):
     except KeyboardInterrupt:
         sys.exit()
     except Exception as exception_clear_temp:
-        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} {exception_clear_temp}')
+        if not regex_error_win_2.search(str(exception_clear_temp)):
+            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} {exception_clear_temp}')
 
     print(f'{datetime.now()} {Fore.CYAN}DOWNLOADING{Style.RESET_ALL} video "{video_site} - {video_id}"')
 
@@ -1604,7 +1702,7 @@ def download_video(video):
             'quiet': quiet_download_info,
             'no_warnings': quiet_download_warnings,
             # 'verbose': True,
-            'download_archive': None,  # TODO: This is correct ,yes?
+            'download_archive': None,  # TODO: This is correct, yes?
             'cachedir': False,
             'skip_unavailable_fragments': False,  # To abort on missing video parts (largely avoids re-downloading)
             'ignoreerrors': False,
@@ -1627,7 +1725,6 @@ def download_video(video):
             'writeinfojson': True,
             'allow_playlist_files': False,
             # 'check_formats': True,
-            # 'format': 'bv*[ext=mp4]+ba*[ext=m4a]/b'
             'format': 'bestvideo*[ext=mp4][height<=1080]+bestaudio[ext=m4a]',
             'allow_multiple_audio_streams': True,
             'merge_output_format': 'mp4',
@@ -1685,20 +1782,42 @@ def download_video(video):
                 meta = ilus.extract_info(video_url, download=True)
                 meta = ilus.sanitize_info(meta)
                 path = meta['requested_downloads'][0]['filepath']
-                # TODO: new format?
-                #  path = path[len(directory_download_home)+len(os.sep):len(path)-len('.mp4')]
+                # TODO: new format? path = path[len(directory_download_home)+len(os.sep):len(path)-len('.mp4')]
                 path = path[len(directory_download_home) + len(os.sep):len(path)]
 
-            # What happens in the weird edge-case that YT-DLP ends with reaching all retries?
-            # It does not progress past this point, but also does not throw an exception. No IDK how/why.
+                # Get date
+                if original_date is None:
+                    try:
+                        original_date = datetime.strptime(meta['upload_date'], '%Y%m%d').strftime('%Y-%m-%d')
+                    except KeyboardInterrupt:
+                        sys.exit()
+                    except Exception as exception_date:
+                        if DEBUG_log_date_fields_missing:
+                            print(f'{datetime.now()} {Fore.YELLOW}MISSING{Style.RESET_ALL} JSON field {exception_date}')
+                if original_date is None:
+                    try:
+                        original_date = datetime.strptime(meta['release_date'], '%Y%m%d').strftime('%Y-%m-%d')
+                    except KeyboardInterrupt:
+                        sys.exit()
+                    except Exception as exception_date:
+                        if DEBUG_log_date_fields_missing:
+                            print(f'{datetime.now()} {Fore.YELLOW}MISSING{Style.RESET_ALL} JSON field {exception_date}')
+                if original_date is None:
+                    print(f'{datetime.now()} {Fore.RED}NO DATE{Style.RESET_ALL} aborting!')
+                    return False
 
-            # TODO: How to get path? progress_hooks are useless. Postprocessor?
+            """
+            What happens in the weird edge-case that YT-DLP ends with reaching all retries?
+            It does not progress past this point, but also does not throw an exception. No IDK how/why.
+            """
+
             # Update DB
             try:
+                # TODO: This needs to be worked into the add_video method (or update_video, whatever we end up calling it
                 mydb = connect_database()
                 mysql_cursor = mydb.cursor()
-                sql = "UPDATE videos SET status = %s, save_path = %s WHERE site = %s AND url = %s;"
-                val = ('fresh', path, video_site, video_id)
+                sql = "UPDATE videos SET status = %s, save_path = %s, original_date = %s WHERE site = %s AND url = %s;"
+                val = ('fresh', path, original_date, video_site, video_id)
                 mysql_cursor.execute(sql, val)
                 mydb.commit()
                 print(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} video "{video_id}"')
@@ -1717,13 +1836,14 @@ def download_video(video):
                 print(f'{datetime.now()} {Fore.RED}MEMBERS ONLY{Style.RESET_ALL} video "{video_id}"')
                 # Update DB
                 try:
-                    mydb = connect_database()
-                    mysql_cursor = mydb.cursor()
-                    sql = "UPDATE videos SET status = %s WHERE site = %s AND url = %s;"
-                    val = ('members-only', video_site, video_id)
-                    mysql_cursor.execute(sql, val)
-                    mydb.commit()
-                    print(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} video "{video_id}"')
+                    if video_status != STATUS_MEMBERS_ONLY:
+                        add_video(video_site=video_site,
+                                  video_id=video_id,
+                                  video_channel=channel_id,
+                                  video_playlist=playlist_id,
+                                  video_status=STATUS_MEMBERS_ONLY,
+                                  video_date=original_date,
+                                  download=True)  # Download can be assumed to be True for a video that is being downloaded
                     return True
                 except KeyboardInterrupt:
                     sys.exit()
@@ -1731,17 +1851,19 @@ def download_video(video):
                     print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating video "{video_id}": '
                           f'{exception_update_db}')
                     return False
+
             elif regex_video_removed.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}REMOVED{Style.RESET_ALL} video "{video_id}"')
                 # Update DB
                 try:
-                    mydb = connect_database()
-                    mysql_cursor = mydb.cursor()
-                    sql = "UPDATE videos SET status = %s WHERE site = %s AND url = %s;"
-                    val = ('removed', video_site, video_id)
-                    mysql_cursor.execute(sql, val)
-                    mydb.commit()
-                    print(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} video "{video_id}"')
+                    if video_status != STATUS_REMOVED:
+                        add_video(video_site=video_site,
+                                  video_id=video_id,
+                                  video_channel=channel_id,
+                                  video_playlist=playlist_id,
+                                  video_status=STATUS_REMOVED,
+                                  video_date=original_date,
+                                  download=True)  # Download can be assumed to be True for a video that is being downloaded
                     return True
                 except KeyboardInterrupt:
                     sys.exit()
@@ -1749,18 +1871,20 @@ def download_video(video):
                     print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating video "{video_id}": '
                           f'{exception_update_db}')
                     return False
+
             elif (regex_video_unavailable.search(str(exception_download))
                   or regex_video_unavailable_live.search(str(exception_download))):
                 print(f'{datetime.now()} {Fore.RED}UNAVAILABLE{Style.RESET_ALL} video "{video_id}"')
                 # Update DB
                 try:
-                    mydb = connect_database()
-                    mysql_cursor = mydb.cursor()
-                    sql = "UPDATE videos SET status = %s WHERE site = %s AND url = %s;"
-                    val = ('unavailable', video_site, video_id)
-                    mysql_cursor.execute(sql, val)
-                    mydb.commit()
-                    print(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} video "{video_id}"')
+                    if video_status != STATUS_UNAVAILABLE:
+                        add_video(video_site=video_site,
+                                  video_id=video_id,
+                                  video_channel=channel_id,
+                                  video_playlist=playlist_id,
+                                  video_status=STATUS_UNAVAILABLE,
+                                  video_date=original_date,
+                                  download=True)  # Download can be assumed to be True for a video that is being downloaded
                     return True
                 except KeyboardInterrupt:
                     sys.exit()
@@ -1768,6 +1892,7 @@ def download_video(video):
                     print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating video "{video_id}": '
                           f'{exception_update_db}')
                     return False
+
             elif regex_video_unavailable_geo.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}GEO BLOCKED{Style.RESET_ALL} video "{video_id}"')
                 global GEO_BLOCKED_vpn_countries
@@ -1785,17 +1910,19 @@ def download_video(video):
                               f'{exception_regex_geo_blocked}')
                         # To prevent external endless loop
                         return True
+
             elif regex_video_private.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}PRIVATE{Style.RESET_ALL} video "{video_id}"')
                 # Update DB
                 try:
-                    mydb = connect_database()
-                    mysql_cursor = mydb.cursor()
-                    sql = "UPDATE videos SET status = %s WHERE site = %s AND url = %s;"
-                    val = ('private', video_site, video_id)
-                    mysql_cursor.execute(sql, val)
-                    mydb.commit()
-                    print(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} video "{video_id}"')
+                    if video_status != STATUS_PRIVATE:
+                        add_video(video_site=video_site,
+                                  video_id=video_id,
+                                  video_channel=channel_id,
+                                  video_playlist=playlist_id,
+                                  video_status=STATUS_PRIVATE,
+                                  video_date=original_date,
+                                  download=True)  # Download can be assumed to be True for a video that is being downloaded
                     return True
                 except KeyboardInterrupt:
                     sys.exit()
@@ -1803,17 +1930,19 @@ def download_video(video):
                     print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating video "{video_id}": '
                           f'{exception_update_db}')
                     return False
+
             elif regex_video_age_restricted.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}AGE RESTRICTED{Style.RESET_ALL} video "{video_id}"')
                 # Update DB
                 try:
-                    mydb = connect_database()
-                    mysql_cursor = mydb.cursor()
-                    sql = "UPDATE videos SET status = %s WHERE site = %s AND url = %s;"
-                    val = ('age-restricted', video_site, video_id)
-                    mysql_cursor.execute(sql, val)
-                    mydb.commit()
-                    print(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} video "{video_id}"')
+                    if video_status != STATUS_AGE_RESTRICTED:
+                        add_video(video_site=video_site,
+                                  video_id=video_id,
+                                  video_channel=channel_id,
+                                  video_playlist=playlist_id,
+                                  video_status=STATUS_AGE_RESTRICTED,
+                                  video_date=original_date,
+                                  download=True)  # Download can be assumed to be True for a video that is being downloaded
                     return True
                 except KeyboardInterrupt:
                     sys.exit()
@@ -1827,7 +1956,8 @@ def download_video(video):
 
 
 def get_monitored_playlists_from_db():
-    """Returns all playlists as list of lists
+    """
+    Returns all playlists as list of lists
 
     Inner list field order is as follows:
       - playlists.site
@@ -1837,7 +1967,8 @@ def get_monitored_playlists_from_db():
       - channels.url
       - channels.name
       - channels.priority
-      - playlists.download"""
+      - playlists.download
+      """
 
     playlists = []
     retry_db = True
@@ -1964,12 +2095,14 @@ def get_all_playlist_videos_from_youtube(playlist):
 
 def add_playlist_videos(videos):
     for video in videos:
-        add_video(video)
+        # TODO
+        print(video)
 
 
 def add_channel_videos(videos):
     for video in videos:
-        add_video(video)
+        # TODO
+        print(video)
 
 
 def update_subscriptions():
@@ -2100,13 +2233,13 @@ def update_subscriptions():
                                 counter_process_video = 0
                                 while video_added is None and not skip_video:
 
-                                    video_added = add_video(channel_site=current_playlist_site,
-                                                            video=missing_video_playlist,
-                                                            channel_id=current_channel_id,
-                                                            playlist_id=current_playlist_id,
-                                                            download=current_playlist_download,
-                                                            archive_set=global_archive_set,
-                                                            database=database)
+                                    video_added = process_video(channel_site=current_playlist_site,
+                                                                video=missing_video_playlist,
+                                                                channel_id=current_channel_id,
+                                                                playlist_id=current_playlist_id,
+                                                                download=current_playlist_download,
+                                                                archive_set=global_archive_set,
+                                                                database=database)
 
                                     counter_process_video += 1
 
@@ -2221,8 +2354,9 @@ def add_subscriptions():
 
     use_database = None
     while use_database is None:
-        use_database_input = input(
-            f'Check playlists for all existing channels? {Fore.GREEN}Y{Style.RESET_ALL} or {Fore.RED}N{Style.RESET_ALL}: ')
+        use_database_input = input(f'Check playlists for all existing channels? '
+                                   f'{Fore.GREEN}Y{Style.RESET_ALL} or '
+                                   f'{Fore.RED}N{Style.RESET_ALL}: ')
         if use_database_input.lower() == 'y':
             use_database = True
         elif use_database_input.lower() == 'n':
@@ -2285,14 +2419,17 @@ def add_subscriptions():
                     skip_playlist = False
                     while not skip_playlist:
                         add_playlist_input = input(
-                            f'Download "{playlist_name_sane}" ({playlist_id}) {Fore.GREEN}Y{Style.RESET_ALL} (Yes), {Fore.RED}N{Style.RESET_ALL} (No) or {Fore.CYAN}S{Style.RESET_ALL} (Skip): ')
-                        if add_playlist_input.lower() == 'y':
+                            f'What do you want to do with "{playlist_name_sane}" ({playlist_id})? '
+                            f'{Fore.GREEN}D{Style.RESET_ALL}ownload immediately, '
+                            f'{Fore.YELLOW}M{Style.RESET_ALL}onitor only or '
+                            f'{Fore.RED}I{Style.RESET_ALL}gnore forever: ')
+                        if add_playlist_input.lower() == 'd':
                             monitor_playlist = True
                             download_playlist = True
-                        elif add_playlist_input.lower() == 'n':
+                        elif add_playlist_input.lower() == 'm':
                             monitor_playlist = True
                             download_playlist = False
-                        elif add_playlist_input.lower() == 's':
+                        elif add_playlist_input.lower() == 'i':
                             monitor_playlist = False
                             download_playlist = None
                         else:
@@ -2322,15 +2459,17 @@ def add_subscriptions():
             playlist_name_sane = sanitize_name(name=playlist_name_online)
             skip_playlist = False
             while not skip_playlist:
-                add_playlist_input = input(
-                    f'Download "{playlist_name_sane}" ({playlist_id}) {Fore.GREEN}Y{Style.RESET_ALL} (Yes), {Fore.RED}N{Style.RESET_ALL} (No) or {Fore.CYAN}S{Style.RESET_ALL} (Skip): ')
-                if add_playlist_input.lower() == 'y':
+                add_playlist_input = input(f'What do you want to do with "{playlist_name_sane}" ({playlist_id})? '
+                                           f'{Fore.GREEN}D{Style.RESET_ALL}ownload immediately, '
+                                           f'{Fore.YELLOW}M{Style.RESET_ALL}onitor only or '
+                                           f'{Fore.RED}I{Style.RESET_ALL}gnore forever: ')
+                if add_playlist_input.lower() == 'd':
                     monitor_playlist = True
                     download_playlist = True
-                elif add_playlist_input.lower() == 'n':
+                elif add_playlist_input.lower() == 'm':
                     monitor_playlist = True
                     download_playlist = False
-                elif add_playlist_input.lower() == 's':
+                elif add_playlist_input.lower() == 'i':
                     monitor_playlist = False
                     download_playlist = None
                 else:
