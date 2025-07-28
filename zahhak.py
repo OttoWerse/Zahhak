@@ -1398,11 +1398,11 @@ def process_video(video, channel_site, channel_id, playlist_id, download, archiv
             try:
                 add_video(video_site=video_site,
                           video_id=video_id,
-                          video_channel=channel_id,
-                          video_playlist=playlist_id,
+                          video_channel=video_channel_id,
+                          video_playlist=final_playlist_id,
                           video_status=STATUS_PRIVATE,
                           video_date=original_date,
-                          download=download,
+                          download=final_download,
                           database=database)
                 return True
             except KeyboardInterrupt:
