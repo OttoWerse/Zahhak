@@ -605,7 +605,7 @@ def get_new_channel_videos_from_youtube(channel, ignore_errors, archive_set):
         'no_warnings': quiet_channel_warnings,
         'cachedir': False,
         'ignoreerrors': ignore_errors,
-        'ignore_no_formats_error': True, # Keep "True" https://github.com/yt-dlp/yt-dlp/issues/9810
+        'ignore_no_formats_error': True,  # Keep "True" https://github.com/yt-dlp/yt-dlp/issues/9810
         'download_archive': archive_set,
         'extractor_args': {'youtube': {'skip': ['configs', 'webpage', 'js']}},
         'extractor_retries': retry_extraction_channel,
@@ -779,7 +779,7 @@ def get_new_playlist_videos_from_youtube(playlist, ignore_errors, counter, archi
         'no_warnings': quiet_playlist_warnings,
         'cachedir': False,
         'ignoreerrors': ignore_errors,
-        'ignore_no_formats_error': True, # Keep "True" https://github.com/yt-dlp/yt-dlp/issues/9810
+        'ignore_no_formats_error': True,  # Keep "True" https://github.com/yt-dlp/yt-dlp/issues/9810
         'download_archive': archive_set,
         'extractor_args': {'youtube': {'skip': ['configs', 'webpage', 'js']}},
         'extractor_retries': retry_extraction_playlist,
@@ -1393,32 +1393,32 @@ def process_video(video, channel_site, channel_id, playlist_id, download, archiv
 
     # TODO: This STILL leads to shorts and livestreams being added as regular videos.
     #  The "media_type" field is NOT reliable for videos which aren't available yet!
-    # try:
-    #     if video['availability'] is None:
-    #         print(f'{datetime.now()} {Fore.RED}PRIVATE{Style.RESET_ALL} video "{video_id}"')
-    #         # Update DB
-    #         try:
-    #             add_video(video_site=video_site,
-    #                       video_id=video_id,
-    #                       video_channel=video_channel_id,
-    #                       video_playlist=final_playlist_id,
-    #                       video_status=STATUS_PRIVATE,
-    #                       video_date=original_date,
-    #                       download=final_download,
-    #                       database=database)
-    #             return True
-    #         except KeyboardInterrupt:
-    #             sys.exit()
-    #         except Exception as exception_update_db:
-    #             print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating video "{video_id}": '
-    #                   f'{exception_update_db}')
-    #             return False
-    # except KeyboardInterrupt:
-    #     sys.exit()
-    # except Exception as exception_check_private:
-    #     print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} checking private video: '
-    #           f'{exception_check_private}')
-    #     return True
+    try:
+        if video['availability'] is None:
+            print(f'{datetime.now()} {Fore.RED}PRIVATE{Style.RESET_ALL} video "{video_id}"')
+            # Update DB
+            try:
+                # add_video(video_site=video_site,
+                #           video_id=video_id,
+                #           video_channel=video_channel_id,
+                #           video_playlist=final_playlist_id,
+                #           video_status=STATUS_PRIVATE,
+                #           video_date=original_date,
+                #           download=final_download,
+                #           database=database)
+                return True
+            except KeyboardInterrupt:
+                sys.exit()
+            except Exception as exception_update_db:
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating video "{video_id}": '
+                      f'{exception_update_db}')
+                return False
+    except KeyboardInterrupt:
+        sys.exit()
+    except Exception as exception_check_private:
+        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} checking private video: '
+              f'{exception_check_private}')
+        return True
 
     # Update DB
     if original_date is not None:
@@ -1463,7 +1463,6 @@ def process_video(video, channel_site, channel_id, playlist_id, download, archiv
     else:
         print(f'{datetime.now()} {Fore.RED}INCOMPLETE{Style.RESET_ALL} video "{video_id}"')
         return False
-
 
 
 def sanitize_name(name, is_user=False):
@@ -1711,7 +1710,7 @@ def download_video(video):
             'cachedir': False,
             'skip_unavailable_fragments': False,  # To abort on missing video parts (largely avoids re-downloading)
             'ignoreerrors': False,
-            'ignore_no_formats_error': False, # Keep "False" to get exception to handle in python!
+            'ignore_no_formats_error': False,  # Keep "False" to get exception to handle in python!
             'extractor_retries': retry_extraction_download,
             'socket_timeout': timeout_download,
             'source_address': external_ip,
