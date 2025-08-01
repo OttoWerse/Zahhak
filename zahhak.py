@@ -871,7 +871,7 @@ def get_monitored_channels_from_db():
       - channels.name
       - channels.priority"""
 
-    print(f'{datetime.now()} Collecting channels...')
+    print(f'{datetime.now()} Collecting channels...', end='\r')
 
     mydb = connect_database()
 
@@ -915,7 +915,7 @@ def get_channel_playlists_from_db(channel):
     playlists = []
     retry_db = True
     while retry_db:
-        print(f'{datetime.now()} Collecting playlists for "{channel_name}" ({channel_site} {channel_id})')
+        print(f'{datetime.now()} Collecting playlists for "{channel_name}" ({channel_site} {channel_id})', end='\r')
         mydb = connect_database()
 
         mysql_cursor = mydb.cursor()
@@ -1425,13 +1425,13 @@ def process_video(video, channel_site, channel_id, playlist_id, download, archiv
         try:
 
             if final_download:
+                video_status = STATUS_WANTED
                 print(f'{datetime.now()} {Fore.CYAN}ADDING{Style.RESET_ALL} video {video_id} type "{video_type}"',
                       end='\r')
-                video_status = STATUS_WANTED
             else:
+                video_status = STATUS_UNWANTED
                 print(f'{datetime.now()} {Fore.CYAN}SKIPPING{Style.RESET_ALL} video "{video_id}" type "{video_type}"',
                       end='\r')
-                video_status = STATUS_UNWANTED
 
             add_video(video_site=video_site,
                       video_id=video_id,
@@ -1587,7 +1587,7 @@ def get_videos_from_db(status=STATUS_WANTED):
       - playlists.url
       """
 
-    print(f'{datetime.now()} Collecting {status} videos...')
+    print(f'{datetime.now()} Collecting {status} videos...', end='\r')
 
     mydb = connect_database()
 
@@ -1622,29 +1622,76 @@ def get_videos_from_db(status=STATUS_WANTED):
 def download_all_videos():
     global GEO_BLOCKED_vpn_countries
     global vpn_frequency
+
+    # Videos which are not downloaded and available to download
+    status_priority = {STATUS_BROKEN, STATUS_WANTED}
+
+    # Videos which could have been unreleased before (or simply taken private for other reasons, sadly no way to tell)
+    status_secondary = {STATUS_PRIVATE}
+
+    # Videos that can only be downloaded using YT account
+    status_account_required = {STATUS_AGE_RESTRICTED}
+
+    # Videos in other error states (slim chance we can ever get these downloaded TBH)
+    status_hopeless = {STATUS_UNAVAILABLE,
+                       STATUS_BROKEN_UNAVAILABLE,
+                       STATUS_REMOVED}
+
     # Collect videos of various status indicating download ability
     all_videos = []
-    # Videos not yet successfully downloaded and verified
-    all_videos.extend(get_videos_from_db(status=STATUS_BROKEN))
-    all_videos.extend(get_videos_from_db(status=STATUS_WANTED))
-    # Videos with age restriction, can only be downloaded using YT account
-    # TODO all_videos.extend(get_videos_from_db(status=STATUS_AGE_RESTRICTED))
-    # Videos which could have been unreleased before (or simply taken private for other reasons, sadly no way to tell)
-    all_videos.extend(get_videos_from_db(status=STATUS_PRIVATE))
-    # Videos in other error states (slim chance we can ever gat these downloaded TBH)
-    # TODO all_videos.extend(get_videos_from_db(status=STATUS_UNAVAILABLE))
-    # TODO all_videos.extend(get_videos_from_db(status=STATUS_BROKEN_UNAVAILABLE))
-    # TODO all_videos.extend(get_videos_from_db(status=STATUS_REMOVED))
+    # TODO
+    #  for current_status in status_account_required:
+    #    print(f'{datetime.now()} {Fore.CYAN}FOUND{Style.RESET_ALL} {len(all_videos)} account restricted videos')
+    #    all_videos.extend(get_videos_from_db(status=current_status))
+
+    for current_status in status_priority:
+        print(f'{datetime.now()} {Fore.CYAN}FOUND{Style.RESET_ALL} {len(all_videos)} priority videos')
+        all_videos.extend(get_videos_from_db(status=current_status))
+
+    for current_status in status_secondary:
+        print(f'{datetime.now()} {Fore.CYAN}FOUND{Style.RESET_ALL} {len(all_videos)} secondary videos')
+        all_videos.extend(get_videos_from_db(status=current_status))
+
+    # TODO
+    #  for current_status in status_hopeless:
+    #    print(f'{datetime.now()} {Fore.CYAN}FOUND{Style.RESET_ALL} {len(all_videos)} hopeless videos')
+    #    all_videos.extend(get_videos_from_db(status=current_status))
 
     if len(all_videos) == 0:
         print(f'{datetime.now()} {Fore.CYAN}DONE{Style.RESET_ALL} waiting {sleep_time_download_done} seconds')
         time.sleep(sleep_time_download_done)
+
     else:
-        print(f'{datetime.now()} {Fore.CYAN}FOUND{Style.RESET_ALL} {len(all_videos)} videos')
+        old_video_status = ''
         for current_video in all_videos:
+            video_site = current_video[0]
+            video_id = current_video[1]
+            original_date = current_video[2]
+            video_status = current_video[3]
+            channel_name = current_video[4]
+            channel_id = current_video[5]
+            playlist_name = current_video[6]
+            playlist_id = current_video[7]
+
+            if old_video_status != video_status:
+                print(f'{datetime.now()} {Fore.CYAN}SWITCHED{Style.RESET_ALL} '
+                      f'to downloading {video_status} videos!')
+            old_video_status = video_status
+
+            if video_status == STATUS_PRIVATE:
+                priority_videos = []
+                for current_status in status_priority:
+                    priority_videos.extend(get_videos_from_db(status=current_status))
+                if len(priority_videos) > 0:
+                    print(f'{datetime.now()} {Fore.YELLOW}ABORTING{Style.RESET_ALL} '
+                          f'downloading {video_status} to focus on {len(priority_videos)} priority videos!')
+                    break
+
             video_downloaded = False
+
             vpn_counter_geo = 0
             GEO_BLOCKED_vpn_countries = []
+
             while not video_downloaded:
                 video_downloaded = download_video(video=current_video)
                 if video_downloaded is True:
@@ -1976,7 +2023,7 @@ def get_monitored_playlists_from_db():
     playlists = []
     retry_db = True
     while retry_db:
-        print(f'{datetime.now()} Collecting all playlists')
+        print(f'{datetime.now()} Collecting all playlists', end='\r')
         mydb = connect_database()
 
         mysql_cursor = mydb.cursor()
@@ -2035,7 +2082,7 @@ def get_all_channel_videos_from_youtube(channel):
 
 def get_all_channel_playlists_from_youtube(channel_id, ignore_errors):
     """Returns a list of all online YouTube playlists for the given channel"""
-    print(f'{datetime.now()} Collecting playlists for channel "{channel_id}"')
+    print(f'{datetime.now()} Collecting playlists for channel "{channel_id}"', end='\r')
 
     channel_playlists_url = f'https://www.youtube.com/channel/{channel_id}/playlists'
 
@@ -2305,7 +2352,7 @@ def get_database_channel_names():
         - channels.name
     """
 
-    print(f'{datetime.now()} Collecting channel names...')
+    print(f'{datetime.now()} Collecting channel names...', end='\r')
 
     mydb = mysql.connector.connect(
         host=mysql_host,
@@ -2331,7 +2378,7 @@ def get_database_playlist_names():
             - playlists.url
             - playlists.name
     """
-    print(f'{datetime.now()} Collecting playlists...')
+    print(f'{datetime.now()} Collecting playlists...', end='\r')
 
     mydb = mysql.connector.connect(
         host=mysql_host,
