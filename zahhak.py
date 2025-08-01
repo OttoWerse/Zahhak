@@ -338,8 +338,7 @@ def create_download_archive():
     result_archive = []
     while not result_archive:
         try:
-            timestamp = datetime.now()
-            print(f'{timestamp} {Fore.CYAN}CREATING{Style.RESET_ALL} download archive from DB',
+            print(f'{datetime.now()} {Fore.CYAN}CREATING{Style.RESET_ALL} download archive from DB',
                   end="\r")
 
             mydb = connect_database()
@@ -352,9 +351,10 @@ def create_download_archive():
             counter_archive = 0
             for x in result_archive:
                 counter_archive += 1
-                print(f'{timestamp} {Fore.CYAN}CREATING{Style.RESET_ALL} download archive from DB '
-                      f'({counter_archive}/{len(result_archive)})',
-                      end="\r")
+                if counter_archive % 100 == 0:
+                    print(f'{datetime.now()} {Fore.CYAN}CREATING{Style.RESET_ALL} download archive from DB '
+                          f'({counter_archive}/{len(result_archive)})',
+                          end="\r")
                 site = x[0]
                 url = x[1]
                 global_archive_set.add(f'{site} {url}')
@@ -1172,7 +1172,7 @@ def add_video(video_site, video_id, video_channel, video_playlist, video_status,
     mydb.commit()
 
     if f'{video_site} {video_id}' in global_archive_set:
-        input(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} video "{video_site} {video_id}" '
+        print(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} video "{video_site} {video_id}" '
               f'to status "{video_status}"')
     else:
         global_archive_set.add(f'{video_site} {video_id}')
