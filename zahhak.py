@@ -1749,7 +1749,7 @@ def download_video(video):
 
         # Set download options for YT-DLP
         video_download_options = {
-            # 'logger': VoidLogger(),  # TODO: This suppresses all errors, we should still see them in exception handling
+            'logger': VoidLogger(),  # TODO: This suppresses all errors, we should still see them in exception handling
             'quiet': quiet_download_info,
             'no_warnings': quiet_download_warnings,
             # 'verbose': True,
