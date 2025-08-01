@@ -181,6 +181,7 @@ regex_channel_no_videos = re.compile(r'This channel does not have a videos tab')
 regex_channel_unavailable = re.compile(r'This channel is not available')
 regex_channel_removed = re.compile(r'This channel was removed because it violated our Community Guidelines')
 regex_channel_deleted = re.compile(r'This channel does not exist')
+regex_offline = re.compile(r"Offline")
 
 regex_playlist_deleted = re.compile(r'The playlist does not exist')
 
@@ -347,11 +348,12 @@ def create_download_archive():
             mysql_cursor.execute(sql)
 
             result_archive = mysql_cursor.fetchall()
+            result_archive_length = len(result_archive)
 
             counter_archive = 0
             for x in result_archive:
                 counter_archive += 1
-                if counter_archive % 100 == 0:
+                if counter_archive % 100 == 0 or counter_archive == result_archive_length:
                     print(f'{datetime.now()} {Fore.CYAN}CREATING{Style.RESET_ALL} download archive from DB '
                           f'({counter_archive}/{len(result_archive)})',
                           end="\r")
@@ -381,7 +383,6 @@ def update_channel(date, channel, database):
 
     # Update DB
     try:
-        # mydb = connect_database()
         mydb = database
         mysql_cursor = mydb.cursor()
 
@@ -419,9 +420,7 @@ def update_playlist(date, playlist, database):
 
     # Update DB
     try:
-        # mydb = connect_database()
-        mydb = database
-        mysql_cursor = mydb.cursor()
+        mysql_cursor = database.cursor()
 
         sql = "UPDATE playlists SET date_checked = %s WHERE site = %s AND url = %s;"
         val = (date, playlist_site, playlist_id)
@@ -430,7 +429,7 @@ def update_playlist(date, playlist, database):
             input(val)
 
         mysql_cursor.execute(sql, val)
-        mydb.commit()
+        database.commit()
 
         print(f'{datetime.now()} {Fore.CYAN}MARKED{Style.RESET_ALL} playlist '
               f'"{playlist_name}" ({playlist_site} {playlist_id}) as checked', end='\n')
@@ -1154,6 +1153,39 @@ def add_playlist(playlist_id, playlist_name, channel_id, download, monitor):
             return None
 
 
+def get_text_color_for_video_status(video_status):
+    # Set text_color for video status
+    text_color = Fore.WHITE
+    if video_status == STATUS_PRIVATE:
+        text_color = Fore.RED
+    elif video_status == STATUS_REMOVED:
+        text_color = Fore.RED
+    elif video_status == STATUS_AGE_RESTRICTED:
+        text_color = Fore.RED
+    elif video_status == STATUS_BROKEN_UNAVAILABLE:
+        text_color = Fore.RED
+    elif video_status == STATUS_CURSED:
+        text_color = Fore.RED
+    elif video_status == STATUS_UNAVAILABLE:
+        text_color = Fore.RED
+    elif video_status == STATUS_BROKEN:
+        text_color = Fore.YELLOW
+    elif video_status == STATUS_MEMBERS_ONLY:
+        text_color = Fore.YELLOW
+    elif video_status == STATUS_UNCERTAIN:
+        text_color = Fore.YELLOW
+    elif video_status == STATUS_WANTED:
+        text_color = Fore.CYAN
+    elif video_status == STATUS_UNWANTED:
+        text_color = Fore.CYAN
+    elif video_status == STATUS_VERIFIED:
+        text_color = Fore.GREEN
+    elif video_status == STATUS_DONE:
+        text_color = Fore.GREEN
+
+    return text_color
+
+
 def add_video(video_site, video_id, video_channel, video_playlist, video_status, video_date, download, database=None):
     """Adds a video to given playlist & channel in database with the given status fields"""
     if not database:
@@ -1171,13 +1203,15 @@ def add_video(video_site, video_id, video_channel, video_playlist, video_status,
     mysql_cursor.execute(sql, val)
     mydb.commit()
 
+    text_color = get_text_color_for_video_status(video_status=video_status)
+
     if f'{video_site} {video_id}' in global_archive_set:
         print(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} video "{video_site} {video_id}" '
-              f'to status "{video_status}"')
+              f'to status {text_color}"{video_status}"{Style.RESET_ALL}')
     else:
         global_archive_set.add(f'{video_site} {video_id}')
         print(f'{datetime.now()} {Fore.GREEN}ADDED{Style.RESET_ALL} video "{video_site} {video_id}" '
-              f'with status "{video_status}"')
+              f'with status {text_color}"{video_status}"{Style.RESET_ALL}')
 
 
 def process_video(video, channel_site, channel_id, playlist_id, download, archive_set, database):
@@ -1202,8 +1236,8 @@ def process_video(video, channel_site, channel_id, playlist_id, download, archiv
     except KeyboardInterrupt:
         sys.exit()
     except Exception as exception_add_video:
-        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding video "{video}": '
-              f'{exception_add_video}')
+        print(f'{datetime.now()} {Fore.RED}MISSING{Style.RESET_ALL} JSON field {exception_add_video} '
+              f'in video "{video}": ')
         return False
 
     # CLEAR date
@@ -1340,8 +1374,13 @@ def process_video(video, channel_site, channel_id, playlist_id, download, archiv
                               f'{Fore.RED}UNAVAILABLE{Style.RESET_ALL} video "{video_id}": {exception_add_video}')
                         return False
 
+            elif regex_offline.search(str(exception_add_video)):
+                print(f'{datetime.now()} {Fore.RED}OFFLINE{Style.RESET_ALL}')
+                # Return None to trigger retry
+                return None
+
             else:
-                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding video "{video}": '
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while processing video "{video}": '
                       f'{exception_add_video}')
                 # Return None to trigger retry
                 return None
@@ -1399,7 +1438,7 @@ def process_video(video, channel_site, channel_id, playlist_id, download, archiv
     #  The "media_type" field is NOT reliable for videos which aren't available yet!
     try:
         if video['availability'] is None:
-            print(f'{datetime.now()} {Fore.RED}PRIVATE{Style.RESET_ALL} video "{video_id}"')
+            print(f'{datetime.now()} {Fore.RED}PSEUDO-PRIVATE{Style.RESET_ALL} video "{video_id}"')
             # Update DB
             try:
                 # add_video(video_site=video_site,
@@ -1424,19 +1463,18 @@ def process_video(video, channel_site, channel_id, playlist_id, download, archiv
               f'{exception_check_private}')
         return True
 
-    # Update DB
     if original_date is not None:
+        if final_download:
+            video_status = STATUS_WANTED
+            print(f'{datetime.now()} {Fore.CYAN}ADDING{Style.RESET_ALL} video {video_id} type "{video_type}"',
+                  end='\r')
+        else:
+            video_status = STATUS_UNWANTED
+            print(f'{datetime.now()} {Fore.CYAN}SKIPPING{Style.RESET_ALL} video "{video_id}" type "{video_type}"',
+                  end='\r')
+
+        # Update DB
         try:
-
-            if final_download:
-                video_status = STATUS_WANTED
-                print(f'{datetime.now()} {Fore.CYAN}ADDING{Style.RESET_ALL} video {video_id} type "{video_type}"',
-                      end='\r')
-            else:
-                video_status = STATUS_UNWANTED
-                print(f'{datetime.now()} {Fore.CYAN}SKIPPING{Style.RESET_ALL} video "{video_id}" type "{video_type}"',
-                      end='\r')
-
             add_video(video_site=video_site,
                       video_id=video_id,
                       video_channel=video_channel_id,
@@ -1445,15 +1483,6 @@ def process_video(video, channel_site, channel_id, playlist_id, download, archiv
                       video_date=original_date,
                       download=final_download,
                       database=database)
-
-            if final_download:
-                print(f'{datetime.now()} {Fore.GREEN}ADDED{Style.RESET_ALL} video "{video_id}" type "{video_type}"'
-                      f'        ', end='\n')
-            else:
-                print(f'{datetime.now()} {Fore.YELLOW}SKIPPED{Style.RESET_ALL} video "{video_id}" type "{video_type}"'
-                      f'        ', end='\n')
-            return True
-
         except KeyboardInterrupt:
             sys.exit()
         except Exception as exception_add_video:
@@ -1464,6 +1493,15 @@ def process_video(video, channel_site, channel_id, playlist_id, download, archiv
                 print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding video "{video_id}": '
                       f'{exception_add_video}')
                 return False
+
+        if final_download:
+            print(f'{datetime.now()} {Fore.GREEN}ADDED{Style.RESET_ALL} video "{video_id}" type "{video_type}"'
+                  f'        ', end='\n')
+        else:
+            print(f'{datetime.now()} {Fore.YELLOW}SKIPPED{Style.RESET_ALL} video "{video_id}" type "{video_type}"'
+                  f'        ', end='\n')
+        return True
+
     else:
         print(f'{datetime.now()} {Fore.RED}INCOMPLETE{Style.RESET_ALL} video "{video_id}"')
         return False
@@ -1577,7 +1615,7 @@ def reconnect_vpn(counter, vpn_countries=None):
         print(f'{datetime.now()} {Fore.CYAN}VPN DISABLED{Style.RESET_ALL}')
 
 
-def get_videos_from_db(status=STATUS_WANTED):
+def get_videos_from_db(database, status=STATUS_WANTED):
     """
     Returns a list of all wanted YouTube videos als list of lists
     Inner list field order is as follows:
@@ -1591,11 +1629,11 @@ def get_videos_from_db(status=STATUS_WANTED):
       - playlists.url
       """
 
-    print(f'{datetime.now()} Collecting {status} videos...', end='\r')
+    text_color = get_text_color_for_video_status(status)
 
-    mydb = connect_database()
+    print(f'{datetime.now()} Collecting {text_color}{status}{Style.RESET_ALL} videos...', end='\r')
 
-    mysql_cursor = mydb.cursor()
+    mysql_cursor = database.cursor()
 
     sql = (
         "SELECT videos.site, videos.url, videos.original_date, videos.status, "
@@ -1627,6 +1665,8 @@ def download_all_videos():
     global GEO_BLOCKED_vpn_countries
     global vpn_frequency
 
+    database = connect_database()
+
     # Videos which are not downloaded and available to download
     status_priority = {STATUS_BROKEN, STATUS_WANTED}
 
@@ -1645,21 +1685,37 @@ def download_all_videos():
     all_videos = []
     # TODO
     #  for current_status in status_account_required:
-    #    print(f'{datetime.now()} {Fore.CYAN}FOUND{Style.RESET_ALL} {len(all_videos)} account restricted videos')
-    #    all_videos.extend(get_videos_from_db(status=current_status))
+    #    text_color = get_text_color_for_video_status(video_status=current_status)
+    #    account_required_videos = get_videos_from_db(database=database,
+    #    status=current_status)
+    #    print(f'{datetime.now()} {Fore.CYAN}FOUND{Style.RESET_ALL} {len(account_required_videos)} '
+    #          f'{text_color}{current_status}{Style.RESET_ALL} videos      ')
+    #    all_videos.extend(account_required_videos)
 
     for current_status in status_priority:
-        print(f'{datetime.now()} {Fore.CYAN}FOUND{Style.RESET_ALL} {len(all_videos)} priority videos')
-        all_videos.extend(get_videos_from_db(status=current_status))
+        text_color = get_text_color_for_video_status(video_status=current_status)
+        priority_videos = get_videos_from_db(database=database,
+                                             status=current_status)
+        print(f'{datetime.now()} {Fore.CYAN}FOUND{Style.RESET_ALL} {len(priority_videos)} '
+              f'{text_color}{current_status}{Style.RESET_ALL} videos      ')
+        all_videos.extend(priority_videos)
 
     for current_status in status_secondary:
-        print(f'{datetime.now()} {Fore.CYAN}FOUND{Style.RESET_ALL} {len(all_videos)} secondary videos')
-        all_videos.extend(get_videos_from_db(status=current_status))
+        text_color = get_text_color_for_video_status(video_status=current_status)
+        secondary_videos = get_videos_from_db(database=database,
+                                              status=current_status)
+        print(f'{datetime.now()} {Fore.CYAN}FOUND{Style.RESET_ALL} {len(secondary_videos)} '
+              f'{text_color}{current_status}{Style.RESET_ALL} videos      ')
+        all_videos.extend(secondary_videos)
 
     # TODO
     #  for current_status in status_hopeless:
-    #    print(f'{datetime.now()} {Fore.CYAN}FOUND{Style.RESET_ALL} {len(all_videos)} hopeless videos')
-    #    all_videos.extend(get_videos_from_db(status=current_status))
+    #    text_color = get_text_color_for_video_status(video_status=current_status)
+    #    hopeless_videos = get_videos_from_db(database=database,
+    #    status=current_status)
+    #    print(f'{datetime.now()} {Fore.CYAN}FOUND{Style.RESET_ALL} {len(hopeless_videos)} '
+    #          f'{text_color}{current_status}{Style.RESET_ALL} videos      ')
+    #    all_videos.extend(hopeless_videos)
 
     if len(all_videos) == 0:
         print(f'{datetime.now()} {Fore.CYAN}DONE{Style.RESET_ALL} waiting {sleep_time_download_done} seconds')
@@ -1667,7 +1723,9 @@ def download_all_videos():
 
     else:
         old_video_status = ''
+        video_counter = 0
         for current_video in all_videos:
+            video_counter += 1
             video_site = current_video[0]
             video_id = current_video[1]
             original_date = current_video[2]
@@ -1678,17 +1736,20 @@ def download_all_videos():
             playlist_id = current_video[7]
 
             if old_video_status != video_status:
+                text_color = get_text_color_for_video_status(video_status=video_status)
                 print(f'{datetime.now()} {Fore.CYAN}SWITCHED{Style.RESET_ALL} '
-                      f'to downloading {video_status} videos!')
+                      f'to downloading {text_color}"{video_status}"{Style.RESET_ALL} videos!')
             old_video_status = video_status
 
             if video_status == STATUS_PRIVATE:
                 priority_videos = []
                 for current_status in status_priority:
-                    priority_videos.extend(get_videos_from_db(status=current_status))
+                    priority_videos.extend(get_videos_from_db(database=database,
+                                                              status=current_status))
                 if len(priority_videos) > 0:
+                    text_color = get_text_color_for_video_status(video_status=video_status)
                     print(f'{datetime.now()} {Fore.YELLOW}ABORTING{Style.RESET_ALL} '
-                          f'downloading {video_status} to focus on {len(priority_videos)} priority videos!')
+                          f'downloading {text_color}{video_status}{Style.RESET_ALL} to focus on {len(priority_videos)} priority videos!')
                     break
 
             video_downloaded = False
@@ -1738,7 +1799,11 @@ def download_video(video):
         if not regex_error_win_2.search(str(exception_clear_temp)):
             print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} {exception_clear_temp}')
 
-    print(f'{datetime.now()} {Fore.CYAN}DOWNLOADING{Style.RESET_ALL} video "{video_site} - {video_id}"')
+    text_color = get_text_color_for_video_status(video_status=video_status)
+
+    print(f'{datetime.now()} {Fore.CYAN}DOWNLOADING{Style.RESET_ALL} '
+          f'video "{video_site} - {video_id}" '
+          f'status {text_color}"{video_status}"{Style.RESET_ALL}')
 
     if video_site == 'youtube':
         # Set the full output path
@@ -1868,13 +1933,15 @@ def download_video(video):
             # Update DB
             try:
                 # TODO: This needs to be worked into the add_video method (or update_video, whatever we end up calling it
+                video_status = 'fresh'
                 mydb = connect_database()
                 mysql_cursor = mydb.cursor()
                 sql = "UPDATE videos SET status = %s, save_path = %s, original_date = %s WHERE site = %s AND url = %s;"
-                val = ('fresh', path, original_date, video_site, video_id)
+                val = (video_status, path, original_date, video_site, video_id)
                 mysql_cursor.execute(sql, val)
                 mydb.commit()
-                print(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} video "{video_id}"')
+                print(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} video "{video_id}"'
+                      f'to status "{video_status}"')
                 return True
             except KeyboardInterrupt:
                 sys.exit()
@@ -1887,7 +1954,7 @@ def download_video(video):
         except Exception as exception_download:
             if (regex_video_members_only.search(str(exception_download))
                     or regex_video_members_tier.search(str(exception_download))):
-                print(f'{datetime.now()} {Fore.RED}MEMBERS ONLY{Style.RESET_ALL} video "{video_id}"')
+                # print(f'{datetime.now()} {Fore.RED}MEMBERS ONLY{Style.RESET_ALL} video "{video_id}"')
                 # Update DB
                 try:
                     if video_status != STATUS_MEMBERS_ONLY:
@@ -1907,7 +1974,7 @@ def download_video(video):
                     return False
 
             elif regex_video_removed.search(str(exception_download)):
-                print(f'{datetime.now()} {Fore.RED}REMOVED{Style.RESET_ALL} video "{video_id}"')
+                # print(f'{datetime.now()} {Fore.RED}REMOVED{Style.RESET_ALL} video "{video_id}"')
                 # Update DB
                 try:
                     if video_status != STATUS_REMOVED:
@@ -1928,7 +1995,7 @@ def download_video(video):
 
             elif (regex_video_unavailable.search(str(exception_download))
                   or regex_video_unavailable_live.search(str(exception_download))):
-                print(f'{datetime.now()} {Fore.RED}UNAVAILABLE{Style.RESET_ALL} video "{video_id}"')
+                # print(f'{datetime.now()} {Fore.RED}UNAVAILABLE{Style.RESET_ALL} video "{video_id}"')
                 # Update DB
                 try:
                     if video_status != STATUS_UNAVAILABLE:
@@ -1948,7 +2015,7 @@ def download_video(video):
                     return False
 
             elif regex_video_unavailable_geo.search(str(exception_download)):
-                print(f'{datetime.now()} {Fore.RED}GEO BLOCKED{Style.RESET_ALL} video "{video_id}"')
+                # print(f'{datetime.now()} {Fore.RED}GEO BLOCKED{Style.RESET_ALL} video "{video_id}"')
                 global GEO_BLOCKED_vpn_countries
                 if not GEO_BLOCKED_vpn_countries:
                     try:
@@ -1966,7 +2033,7 @@ def download_video(video):
                         return True
 
             elif regex_video_private.search(str(exception_download)):
-                print(f'{datetime.now()} {Fore.RED}PRIVATE{Style.RESET_ALL} video "{video_id}"')
+                # print(f'{datetime.now()} {Fore.RED}PRIVATE{Style.RESET_ALL} video "{video_id}"')
                 # Update DB
                 try:
                     if video_status != STATUS_PRIVATE:
@@ -1986,7 +2053,7 @@ def download_video(video):
                     return False
 
             elif regex_video_age_restricted.search(str(exception_download)):
-                print(f'{datetime.now()} {Fore.RED}AGE RESTRICTED{Style.RESET_ALL} video "{video_id}"')
+                # print(f'{datetime.now()} {Fore.RED}AGE RESTRICTED{Style.RESET_ALL} video "{video_id}"')
                 # Update DB
                 try:
                     if video_status != STATUS_AGE_RESTRICTED:
