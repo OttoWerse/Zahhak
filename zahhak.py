@@ -35,6 +35,8 @@ enable_vpn = True
 sleep_time_vpn = 10
 # How often to retry connecting to a VPN country before giving up
 retry_reconnect_new_vpn_node = 5
+# Frequency to check if switch from downloading secondary to primary videos is needed (in seconds)
+switch_to_primary_frequency = 30
 
 # Countries to connect to with NordVPN
 DEFAULT_vpn_countries = [
@@ -195,6 +197,7 @@ regex_video_removed = re.compile(r'This video has been removed')
 regex_video_members_only = re.compile(r'Join this channel to get access to members-only content like this video, '
                                       r'and other exclusive perks')
 regex_video_members_tier = re.compile(r'This video is available to this channel')
+regex_video_live_not_started = re.compile(r'This live event will begin in a few moments')
 
 regex_error_connection = re.compile(r'Remote end closed connection without response')
 regex_error_timeout = re.compile(r'The read operation timed out')
@@ -1375,7 +1378,7 @@ def process_video(video, channel_site, channel_id, playlist_id, download, archiv
                         return False
 
             elif regex_offline.search(str(exception_add_video)):
-                print(f'{datetime.now()} {Fore.RED}OFFLINE{Style.RESET_ALL}')
+                input(f'{datetime.now()} {Fore.RED}OFFLINE{Style.RESET_ALL}')
                 # Return None to trigger retry
                 return None
 
@@ -1658,6 +1661,9 @@ def get_videos_from_db(database, status=STATUS_WANTED):
 
     mysql_result = mysql_cursor.fetchall()
 
+    print(f'{datetime.now()} {Fore.CYAN}FOUND{Style.RESET_ALL} {len(mysql_result)} '
+          f'{text_color}{status}{Style.RESET_ALL} videos      ', end='\n')
+
     return mysql_result
 
 
@@ -1688,24 +1694,18 @@ def download_all_videos():
     #    text_color = get_text_color_for_video_status(video_status=current_status)
     #    account_required_videos = get_videos_from_db(database=database,
     #    status=current_status)
-    #    print(f'{datetime.now()} {Fore.CYAN}FOUND{Style.RESET_ALL} {len(account_required_videos)} '
-    #          f'{text_color}{current_status}{Style.RESET_ALL} videos      ')
     #    all_videos.extend(account_required_videos)
 
     for current_status in status_priority:
         text_color = get_text_color_for_video_status(video_status=current_status)
         priority_videos = get_videos_from_db(database=database,
                                              status=current_status)
-        print(f'{datetime.now()} {Fore.CYAN}FOUND{Style.RESET_ALL} {len(priority_videos)} '
-              f'{text_color}{current_status}{Style.RESET_ALL} videos      ')
         all_videos.extend(priority_videos)
 
     for current_status in status_secondary:
         text_color = get_text_color_for_video_status(video_status=current_status)
         secondary_videos = get_videos_from_db(database=database,
                                               status=current_status)
-        print(f'{datetime.now()} {Fore.CYAN}FOUND{Style.RESET_ALL} {len(secondary_videos)} '
-              f'{text_color}{current_status}{Style.RESET_ALL} videos      ')
         all_videos.extend(secondary_videos)
 
     # TODO
@@ -1713,8 +1713,6 @@ def download_all_videos():
     #    text_color = get_text_color_for_video_status(video_status=current_status)
     #    hopeless_videos = get_videos_from_db(database=database,
     #    status=current_status)
-    #    print(f'{datetime.now()} {Fore.CYAN}FOUND{Style.RESET_ALL} {len(hopeless_videos)} '
-    #          f'{text_color}{current_status}{Style.RESET_ALL} videos      ')
     #    all_videos.extend(hopeless_videos)
 
     if len(all_videos) == 0:
@@ -1723,9 +1721,11 @@ def download_all_videos():
 
     else:
         old_video_status = ''
+        timestamp_old = datetime.now()
         video_counter = 0
         for current_video in all_videos:
             video_counter += 1
+
             video_site = current_video[0]
             video_id = current_video[1]
             original_date = current_video[2]
@@ -1735,21 +1735,29 @@ def download_all_videos():
             playlist_name = current_video[6]
             playlist_id = current_video[7]
 
+            timestamp_now = datetime.now()
+            timestamp_distance = timestamp_now - timestamp_old
+
             if old_video_status != video_status:
                 text_color = get_text_color_for_video_status(video_status=video_status)
-                print(f'{datetime.now()} {Fore.CYAN}SWITCHED{Style.RESET_ALL} '
+                print(f'{timestamp_now} {Fore.CYAN}SWITCHED{Style.RESET_ALL} '
                       f'to downloading {text_color}"{video_status}"{Style.RESET_ALL} videos!')
             old_video_status = video_status
 
-            if video_status == STATUS_PRIVATE:
+            if video_status == STATUS_PRIVATE and timestamp_distance.seconds > switch_to_primary_frequency:
+                timestamp_old = timestamp_now
+                database = connect_database() # We HAVE to reconnect DB for updated results!
+
                 priority_videos = []
                 for current_status in status_priority:
                     priority_videos.extend(get_videos_from_db(database=database,
                                                               status=current_status))
-                if len(priority_videos) > 0:
+
+                if priority_videos and len(priority_videos) > 0:
                     text_color = get_text_color_for_video_status(video_status=video_status)
-                    print(f'{datetime.now()} {Fore.YELLOW}ABORTING{Style.RESET_ALL} '
-                          f'downloading {text_color}{video_status}{Style.RESET_ALL} to focus on {len(priority_videos)} priority videos!')
+                    print(f'{timestamp_now} {Fore.YELLOW}ABORTING{Style.RESET_ALL} '
+                          f'downloading {text_color}{video_status}{Style.RESET_ALL} '
+                          f'to focus on {len(priority_videos)} priority videos!')
                     break
 
             video_downloaded = False
