@@ -338,7 +338,9 @@ def create_download_archive():
     result_archive = []
     while not result_archive:
         try:
-            print(f'{datetime.now()} Creating download archive from DB', end="\n")
+            timestamp = datetime.now()
+            print(f'{timestamp} {Fore.CYAN}CREATING{Style.RESET_ALL} download archive from DB',
+                  end="\r")
 
             mydb = connect_database()
             mysql_cursor = mydb.cursor()
@@ -350,7 +352,9 @@ def create_download_archive():
             counter_archive = 0
             for x in result_archive:
                 counter_archive += 1
-                print(f'Creating download archive from DB ({counter_archive}/{len(result_archive)})', end="\r")
+                print(f'{timestamp} {Fore.CYAN}CREATING{Style.RESET_ALL} download archive from DB '
+                      f'({counter_archive}/{len(result_archive)})',
+                      end="\r")
                 site = x[0]
                 url = x[1]
                 global_archive_set.add(f'{site} {url}')
@@ -2156,11 +2160,10 @@ def add_channel_videos(videos):
 
 
 def update_subscriptions():
-    # Skips ALL processing of known videos to speed up skript
-    create_download_archive()
-
     global vpn_timestamp
     global vpn_counter
+    global global_archive_set
+
     all_channels = get_monitored_channels_from_db()
     for current_channel in all_channels:
         database = connect_database()
@@ -2551,6 +2554,10 @@ if __name__ == "__main__":
 
     init(convert=True)
     just_fix_windows_console()
+
+    # Skips ALL processing of known videos to speed up skript
+    create_download_archive()
+
     if not args.mode:
         print(f'{datetime.now()} {Fore.YELLOW}WARNING{Style.RESET_ALL}: '
               f'no operating mode was set. Running in simple serial mode!')
