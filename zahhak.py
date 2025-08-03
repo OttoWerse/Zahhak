@@ -36,7 +36,7 @@ sleep_time_vpn = 10
 # How often to retry connecting to a VPN country before giving up
 retry_reconnect_new_vpn_node = 5
 # Frequency to check if switch from downloading secondary to primary videos is needed (in seconds)
-switch_to_primary_frequency = 30
+switch_to_primary_frequency = 120
 
 # Countries to connect to with NordVPN
 DEFAULT_vpn_countries = [
@@ -180,13 +180,12 @@ regex_fake_playlist = re.compile(r'^#.*$')
 
 # YT-DLP Error messages
 regex_channel_no_videos = re.compile(r'This channel does not have a videos tab')
+regex_channel_no_playlists = re.compile(r'This channel does not have a playlists tab')
 regex_channel_unavailable = re.compile(r'This channel is not available')
 regex_channel_removed = re.compile(r'This channel was removed because it violated our Community Guidelines')
 regex_channel_deleted = re.compile(r'This channel does not exist')
 regex_offline = re.compile(r"Offline")
-
 regex_playlist_deleted = re.compile(r'The playlist does not exist')
-
 regex_video_age_restricted = re.compile(r'Sign in to confirm your age')
 regex_video_private = re.compile(r'Private video')
 regex_video_unavailable = re.compile(r'Video unavailable')
@@ -198,15 +197,12 @@ regex_video_members_only = re.compile(r'Join this channel to get access to membe
                                       r'and other exclusive perks')
 regex_video_members_tier = re.compile(r'This video is available to this channel')
 regex_video_live_not_started = re.compile(r'This live event will begin in a few moments')
-
 regex_error_connection = re.compile(r'Remote end closed connection without response')
 regex_error_timeout = re.compile(r'The read operation timed out')
 regex_error_get_addr_info = re.compile(r'getaddrinfo failed')
 regex_error_win_10054 = re.compile(r'WinError 10054')
 regex_error_win_2 = re.compile(r'WinError 2')
-
 regex_bot = re.compile(r"Sign in to confirm you're not a bot")
-
 regex_sql_duplicate = re.compile(r'Duplicate entry')
 
 # noinspection RegExpRedundantEscape
@@ -507,7 +503,7 @@ def check_channel_availability(channel):
         if regex_channel_no_videos.search(str(exception_missing_videos_channel)):
             print(f'{datetime.now()} {Fore.RED}EMPTY{Style.RESET_ALL} channel '
                   f'"{channel_name}" ({channel_site} {channel_id})')
-            # TODO: Update checked date? Return number etc. and in this case, return special case?
+            # TODO: return special case?
             return True
         elif regex_error_connection.search(str(exception_missing_videos_channel)):
             print(f'{datetime.now()} {Fore.RED}CLOSED CONNECTION{Style.RESET_ALL} while adding channel '
@@ -636,6 +632,11 @@ def get_new_channel_videos_from_youtube(channel, ignore_errors, archive_set):
                   f'"{channel_name}" ({channel_site} {channel_id})')
             # TODO: Update checked date? Return number etc. and in this case, return special case?
             return []
+        elif regex_playlist_deleted.search(str(exception_missing_videos_channel)):
+            print(f'{datetime.now()} {Fore.RED}EMPTY{Style.RESET_ALL}'
+                  f' channel "{channel_name}" ({channel_site} {channel_id})')
+            vpn_frequency = DEFAULT_vpn_frequency
+            return []
         elif regex_error_connection.search(str(exception_missing_videos_channel)):
             print(f'{datetime.now()} {Fore.RED}CLOSED CONNECTION{Style.RESET_ALL} while adding channel '
                   f'"{channel_name}" ({channel_site} {channel_id})')
@@ -667,8 +668,8 @@ def get_new_channel_videos_from_youtube(channel, ignore_errors, archive_set):
             vpn_frequency = DEFAULT_vpn_frequency
             return None
         elif regex_channel_deleted.search(str(exception_missing_videos_channel)):
-            print(f'{datetime.now()} {Fore.RED}NONEXISTENT{Style.RESET_ALL} while adding channel '
-                  f'"{channel_name}" ({channel_site} {channel_id})')
+            print(f'{datetime.now()} {Fore.RED}NONEXISTENT{Style.RESET_ALL} '
+                  f'channel "{channel_name}" ({channel_site} {channel_id})')
             vpn_frequency = DEFAULT_vpn_frequency
             return None
         else:
@@ -1378,15 +1379,13 @@ def process_video(video, channel_site, channel_id, playlist_id, download, archiv
                         return False
 
             elif regex_offline.search(str(exception_add_video)):
-                input(f'{datetime.now()} {Fore.RED}OFFLINE{Style.RESET_ALL}')
-                # Return None to trigger retry
-                return None
+                print(f'{datetime.now()} {Fore.RED}OFFLINE{Style.RESET_ALL} ({exception_add_video})')
+                return None  # Return None to trigger retry
 
             else:
                 print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while processing video "{video}": '
                       f'{exception_add_video}')
-                # Return None to trigger retry
-                return None
+                return None  # Return None to trigger retry
 
     # Get date
     if original_date is None:
@@ -1746,7 +1745,7 @@ def download_all_videos():
 
             if video_status == STATUS_PRIVATE and timestamp_distance.seconds > switch_to_primary_frequency:
                 timestamp_old = timestamp_now
-                database = connect_database() # We HAVE to reconnect DB for updated results!
+                database = connect_database()  # We HAVE to reconnect DB for updated results!
 
                 priority_videos = []
                 for current_status in status_priority:
@@ -2168,18 +2167,20 @@ def get_all_channel_playlists_from_youtube(channel_id, ignore_errors):
     playlists = []
 
     # Set download options for YT-DLP
-    channel_playlists_download_options = {'extract_flat': True,
-                                          'skip_download': True,
-                                          'allow_playlist_files': False,
-                                          'quiet': True,
-                                          'no_warnings': True,
-                                          'ignoreerrors': ignore_errors,
-                                          'download_archive': None,
-                                          'extractor_args': {'youtube': {'skip': ['configs', 'webpage', 'js']}},
-                                          'extractor_retries': retry_extraction_channel,
-                                          'socket_timeout': timeout_channel,
-                                          'source_address': external_ip
-                                          }
+    channel_playlists_download_options = {
+        'logger': VoidLogger(),
+        'extract_flat': True,
+        'skip_download': True,
+        'allow_playlist_files': False,
+        'quiet': True,
+        'no_warnings': True,
+        'ignoreerrors': ignore_errors,
+        'download_archive': None,
+        'extractor_args': {'youtube': {'skip': ['configs', 'webpage', 'js']}},
+        'extractor_retries': retry_extraction_channel,
+        'socket_timeout': timeout_channel,
+        'source_address': external_ip
+    }
 
     # Try-Except Block to handle YT-DLP exceptions such as "playlist does not exist"
     try:
@@ -2197,8 +2198,8 @@ def get_all_channel_playlists_from_youtube(channel_id, ignore_errors):
             playlists = info_json['entries']
             if playlists[0] is not None:
                 playlists_count = len(playlists)
-                print(f'{datetime.now()} {Fore.GREEN}FOUND{Style.RESET_ALL} {playlists_count} playlists for channel '
-                      f'"{channel_id}"')
+                print(f'{datetime.now()} {Fore.GREEN}FOUND{Style.RESET_ALL} {playlists_count} online playlists '
+                      f'for channel "{channel_id}"')  # TODO: Improve logging
                 return playlists
         except KeyboardInterrupt:
             sys.exit()
@@ -2209,9 +2210,10 @@ def get_all_channel_playlists_from_youtube(channel_id, ignore_errors):
 
     except KeyboardInterrupt:
         sys.exit()
-    except Exception as e:
-        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while getting playlists for channel '
-              f'"{channel_id}": {e}')
+    except Exception as exception_get_online_playlists:
+        if not regex_channel_no_playlists.search(str(exception_get_online_playlists)):
+            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while getting playlists for channel '
+                  f'"{channel_id}": {exception_get_online_playlists}')
         return None
 
 
@@ -2239,7 +2241,10 @@ def update_subscriptions():
     global vpn_counter
     global global_archive_set
 
+    database_playlists = get_database_playlist_names()
+
     all_channels = get_monitored_channels_from_db()
+
     for current_channel in all_channels:
         database = connect_database()
 
@@ -2251,6 +2256,8 @@ def update_subscriptions():
         current_channel_name = current_channel[2]
         videos_added_channel = 0
 
+        unknown_playlists_exist = False
+
         # Retry getting missing videos for channel from YouTube
         counter_process_channel = 0
         ignore_errors_channel = DEFAULT_ignore_errors_channel
@@ -2259,6 +2266,29 @@ def update_subscriptions():
         while missing_videos_channel is None and not skip_channel:
             channel_available = check_channel_availability(channel=current_channel)
             if channel_available:
+                # Check if channel has new playlists online that we do not know of
+                online_playlists = None
+                online_playlists = get_all_channel_playlists_from_youtube(channel_id=current_channel_id,
+                                                                          ignore_errors=DEFAULT_ignore_errors_playlist)
+                if online_playlists is not None:
+                    for online_playlist in online_playlists:
+                        # TODO: Add site to query (part of changing to object based list with compare method etc.)
+                        online_playlist_site = current_channel_site
+                        online_playlist_id = online_playlist['id']
+                        online_playlist_name = online_playlist['title']
+
+                        if online_playlist_id not in database_playlists:
+                            unknown_playlists_exist = True
+
+                    if unknown_playlists_exist:
+                        print(f'{datetime.now()} {Fore.RED}INCOMPLETE{Style.RESET_ALL} '
+                              f'channel "{current_channel_name}" ({current_channel_site} {current_channel_id})')
+                        if INPUT_POSSIBLE:
+                            process_channel(channel_url=f'https://www.youtube.com/channel/{current_channel_id}/videos')
+                    else:
+                        print(f'{datetime.now()} {Fore.GREEN}COMPLETE{Style.RESET_ALL} '
+                              f'channel "{current_channel_name}" ({current_channel_site} {current_channel_id})')
+
                 missing_videos_channel = get_new_channel_videos_from_youtube(channel=current_channel,
                                                                              ignore_errors=ignore_errors_channel,
                                                                              archive_set=global_archive_set)
@@ -2302,107 +2332,110 @@ def update_subscriptions():
 
                     # If any playlist was not reachable (e.g. given up upon, once we can trust yt-dlp settings fully) do NOT process "Other" playlist!
                     if current_channel_id == current_playlist_id:
-                        if not all_playlists_checked_successfully:
-                            current_playlist_checked_successfully = False
-                            continue
+                        if not all_playlists_checked_successfully or unknown_playlists_exist:
+                            print(f'{datetime.now()} {Fore.YELLOW}SKIPPING{Style.RESET_ALL} uploads playlist for '
+                                  f'channel "{current_channel_name}" ({current_playlist_site} {current_channel_id})')
+                            current_playlist_checked_successfully = False  # To skip processing in case of skipped "Other" playlist
 
-                    current_playlist_download = current_playlist[7]
-                    if DEBUG_add_unmonitored:
-                        input(f'{current_playlist_download} - {type(current_playlist_download)}')
+                    if current_playlist_checked_successfully:  # To skip processing in case of skipped "Other" playlist
+                        current_playlist_download = current_playlist[7]
+                        if DEBUG_add_unmonitored:
+                            input(f'{current_playlist_download} - {type(current_playlist_download)}')
 
-                    if videos_added_channel >= missing_video_count_channel:
-                        print(f'{datetime.now()} {Fore.GREEN}DONE{Style.RESET_ALL} processing channel '
-                              f'"{current_channel_name}" ({current_playlist_site} {current_channel_id})')
-                        break
+                        if videos_added_channel >= missing_video_count_channel:
+                            print(f'{datetime.now()} {Fore.GREEN}DONE{Style.RESET_ALL} processing channel '
+                                  f'"{current_channel_name}" ({current_playlist_site} {current_channel_id})')
+                            break
 
-                    # Retry getting missing videos for playlist from YouTube
-                    ignore_errors_playlist = DEFAULT_ignore_errors_playlist
-                    skip_playlist = False
-                    missing_videos_playlist = None
-                    while missing_videos_playlist is None and not skip_playlist:
-                        missing_videos_playlist = get_new_playlist_videos_from_youtube(playlist=current_playlist,
-                                                                                       ignore_errors=ignore_errors_playlist,
-                                                                                       counter=counter_process_playlist,
-                                                                                       archive_set=global_archive_set)
-                        counter_process_playlist += 1
+                        # Retry getting missing videos for playlist from YouTube
+                        ignore_errors_playlist = DEFAULT_ignore_errors_playlist
+                        skip_playlist = False
+                        missing_videos_playlist = None
+                        while missing_videos_playlist is None and not skip_playlist:
+                            missing_videos_playlist = get_new_playlist_videos_from_youtube(playlist=current_playlist,
+                                                                                           ignore_errors=ignore_errors_playlist,
+                                                                                           counter=counter_process_playlist,
+                                                                                           archive_set=global_archive_set)
+                            counter_process_playlist += 1
 
-                        if missing_videos_playlist is None:
-                            if counter_process_playlist % retry_playlist_before_reconnecting_vpn == 0:
-                                vpn_counter = reconnect_vpn(counter=vpn_counter)
-                                vpn_timestamp = datetime.now()
-                            if counter_process_playlist > retry_playlist_before_ignoring_errors:
-                                ignore_errors_playlist = True
-                                print(f'{datetime.now()} {Fore.RED}IGNORING ERRORS{Style.RESET_ALL} after '
-                                      f'{counter_process_playlist} tries while processing playlist '
-                                      f'"{current_playlist_name}" ({current_playlist_site} {current_playlist_id})')
-                            if counter_process_playlist > retry_playlist_before_giving_up:
-                                print(f'{datetime.now()} {Fore.RED}GIVING UP{Style.RESET_ALL} after '
-                                      f'{counter_process_playlist} tries while processing playlist '
-                                      f'"{current_playlist_name}" ({current_playlist_site} {current_playlist_id})')
-                                skip_playlist = True
-                                all_playlists_checked_successfully = False
-                                current_playlist_checked_successfully = False
+                            if missing_videos_playlist is None:
+                                if counter_process_playlist % retry_playlist_before_reconnecting_vpn == 0:
+                                    vpn_counter = reconnect_vpn(counter=vpn_counter)
+                                    vpn_timestamp = datetime.now()
+                                if counter_process_playlist > retry_playlist_before_ignoring_errors:
+                                    ignore_errors_playlist = True
+                                    print(f'{datetime.now()} {Fore.RED}IGNORING ERRORS{Style.RESET_ALL} after '
+                                          f'{counter_process_playlist} tries while processing playlist '
+                                          f'"{current_playlist_name}" ({current_playlist_site} {current_playlist_id})')
+                                if counter_process_playlist > retry_playlist_before_giving_up:
+                                    print(f'{datetime.now()} {Fore.RED}GIVING UP{Style.RESET_ALL} after '
+                                          f'{counter_process_playlist} tries while processing playlist '
+                                          f'"{current_playlist_name}" ({current_playlist_site} {current_playlist_id})')
+                                    skip_playlist = True
+                                    all_playlists_checked_successfully = False
+                                    current_playlist_checked_successfully = False
 
-                    # noinspection PySimplifyBooleanCheck
-                    if missing_videos_playlist == False:
-                        print(
-                            f'{datetime.now()} {Fore.RED}CRITICAL ERROR{Style.RESET_ALL} while processing playlist "'
-                            f'{current_playlist_name}" ({current_playlist_site} {current_playlist_id})')
-                    elif missing_videos_playlist is not None:
-                        '''After this point we can guarantee the presence of playlist video list'''
-                        missing_video_count_playlist = 0
-                        if type(missing_videos_playlist) == list:
-                            missing_video_count_playlist = len(missing_videos_playlist)
-                        if missing_video_count_playlist > 0:
-                            for missing_video_playlist in missing_videos_playlist:
-                                # Add video info
-                                video_added = None
-                                skip_video = False
-                                counter_process_video = 0
-                                while video_added is None and not skip_video:
+                        # noinspection PySimplifyBooleanCheck
+                        if missing_videos_playlist == False:
+                            print(f'{datetime.now()} {Fore.RED}CRITICAL ERROR{Style.RESET_ALL} '
+                                  f'while processing playlist "'
+                                  f'{current_playlist_name}" ({current_playlist_site} {current_playlist_id})')
+                        elif missing_videos_playlist is not None:
+                            '''After this point we can guarantee the presence of playlist video list'''
+                            missing_video_count_playlist = 0
+                            if type(missing_videos_playlist) == list:
+                                missing_video_count_playlist = len(missing_videos_playlist)
+                            if missing_video_count_playlist > 0:
+                                for missing_video_playlist in missing_videos_playlist:
+                                    # Add video info
+                                    video_added = None
+                                    skip_video = False
+                                    counter_process_video = 0
+                                    while video_added is None and not skip_video:
 
-                                    video_added = process_video(channel_site=current_playlist_site,
-                                                                video=missing_video_playlist,
-                                                                channel_id=current_channel_id,
-                                                                playlist_id=current_playlist_id,
-                                                                download=current_playlist_download,
-                                                                archive_set=global_archive_set,
-                                                                database=database)
+                                        video_added = process_video(channel_site=current_playlist_site,
+                                                                    video=missing_video_playlist,
+                                                                    channel_id=current_channel_id,
+                                                                    playlist_id=current_playlist_id,
+                                                                    download=current_playlist_download,
+                                                                    archive_set=global_archive_set,
+                                                                    database=database)
 
-                                    counter_process_video += 1
+                                        counter_process_video += 1
 
-                                    if video_added is None:
-                                        if counter_process_video > retry_process_video:
-                                            try:
-                                                current_video_id = missing_video_playlist['id']
-                                            except KeyboardInterrupt:
-                                                sys.exit()
-                                            except Exception as e:
-                                                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} '
-                                                      f'getting id from video "{missing_video_playlist}": {e}')
-                                                current_video_id = missing_video_playlist
+                                        if video_added is None:
+                                            if counter_process_video > retry_process_video:
+                                                try:
+                                                    current_video_id = missing_video_playlist['id']
+                                                except KeyboardInterrupt:
+                                                    sys.exit()
+                                                except Exception as e:
+                                                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} '
+                                                          f'getting id from video "{missing_video_playlist}": {e}')
+                                                    current_video_id = missing_video_playlist
 
-                                            print(f'{datetime.now()} {Fore.RED}GIVING UP{Style.RESET_ALL} after '
-                                                  f'{counter_process_video} tries while processing video "{current_video_id}"')
-                                            skip_video = True
+                                                print(f'{datetime.now()} {Fore.RED}GIVING UP{Style.RESET_ALL} after '
+                                                      f'{counter_process_video} tries while processing video "{current_video_id}"')
+                                                skip_video = True
 
-                                if video_added:
-                                    videos_added_channel += 1
+                                    if video_added:
+                                        videos_added_channel += 1
 
-                        # Playlist is updated after
-                        # A: All videos have been processed or already known
-                        # B: The playlist had no (new) videos
-                        if current_playlist_checked_successfully:
-                            playlist_updated = False
-                            while not playlist_updated:
-                                playlist_updated = update_playlist(date=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                                                                   playlist=current_playlist,
-                                                                   database=database)
-                                if not playlist_updated:
-                                    database = connect_database()
-                        else:
-                            print(f'{datetime.now()} {Fore.RED}INCOMPLETE CHECK{Style.RESET_ALL} on playlist '
-                                  f'"{current_playlist_name}" ({current_playlist_site} {current_playlist_id})')
+                    # Playlist is updated after
+                    # A: All videos have been processed or already known
+                    # B: The playlist had no (new) videos
+                    if current_playlist_checked_successfully:
+                        playlist_updated = False
+                        while not playlist_updated:
+                            playlist_updated = update_playlist(
+                                date=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                playlist=current_playlist,
+                                database=database)
+                            if not playlist_updated:
+                                database = connect_database()
+                    else:
+                        print(f'{datetime.now()} {Fore.RED}INCOMPLETE CHECK{Style.RESET_ALL} on playlist '
+                              f'"{current_playlist_name}" ({current_playlist_site} {current_playlist_id})')
 
             # Channel is updated after
             # A: All playlists have been checked to completion (<= all videos was found on playlists)
@@ -2467,7 +2500,7 @@ def get_database_playlist_names():
     mysql_cursor = mydb.cursor()
 
     sql = "select playlists.url, playlists.name from playlists WHERE site = %s;"
-    val = ('youtube',)  # DO NOT REMOVE COMMA, it is neccessarry for MySQL to work!
+    val = ('youtube',)  # DO NOT REMOVE COMMA, it is necessary for MySQL to work!
     mysql_cursor.execute(sql, val)
     mysql_result = mysql_cursor.fetchall()
 
@@ -2500,119 +2533,130 @@ def add_subscriptions():
         channel_list.append(channel_url)
 
     for channel_url in channel_list:
-        channel = get_channel_details(channel_url=channel_url, ignore_errors=DEFAULT_ignore_errors_channel)
-        print()
-        try:
-            channel_id = channel['id']
-        except KeyboardInterrupt:
-            sys.exit()
-        except Exception as exception_get_channel_id:
-            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} {exception_get_channel_id}')
-            continue
+        process_channel(channel_url=channel_url,
+                        database_channels=database_channels,
+                        database_playlists=database_playlists)
 
-        channel_name_online = channel['channel']
 
-        if channel_id in database_channels:
-            channel_name_sane = database_channels[channel_id]
-            print(f'{datetime.now()} Channel known as "{channel_name_sane}"')
-        else:
-            channel_name_sane = sanitize_name(name=channel_name_online)
-            channel_name_input = input(f'ENTER to keep default or type to change CHANNEL name: ')
+def process_channel(channel_url, database_channels=None, database_playlists=None):
+    if not database_channels:
+        database_channels = get_database_channel_names()
+    if not database_playlists:
+        database_playlists = get_database_playlist_names()
 
-            if channel_name_input:
-                channel_name_sane = sanitize_name(name=channel_name_input, is_user=True)
+    channel = get_channel_details(channel_url=channel_url, ignore_errors=DEFAULT_ignore_errors_channel)
+    print()
+    try:
+        channel_id = channel['id']
+    except KeyboardInterrupt:
+        sys.exit()
+    except Exception as exception_get_channel_id:
+        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} {exception_get_channel_id}')
+        return False
 
-            add_channel(channel_id=channel_id, channel_name=channel_name_sane)
+    channel_name_online = channel['channel']
 
-        if channel_id in database_playlists:
-            print(
-                f'{datetime.now()} {Fore.CYAN}ATTENTION{Style.RESET_ALL} All "Other" videos are already being downloaded!')
+    if channel_id in database_channels:
+        channel_name_sane = database_channels[channel_id]
+        print(f'{datetime.now()} Channel known as "{channel_name_sane}"')
+    else:
+        channel_name_sane = sanitize_name(name=channel_name_online)
+        channel_name_input = input(f'ENTER to keep default or type to change CHANNEL name: ')
 
-        online_playlists = None
-        online_playlists = get_all_channel_playlists_from_youtube(channel_id=channel_id,
-                                                                  ignore_errors=DEFAULT_ignore_errors_playlist)
+        if channel_name_input:
+            channel_name_sane = sanitize_name(name=channel_name_input, is_user=True)
 
-        if online_playlists is not None:
-            for online_playlist in online_playlists:
-                print()
+        add_channel(channel_id=channel_id, channel_name=channel_name_sane)
 
-                playlist_id = online_playlist['id']
-                playlist_name_online = online_playlist['title']
-
-                if playlist_id in database_playlists:
-                    playlist_name_sane = database_playlists[playlist_id]
-                    print(f'{datetime.now()} Playlist known as "{playlist_name_sane}"')
-                else:
-                    playlist_name_sane = sanitize_name(name=playlist_name_online)
-                    skip_playlist = False
-                    while not skip_playlist:
-                        add_playlist_input = input(
-                            f'What do you want to do with "{playlist_name_sane}" ({playlist_id})? '
-                            f'{Fore.GREEN}D{Style.RESET_ALL}ownload immediately, '
-                            f'{Fore.YELLOW}M{Style.RESET_ALL}onitor only or '
-                            f'{Fore.RED}I{Style.RESET_ALL}gnore forever: ')
-                        if add_playlist_input.lower() == 'd':
-                            monitor_playlist = True
-                            download_playlist = True
-                        elif add_playlist_input.lower() == 'm':
-                            monitor_playlist = True
-                            download_playlist = False
-                        elif add_playlist_input.lower() == 'i':
-                            monitor_playlist = False
-                            download_playlist = None
-                        else:
-                            continue
-
-                        if monitor_playlist:
-                            playlist_name_input = input(f'ENTER to keep default or type to change PLAYLIST name: ')
-                            if playlist_name_input:
-                                playlist_name_sane = sanitize_name(name=playlist_name_input, is_user=True)
-                        else:
-                            playlist_name_sane = None
-
-                        add_playlist(playlist_id=playlist_id, playlist_name=playlist_name_sane, channel_id=channel_id,
-                                     download=download_playlist, monitor=monitor_playlist)
-                        skip_playlist = True
-
-        # Handle "Other" playlist (channel video feed)
-        playlist_id = channel_id
-        playlist_name_online = 'Other'
+    if channel_id in database_playlists:
         print(
-            f'{datetime.now()} {Fore.CYAN}ATTENTION{Style.RESET_ALL} "Other" Playlist should only be added for channels where most videos are not on playlists!')
+            f'{datetime.now()} {Fore.CYAN}ATTENTION{Style.RESET_ALL} All "Other" videos are already being downloaded!')
 
-        if playlist_id in database_playlists:
-            playlist_name_sane = database_playlists[playlist_id]
-            print(f'{datetime.now()} Playlist known as "{playlist_name_sane}"')
-        else:
-            playlist_name_sane = sanitize_name(name=playlist_name_online)
-            skip_playlist = False
-            while not skip_playlist:
-                add_playlist_input = input(f'What do you want to do with "{playlist_name_sane}" ({playlist_id})? '
-                                           f'{Fore.GREEN}D{Style.RESET_ALL}ownload immediately, '
-                                           f'{Fore.YELLOW}M{Style.RESET_ALL}onitor only or '
-                                           f'{Fore.RED}I{Style.RESET_ALL}gnore forever: ')
-                if add_playlist_input.lower() == 'd':
-                    monitor_playlist = True
-                    download_playlist = True
-                elif add_playlist_input.lower() == 'm':
-                    monitor_playlist = True
-                    download_playlist = False
-                elif add_playlist_input.lower() == 'i':
-                    monitor_playlist = False
-                    download_playlist = None
-                else:
-                    continue
+    online_playlists = None
+    online_playlists = get_all_channel_playlists_from_youtube(channel_id=channel_id,
+                                                              ignore_errors=DEFAULT_ignore_errors_playlist)
 
-                if monitor_playlist:
-                    playlist_name_input = input(f'ENTER to keep default or type to change PLAYLIST name: ')
-                    if playlist_name_input:
-                        playlist_name_sane = sanitize_name(name=playlist_name_input, is_user=True)
-                else:
-                    playlist_name_sane = None
+    if online_playlists is not None:
+        for online_playlist in online_playlists:
+            print()
 
-                add_playlist(playlist_id=playlist_id, playlist_name=playlist_name_sane, channel_id=channel_id,
-                             download=download_playlist, monitor=monitor_playlist)
-                skip_playlist = True
+            playlist_id = online_playlist['id']
+            playlist_name_online = online_playlist['title']
+
+            if playlist_id in database_playlists:
+                playlist_name_sane = database_playlists[playlist_id]
+                print(f'{datetime.now()} Playlist known as "{playlist_name_sane}"')
+            else:
+                playlist_name_sane = sanitize_name(name=playlist_name_online)
+                skip_playlist = False
+                while not skip_playlist:
+                    add_playlist_input = input(
+                        f'What do you want to do with "{playlist_name_sane}" ({playlist_id})? '
+                        f'{Fore.GREEN}D{Style.RESET_ALL}ownload immediately, '
+                        f'{Fore.YELLOW}M{Style.RESET_ALL}onitor only or '
+                        f'{Fore.RED}I{Style.RESET_ALL}gnore forever: ')
+                    if add_playlist_input.lower() == 'd':
+                        monitor_playlist = True
+                        download_playlist = True
+                    elif add_playlist_input.lower() == 'm':
+                        monitor_playlist = True
+                        download_playlist = False
+                    elif add_playlist_input.lower() == 'i':
+                        monitor_playlist = False
+                        download_playlist = None
+                    else:
+                        continue
+
+                    if monitor_playlist:
+                        playlist_name_input = input(f'ENTER to keep default or type to change PLAYLIST name: ')
+                        if playlist_name_input:
+                            playlist_name_sane = sanitize_name(name=playlist_name_input, is_user=True)
+                    else:
+                        playlist_name_sane = None
+
+                    add_playlist(playlist_id=playlist_id, playlist_name=playlist_name_sane, channel_id=channel_id,
+                                 download=download_playlist, monitor=monitor_playlist)
+                    skip_playlist = True
+
+    # Handle "Other" playlist (channel video feed)
+    playlist_id = channel_id
+    playlist_name_online = 'Other'
+    print(
+        f'{datetime.now()} {Fore.CYAN}ATTENTION{Style.RESET_ALL} "Other" Playlist should only be added for channels where most videos are not on playlists!')
+
+    if playlist_id in database_playlists:
+        playlist_name_sane = database_playlists[playlist_id]
+        print(f'{datetime.now()} Playlist known as "{playlist_name_sane}"')
+    else:
+        playlist_name_sane = sanitize_name(name=playlist_name_online)
+        skip_playlist = False
+        while not skip_playlist:
+            add_playlist_input = input(f'What do you want to do with "{playlist_name_sane}" ({playlist_id})? '
+                                       f'{Fore.GREEN}D{Style.RESET_ALL}ownload immediately, '
+                                       f'{Fore.YELLOW}M{Style.RESET_ALL}onitor only or '
+                                       f'{Fore.RED}I{Style.RESET_ALL}gnore forever: ')
+            if add_playlist_input.lower() == 'd':
+                monitor_playlist = True
+                download_playlist = True
+            elif add_playlist_input.lower() == 'm':
+                monitor_playlist = True
+                download_playlist = False
+            elif add_playlist_input.lower() == 'i':
+                monitor_playlist = False
+                download_playlist = None
+            else:
+                continue
+
+            if monitor_playlist:
+                playlist_name_input = input(f'ENTER to keep default or type to change PLAYLIST name: ')
+                if playlist_name_input:
+                    playlist_name_sane = sanitize_name(name=playlist_name_input, is_user=True)
+            else:
+                playlist_name_sane = None
+
+            add_playlist(playlist_id=playlist_id, playlist_name=playlist_name_sane, channel_id=channel_id,
+                         download=download_playlist, monitor=monitor_playlist)
+            skip_playlist = True
 
 
 if __name__ == "__main__":
@@ -2634,13 +2678,15 @@ if __name__ == "__main__":
     create_download_archive()
 
     if not args.mode:
+        INPUT_POSSIBLE = True
         print(f'{datetime.now()} {Fore.YELLOW}WARNING{Style.RESET_ALL}: '
-              f'no operating mode was set. Running in simple serial mode!')
+              f'no operating mode was set. Running in user interactive mode!')
         while True:
             add_subscriptions()
             update_subscriptions()
             download_all_videos()
     elif len(args.mode) == 1:
+        INPUT_POSSIBLE = False
         if args.mode == 'D':
             while True:
                 print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
