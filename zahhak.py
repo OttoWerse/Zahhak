@@ -2643,7 +2643,7 @@ def process_channel(channel_url, database_channels=None, database_playlists=None
         while not skip_playlist:
             add_playlist_input = input(f'What do you want to do with "{playlist_name_sane}" ({playlist_id})? '
                                        f'{Fore.GREEN}D{Style.RESET_ALL}ownload immediately, '
-                                       f'{Fore.YELLOW}M{Style.RESET_ALL}onitor only or '
+                                       f'{Fore.CYAN}M{Style.RESET_ALL}onitor only or '
                                        f'{Fore.RED}I{Style.RESET_ALL}gnore forever: ')
             if add_playlist_input.lower() == 'd':
                 monitor_playlist = True
