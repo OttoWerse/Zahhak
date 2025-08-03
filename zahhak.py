@@ -2592,7 +2592,7 @@ def process_channel(channel_url, database_channels=None, database_playlists=None
                 if playlist_name_sane is not None:
                     print(f'{datetime.now()} Playlist known as "{playlist_name_sane}"')
                 else:
-                    print(f'{datetime.now()} Playlist was ignored forever!')
+                    print(f'{datetime.now()} Playlist with ID "{playlist_id}" was ignored forever!')
             else:
                 playlist_name_sane = sanitize_name(name=playlist_name_online)
                 skip_playlist = False
@@ -2636,7 +2636,7 @@ def process_channel(channel_url, database_channels=None, database_playlists=None
         if playlist_name_sane is not None:
             print(f'{datetime.now()} Playlist known as "{playlist_name_sane}"')
         else:
-            print(f'{datetime.now()} Playlist was ignored forever!')
+            print(f'{datetime.now()} Playlist with ID "{playlist_id}" was ignored forever!')
     else:
         playlist_name_sane = sanitize_name(name=playlist_name_online)
         skip_playlist = False
