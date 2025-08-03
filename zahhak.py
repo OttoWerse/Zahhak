@@ -1121,11 +1121,8 @@ def add_playlist(playlist_id, playlist_name, channel_id, download, monitor):
 
     if channel_id == playlist_id:
         playlist_priority = 0
-    elif download:
-        playlist_priority = 100
     else:
-        # TODO: WHY did we ever add this? It seems convoluted, we need to rework the whole idea of "unwanted" videos!
-        playlist_priority = -1
+        playlist_priority = 100
 
     try:
         mydb = mysql.connector.connect(
@@ -2328,6 +2325,7 @@ def update_subscriptions():
                     current_playlist_site = current_playlist[0]
                     current_playlist_id = current_playlist[1]
                     current_playlist_name = current_playlist[2]
+                    current_playlist_download = current_playlist[7]
                     current_playlist_checked_successfully = True
 
                     # If any playlist was not reachable (e.g. given up upon, once we can trust yt-dlp settings fully) do NOT process "Other" playlist!
@@ -2338,7 +2336,6 @@ def update_subscriptions():
                             current_playlist_checked_successfully = False  # To skip processing in case of skipped "Other" playlist
 
                     if current_playlist_checked_successfully:  # To skip processing in case of skipped "Other" playlist
-                        current_playlist_download = current_playlist[7]
                         if DEBUG_add_unmonitored:
                             input(f'{current_playlist_download} - {type(current_playlist_download)}')
 
