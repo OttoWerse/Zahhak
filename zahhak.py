@@ -694,10 +694,10 @@ def get_new_channel_videos_from_youtube(channel, ignore_errors, archive_set):
             video_count = len(videos)
             if video_count > 0:
                 print(f'{datetime.now()} {Fore.GREEN}FOUND{Style.RESET_ALL} {video_count} new videos for channel '
-                      f'"{channel_name}" ({channel_site} {channel_id})')
+                      f'"{channel_name}" ({channel_site} {channel_id})       ')
             else:
                 print(f'{datetime.now()} {Fore.CYAN}NO{Style.RESET_ALL} new videos for channel '
-                      f'"{channel_name}" ({channel_site} {channel_id})')
+                      f'"{channel_name}" ({channel_site} {channel_id})'          )
 
             return videos
         else:
