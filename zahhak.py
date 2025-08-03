@@ -697,7 +697,7 @@ def get_new_channel_videos_from_youtube(channel, ignore_errors, archive_set):
                       f'"{channel_name}" ({channel_site} {channel_id})       ')
             else:
                 print(f'{datetime.now()} {Fore.CYAN}NO{Style.RESET_ALL} new videos for channel '
-                      f'"{channel_name}" ({channel_site} {channel_id})'          )
+                      f'"{channel_name}" ({channel_site} {channel_id})')
 
             return videos
         else:
@@ -2470,8 +2470,15 @@ def get_database_channel_names():
 
     mysql_cursor = mydb.cursor()
 
-    sql = "select channels.url, channels.name from channels WHERE site = %s AND url not like '%#%';"
-    val = ('youtube',)  # DO NOT REMOVE COMMA, it is neccessarry for MySQL to work!
+    sql = ("select channels.url, channels.name FROM channels "
+           "WHERE site = %s AND url not like '%#%'"
+           "AND channels.url IN("
+           "SELECT playlists.channel FROM playlists "
+           "WHERE playlists.done IS NOT TRUE "
+           "AND playlists.monitor IS TRUE "
+           "GROUP BY playlists.channel HAVING count(*) > 0) "
+           ";")
+    val = ('youtube',)  # DO NOT REMOVE COMMA, it is necessary for MySQL to work!
     mysql_cursor.execute(sql, val)
     mysql_result = mysql_cursor.fetchall()
 
@@ -2582,7 +2589,10 @@ def process_channel(channel_url, database_channels=None, database_playlists=None
 
             if playlist_id in database_playlists:
                 playlist_name_sane = database_playlists[playlist_id]
-                print(f'{datetime.now()} Playlist known as "{playlist_name_sane}"')
+                if playlist_name_sane is not None:
+                    print(f'{datetime.now()} Playlist known as "{playlist_name_sane}"')
+                else:
+                    print(f'{datetime.now()} Playlist was ignored forever!')
             else:
                 playlist_name_sane = sanitize_name(name=playlist_name_online)
                 skip_playlist = False
@@ -2623,7 +2633,10 @@ def process_channel(channel_url, database_channels=None, database_playlists=None
 
     if playlist_id in database_playlists:
         playlist_name_sane = database_playlists[playlist_id]
-        print(f'{datetime.now()} Playlist known as "{playlist_name_sane}"')
+        if playlist_name_sane is not None:
+            print(f'{datetime.now()} Playlist known as "{playlist_name_sane}"')
+        else:
+            print(f'{datetime.now()} Playlist was ignored forever!')
     else:
         playlist_name_sane = sanitize_name(name=playlist_name_online)
         skip_playlist = False
