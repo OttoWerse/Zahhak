@@ -1066,6 +1066,7 @@ def get_channel_details(channel_url, ignore_errors):
                 print(f'{datetime.now()} {Fore.RED}MALFORMED{Style.RESET_ALL} channel ID  "{json_id}"! '
                       f'Please try again and use /videos URL to avoid this! ',
                       end='\n')
+                return None
             else:
                 print(f'{datetime.now()} {Fore.GREEN}FOUND{Style.RESET_ALL} channel ID  "{json_id}" in Info JSON ',
                       end='\r')
