@@ -1363,7 +1363,6 @@ def process_video(video, channel_site, channel_id, playlist_id, download, archiv
                               download=download,
                               database=database)
                     return True
-
                 except KeyboardInterrupt:
                     sys.exit()
                 except Exception as exception_add_video:
@@ -1377,7 +1376,27 @@ def process_video(video, channel_site, channel_id, playlist_id, download, archiv
 
             elif regex_offline.search(str(exception_add_video)):
                 print(f'{datetime.now()} {Fore.RED}OFFLINE{Style.RESET_ALL} ({exception_add_video})')
-                return None  # Return None to trigger retry
+                # Update DB
+                try:
+                    add_video(video_site=video_site,
+                              video_id=video_id,
+                              video_channel=channel_id,
+                              video_playlist=playlist_id,
+                              video_status=STATUS_UNAVAILABLE,
+                              video_date=original_date,
+                              download=download,
+                              database=database)
+                    return True
+                except KeyboardInterrupt:
+                    sys.exit()
+                except Exception as exception_add_video:
+                    if regex_sql_duplicate.search(str(exception_add_video)):
+                        print(f'{datetime.now()} {Fore.RED}DUPLICATE{Style.RESET_ALL} video "{video_id}"')
+                        return True
+                    else:
+                        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding '
+                              f'{Fore.RED}UNAVAILABLE{Style.RESET_ALL} video "{video_id}": {exception_add_video}')
+                        return False
 
             else:
                 print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while processing video "{video}": '
