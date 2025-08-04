@@ -177,6 +177,7 @@ playlist_name_livestreams = 'Livestreams'
 regex_live_channel = re.compile(r'.* LIVE$')
 regex_fake_channel = re.compile(r'^#.*$')
 regex_fake_playlist = re.compile(r'^#.*$')
+regex_handle_as_id = re.compile(r'^@.*$')
 
 # YT-DLP Error messages
 regex_channel_no_videos = re.compile(r'This channel does not have a videos tab')
@@ -1061,9 +1062,14 @@ def get_channel_details(channel_url, ignore_errors):
         try:
             # Check if there is an ID in the JSON, otherwise we cannot use it.
             json_id = info_json['id']
-            print(f'{datetime.now()} {Fore.GREEN}FOUND{Style.RESET_ALL} channel ID  "{json_id}" in Info JSON ',
-                  end='\r')
-            return info_json
+            if regex_handle_as_id.search(str(json_id)):
+                print(f'{datetime.now()} {Fore.RED}MALFORMED{Style.RESET_ALL} channel ID  "{json_id}"! '
+                      f'Please try again and use /videos URL to avoid this! ',
+                      end='\n')
+            else:
+                print(f'{datetime.now()} {Fore.GREEN}FOUND{Style.RESET_ALL} channel ID  "{json_id}" in Info JSON ',
+                      end='\r')
+                return info_json
         except KeyboardInterrupt:
             sys.exit()
         except Exception as e:
