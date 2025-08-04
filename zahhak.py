@@ -2563,9 +2563,16 @@ def add_subscriptions():
         channel_list.append(channel_url)
 
     for channel_url in channel_list:
-        process_channel(channel_url=channel_url,
-                        database_channels=database_channels,
-                        database_playlists=database_playlists)
+        try:
+            process_channel(channel_url=channel_url,
+                            database_channels=database_channels,
+                            database_playlists=database_playlists)
+        except KeyboardInterrupt:
+            print(f'{datetime.now()} {Fore.YELLOW}SKIPPING{Style.RESET_ALL} channel')
+            continue
+        except Exception as exception_process_channel:
+            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} processing channel: '
+                  f'{exception_process_channel}')
 
 
 def process_channel(channel_url, database_channels=None, database_playlists=None):
