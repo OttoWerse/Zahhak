@@ -36,7 +36,7 @@ sleep_time_vpn = 10
 # How often to retry connecting to a VPN country before giving up
 retry_reconnect_new_vpn_node = 5
 # Frequency to check if switch from downloading secondary to primary videos is needed (in seconds)
-select_newest_videos_frequency = 120
+select_newest_videos_frequency = 600
 
 # Countries to connect to with NordVPN
 DEFAULT_vpn_countries = [
