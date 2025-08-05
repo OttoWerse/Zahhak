@@ -36,7 +36,7 @@ sleep_time_vpn = 10
 # How often to retry connecting to a VPN country before giving up
 retry_reconnect_new_vpn_node = 5
 # Frequency to check if switch from downloading secondary to primary videos is needed (in seconds)
-switch_to_primary_frequency = 120
+select_newest_videos_frequency = 120
 
 # Countries to connect to with NordVPN
 DEFAULT_vpn_countries = [
@@ -1766,20 +1766,17 @@ def download_all_videos():
                       f'to downloading {text_color}"{video_status}"{Style.RESET_ALL} videos!')
             old_video_status = video_status
 
-            if video_status == STATUS_PRIVATE and timestamp_distance.seconds > switch_to_primary_frequency:
+            # TODO: We should check whether there are actually NEWER or MORE videos available and only do this restart if there IS!
+            if timestamp_distance.seconds > select_newest_videos_frequency:
                 timestamp_old = timestamp_now
                 database = connect_database()  # We HAVE to reconnect DB for updated results!
-
                 priority_videos = []
                 for current_status in status_priority:
                     priority_videos.extend(get_videos_from_db(database=database,
                                                               status=current_status))
-
                 if priority_videos and len(priority_videos) > 0:
-                    text_color = get_text_color_for_video_status(video_status=video_status)
-                    print(f'{timestamp_now} {Fore.YELLOW}ABORTING{Style.RESET_ALL} '
-                          f'downloading {text_color}{video_status}{Style.RESET_ALL} '
-                          f'to focus on {len(priority_videos)} priority videos!')
+                    print(f'{timestamp_now} {Fore.YELLOW}REFRESHING{Style.RESET_ALL} '
+                          f'priority videos...')
                     break
 
             video_downloaded = False
