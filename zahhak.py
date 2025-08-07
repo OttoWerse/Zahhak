@@ -930,28 +930,6 @@ def get_channel_playlists_from_db(channel):
 
         playlists = []
 
-        # Get playlists with no videos in them
-        sql = ("SELECT playlists.site, playlists.url, playlists.name, playlists.priority, "
-               "channels.url, channels.name, channels.priority, playlists.download "
-               "FROM playlists "
-               "INNER JOIN channels on playlists.channel=channels.url "
-               "WHERE playlists.site = %s "
-               "AND playlists.channel = %s "
-               "AND playlists.done IS NOT TRUE "
-               # "AND playlists.download IS TRUE "
-               "AND playlists.monitor IS TRUE "
-               "AND NOT EXISTS ( SELECT 1 FROM videos WHERE videos.playlist = playlists.url ) "
-               "ORDER BY playlists.priority DESC, EXTRACT(year FROM playlists.date_checked) ASC, "
-               "EXTRACT(month FROM playlists.date_checked) ASC, EXTRACT(day FROM playlists.date_checked) ASC, "
-               "EXTRACT(hour FROM playlists.date_checked) ASC, RAND();")
-        val = ('youtube', channel_id)
-        mysql_cursor.execute(sql, val)
-        mysql_result = mysql_cursor.fetchall()
-        # playlists.append(mysql_result)
-        for entry in mysql_result:
-            playlists.append(entry)
-
-        # Get playlists with videos present
         sql = ("SELECT playlists.site, playlists.url, playlists.name, playlists.priority, "
                "channels.url, channels.name, channels.priority, playlists.download "
                "FROM playlists "
@@ -962,7 +940,6 @@ def get_channel_playlists_from_db(channel):
                "AND playlists.done IS NOT TRUE "
                # "AND playlists.download IS TRUE "
                "AND playlists.monitor IS TRUE "
-               "AND EXISTS ( SELECT 1 FROM videos WHERE videos.playlist = playlists.url ) "
                "ORDER BY playlists.priority DESC, EXTRACT(year FROM playlists.date_checked) ASC, "
                "EXTRACT(month FROM playlists.date_checked) ASC, EXTRACT(day FROM playlists.date_checked) ASC, "
                "EXTRACT(hour FROM playlists.date_checked) ASC, RAND();")
