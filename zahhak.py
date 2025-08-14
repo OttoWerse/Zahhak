@@ -205,6 +205,7 @@ regex_error_win_10054 = re.compile(r'WinError 10054')
 regex_error_win_2 = re.compile(r'WinError 2')
 regex_bot = re.compile(r"Sign in to confirm you're not a bot")
 regex_sql_duplicate = re.compile(r'Duplicate entry')
+regex_sql_unavailable = re.compile(r'MySQL Connection not available')
 
 # noinspection RegExpRedundantEscape
 regex_val = re.compile(r'[^\.a-zA-Z0-9 -]')
@@ -1491,6 +1492,9 @@ def process_video(video, channel_site, channel_id, playlist_id, download, archiv
             if regex_sql_duplicate.search(str(exception_add_video)):
                 print(f'{datetime.now()} {Fore.RED}DUPLICATE{Style.RESET_ALL} video "{video_id}"')
                 return True
+            if regex_sql_unavailable.search(str(exception_add_video)):
+                print(f'{datetime.now()} {Fore.RED}UNAVAILABLE{Style.RESET_ALL} database, reconnecting...', end='\r')
+                return None
             else:
                 print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding video "{video_id}": '
                       f'{exception_add_video}')
@@ -2401,6 +2405,8 @@ def update_subscriptions():
                                         counter_process_video += 1
 
                                         if video_added is None:
+                                            # TODO: This is inefficient, it we should differentiate between yt-dlp exceptions and sql exception(s)!
+                                            database = connect_database()
                                             if counter_process_video > retry_process_video:
                                                 try:
                                                     current_video_id = missing_video_playlist['id']
