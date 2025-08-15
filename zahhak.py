@@ -1,4 +1,5 @@
 import argparse
+import io
 import json
 import os
 import random
@@ -9,15 +10,19 @@ import time
 from datetime import datetime
 from subprocess import STDOUT, check_output
 
+import lxml.builder
+import lxml.etree
 import mysql.connector
 import yt_dlp
 from colorama import init, Fore, Style, just_fix_windows_console
 
 # TODO https://www.reddit.com/r/youtubedl/comments/1berg2g/is_repeatedly_downloading_api_json_necessary/
 
-'''Download directory settings'''
-directory_download_temp = os.getenv('ZAHHAK_DIR_DOWNLOAD_TEMP')  # TODO: Default?
-directory_download_home = os.getenv('ZAHHAK_DIR_DOWNLOAD_HOME')  # TODO: Default?
+'''Directory settings'''
+directory_download_temp = os.getenv('ZAHHAK_DIR_DOWNLOAD_TEMP')
+directory_download_home = os.getenv('ZAHHAK_DIR_DOWNLOAD_HOME')
+directory_final = os.getenv('ZAHHAK_DIR_FINAL')  # TODO: How to handle multiple final directories?
+
 if directory_download_temp is None or directory_download_home is None:
     print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} Directories not defined!', end="\n")
     sys.exit()
@@ -37,6 +42,20 @@ sleep_time_vpn = 10
 retry_reconnect_new_vpn_node = 5
 # Frequency to check if switch from downloading secondary to primary videos is needed (in seconds)
 select_newest_videos_frequency = 600
+# How long to wait after all verified videos have been moved into final directory
+sleep_time_move_in = 300
+# Create a NFO file with data needed for presentation in Jellyfin/Emby
+create_nfo_files = True
+if create_nfo_files:
+    sleep_time_fix_nfo = 0
+else:
+    sleep_time_fix_nfo = 90
+# Mass create all NFO files in final directory - Should be False for normal runs!
+fix_all = False
+# Replace existing NFO files (for mass-updating format) - Should be False for normal runs!
+replace_existing = False
+# This is a hotfix for "EXISTING NFO" piling up (IDK why the move after NFO creation fails so often)
+keep_existing = True
 
 # Countries to connect to with NordVPN
 DEFAULT_vpn_countries = [
@@ -204,12 +223,35 @@ regex_error_get_addr_info = re.compile(r'getaddrinfo failed')
 regex_error_win_10054 = re.compile(r'WinError 10054')
 regex_error_win_2 = re.compile(r'WinError 2')
 regex_bot = re.compile(r"Sign in to confirm you're not a bot")
+
+# MySQL Error messages
 regex_sql_duplicate = re.compile(r'Duplicate entry')
 regex_sql_unavailable = re.compile(r'MySQL Connection not available')
 
 # noinspection RegExpRedundantEscape
 regex_val = re.compile(r'[^\.a-zA-Z0-9 -]')
 regex_caps = re.compile(r'[A-Z][A-Z]+')
+
+# File extensions
+regex_mp4 = re.compile(r'\.mp4$')
+regex_json = re.compile(r'\.info\.json$')
+regex_nfo = re.compile(r'\.nfo$')
+regex_show_nfo = re.compile(r'^tvshow\.nfo$')
+regex_season_nfo = re.compile(r'^season\.nfo$')
+
+# NFO components
+# noinspection RegExpRedundantEscape
+regex_date_present = re.compile(r'<aired>\d{4}-\d{2}-\d{2}<\/aired>')
+# noinspection RegExpRedundantEscape
+regex_date_value = re.compile(r'(?<=<aired>)(.*)(?=<\/aired>)')
+# noinspection RegExpRedundantEscape
+regex_date_add_position = re.compile(r'(?<=<\/season>).*')
+# noinspection RegExpRedundantEscape
+regex_network_present = re.compile(r'<studio>.*<\/studio>')
+# noinspection RegExpRedundantEscape
+regex_network_value = re.compile(r'(?<=<studio>)(.*)(?=<\/studio>)')
+# noinspection RegExpRedundantEscape
+regex_network_add_position = re.compile(r'(?<=<\/runtime>).*')
 
 '''Status values'''
 STATUS_UNWANTED = 'unwanted'
@@ -224,6 +266,7 @@ STATUS_UNCERTAIN = 'uncertain'
 STATUS_BROKEN = 'broken'
 STATUS_BROKEN_UNAVAILABLE = 'broken-unavailable'
 STATUS_CURSED = 'cursed'
+STATUS_STUCK = 'stuck'
 STATUS_DONE = 'done'
 
 '''DEBUG'''
@@ -1175,19 +1218,17 @@ def get_text_color_for_video_status(video_status):
 def add_video(video_site, video_id, video_channel, video_playlist, video_status, video_date, download, database=None):
     """Adds a video to given playlist & channel in database with the given status fields"""
     if not database:
-        mydb = connect_database()
-    else:
-        mydb = database
+        database = connect_database()
 
     global global_archive_set
 
-    mysql_cursor = mydb.cursor()
+    mysql_cursor = database.cursor()
     sql = ("INSERT INTO videos(site, url, channel, playlist, status, original_date, download) "
            "VALUES(%s, %s, %s, %s, %s, %s, %s) "
            "ON DUPLICATE KEY UPDATE status = VALUES(status);")
     val = (video_site, video_id, video_channel, video_playlist, video_status, video_date, download)
     mysql_cursor.execute(sql, val)
-    mydb.commit()
+    database.commit()
 
     text_color = get_text_color_for_video_status(video_status=video_status)
 
@@ -1198,6 +1239,21 @@ def add_video(video_site, video_id, video_channel, video_playlist, video_status,
         global_archive_set.add(f'{video_site} {video_id}')
         print(f'{datetime.now()} {Fore.GREEN}ADDED{Style.RESET_ALL} video "{video_site} {video_id}" '
               f'with status {text_color}"{video_status}"{Style.RESET_ALL}')
+
+
+def update_video_status(video_site, video_id, video_status, database=None):
+    if not database:
+        database = connect_database()
+
+    mysql_cursor = database.cursor()
+    sql = "UPDATE videos SET status = %s WHERE site = %s AND url = %s;"
+    val = (video_status, video_site, video_id,)
+    mysql_cursor.execute(sql, val)
+    database.commit()
+
+    text_color = get_text_color_for_video_status(video_status=video_status)
+    print(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} video "{video_site} {video_id}" '
+          f'to status {text_color}"{video_status}"{Style.RESET_ALL}')
 
 
 def process_video(video, channel_site, channel_id, playlist_id, download, archive_set, database):
@@ -2685,6 +2741,462 @@ def process_channel(channel_url, database_channels=None, database_playlists=None
             add_playlist(playlist_id=playlist_id, playlist_name=playlist_name_sane, channel_id=channel_id,
                          download=download_playlist, monitor=monitor_playlist)
             skip_playlist = True
+
+
+def switch_directory(path_orig, dir_orig, dir_new):
+    return os.path.join(dir_new, path_orig[len(dir_orig + os.sep):len(path_orig)])
+
+
+def move_in_verified_videos():
+    """
+    Move in verified files
+    """
+    database = connect_database()
+
+    leftover_files = check_leftover_files(directory_to_check=directory_download_home)
+    print(f'{datetime.now()} {leftover_files} files left to move in...')
+
+    file_counter_total = 0
+
+    for directory, folders, files in os.walk(directory_download_home):
+        folders.sort(reverse=True)
+        files.sort(reverse=True)
+        for filename in files:
+            if regex_mp4.search(filename):
+                # Original paths
+                path_orig = os.path.join(directory, filename)
+                json_path_orig = re.sub(r'\.mp4$', '.info.json', path_orig)
+                png_path_orig = re.sub(r'\.mp4$', '.png', path_orig)
+
+                vtt_en_path_orig = re.sub(r'\.mp4$', '.en-orig.vtt', path_orig)
+                vtt_de_path_orig = re.sub(r'\.mp4$', '.de-orig.vtt', path_orig)
+
+                nfo_path_orig = re.sub(r'\.mp4$', '.nfo', path_orig)
+
+                # Target paths
+                path_move = switch_directory(path_orig=path_orig,
+                                             dir_orig=directory_download_home,
+                                             dir_new=directory_final)
+                json_path_move = switch_directory(path_orig=json_path_orig,
+                                                  dir_orig=directory_download_home,
+                                                  dir_new=directory_final)
+                png_path_move = switch_directory(path_orig=png_path_orig,
+                                                 dir_orig=directory_download_home,
+                                                 dir_new=directory_final)
+
+                # TODO: Remove "-orig" in name to fix being detected as ICELANDIC subtitles!
+                vtt_en_path_move = switch_directory(path_orig=vtt_en_path_orig,
+                                                    dir_orig=directory_download_home,
+                                                    dir_new=directory_final)
+                vtt_de_path_move = switch_directory(path_orig=vtt_de_path_orig,
+                                                    dir_orig=directory_download_home,
+                                                    dir_new=directory_final)
+                nfo_path_move = switch_directory(path_orig=nfo_path_orig,
+                                                 dir_orig=directory_download_home,
+                                                 dir_new=directory_final)
+
+                # Further work can only be done, if an Info JSON exists!
+                if os.path.exists(json_path_orig):
+                    with io.open(json_path_orig, encoding='utf-8-sig') as json_txt:
+                        try:
+                            # Get keys for ilus DB from Info JSON
+                            json_obj = json.load(json_txt)
+                            json_site = json_obj['extractor']
+                            json_url = json_obj['id']
+
+                            json_date = None
+                            if json_date is None:
+                                try:
+                                    json_date = datetime.strptime(json_obj['upload_date'], '%Y%m%d').strftime(
+                                        '%Y-%m-%d')
+                                except KeyboardInterrupt:
+                                    sys.exit()
+                                except Exception as exception_add_video:
+                                    print(
+                                        f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: No upload date in info JSON! ({exception_add_video})')
+                            if json_date is None:
+                                try:
+                                    json_date = datetime.strptime(json_obj['release_date'], '%Y%m%d').strftime(
+                                        '%Y-%m-%d')
+                                except KeyboardInterrupt:
+                                    sys.exit()
+                                except Exception as exception_add_video:
+                                    print(
+                                        f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: No release date in info JSON! ({exception_add_video})')
+
+                        except KeyboardInterrupt:
+                            sys.exit()
+                        except Exception as exception:
+                            print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} reading info JSON: {exception}')
+                            continue
+
+                        try:
+                            # TODO: This should be a method!
+                            # Reconnect DB every time to avoid caching
+                            mydb = mysql.connector.connect(
+                                host=mysql_host,
+                                user=mysql_user,
+                                password=mysql_password,
+                                database=mysql_database
+                            )
+                            mycursor = mydb.cursor()
+
+                            # Check status in ilus DB
+                            sql = "SELECT status FROM videos WHERE site = %s AND url = %s;"
+                            val = (json_site, json_url)
+                            mycursor.execute(sql, val)
+                            myresult = mycursor.fetchall()
+                            try:
+                                sql_status = myresult[0][0]
+                            except KeyboardInterrupt:
+                                sys.exit()
+                            except Exception as exception:
+                                print(f'{datetime.now()} {Fore.RED}UNKNOWN VIDEO{Style.RESET_ALL} '
+                                      f'{os.path.basename(path_move)}')
+                                if json_date is None:
+                                    # If we have no date, we cannot insert!
+                                    continue
+                                else:
+                                    # TODO: We used to add video as "fresh" here, this should not be necessary,
+                                    #  but could be re-added in the future for completeness sake.
+                                    continue
+
+                            if sql_status == STATUS_WANTED:
+                                print(f'{datetime.now()} {Fore.CYAN}DATABASE MISMATCH{Style.RESET_ALL} '
+                                      f'{os.path.basename(path_move)}: Status "{sql_status}"')
+                                continue
+                            elif not (sql_status == STATUS_VERIFIED or sql_status == STATUS_UNCERTAIN):
+                                print(f'{datetime.now()} {Fore.CYAN}SKIPPING{Style.RESET_ALL} '
+                                      f'{os.path.basename(path_move)}: Status "{sql_status}"')
+                                continue
+
+                        except KeyboardInterrupt:
+                            sys.exit()
+                        except Exception as exception:
+                            print(f'{datetime.now()} {Fore.RED}SQL SELECT ERROR{Style.RESET_ALL} '
+                                  f'{os.path.basename(path_move)}: {exception}')
+                            continue
+
+                # Move in Files
+                move_in_error = False
+
+                # NFO
+                nfo_created = fix_nfo_file(nfo_path_move)
+                if not nfo_created:
+                    # print(f'NO NFO')
+                    move_in_error = True
+                    continue
+
+                # Thumbnail
+                try:
+                    # os.renames(png_path_orig, png_path_move)
+                    shutil.move(png_path_orig, png_path_move)
+                except KeyboardInterrupt:
+                    sys.exit()
+                except Exception as exception:
+                    print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} '
+                          f'Moving {os.path.basename(png_path_move)} in: {exception}')
+                    move_in_error = True
+
+                # Info JSON
+                try:
+                    # os.renames(json_path_orig, json_path_move)
+                    shutil.move(json_path_orig, json_path_move)
+                except KeyboardInterrupt:
+                    sys.exit()
+                except Exception as exception:
+                    print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} '
+                          f'Moving {os.path.basename(json_path_move)} in: {exception}')
+                    move_in_error = True
+
+                # English Subtitles
+                # TODO: This needs to be changed to work for ALL subtitles!
+                try:
+                    # os.renames(vtt_en_path_orig, vtt_en_path_move)
+                    shutil.move(vtt_en_path_orig, vtt_en_path_move)
+                except KeyboardInterrupt:
+                    sys.exit()
+                except Exception as exception:
+                    # German Subtitles
+                    # TODO: This needs to be changed to work for ALL subtitles!
+                    try:
+                        # os.renames(vtt_de_path_orig, vtt_de_path_move)
+                        shutil.move(vtt_de_path_orig, vtt_de_path_move)
+                    except KeyboardInterrupt:
+                        sys.exit()
+                    except Exception as exception:
+                        print(f'{datetime.now()} {Fore.CYAN}INFO{Style.RESET_ALL} No Subtitles found.')
+                        # TODO: Handle as seperate case! move_in_error = True
+
+                # Video
+                try:
+                    # os.renames(path_orig, path_move)
+                    shutil.move(path_orig, path_move)
+                    file_counter_total += 1
+                    print(f'{datetime.now()} {Fore.GREEN}MOVED{Style.RESET_ALL} {os.path.basename(path_move)} in.')
+                except KeyboardInterrupt:
+                    sys.exit()
+                except Exception as exception:
+                    print(
+                        f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} Moving {os.path.basename(path_move)} in: {exception}')
+                    move_in_error = True
+
+                if move_in_error:
+                    # TODO: Rollback moved files instead and DO NOT update DB to anything (auto retry happens later)!
+                    # Update DB
+                    update_video_status(video_site=json_site,
+                                        video_id=json_url,
+                                        video_status=STATUS_STUCK,
+                                        database=database)
+                else:
+                    # Update DB
+                    update_video_status(video_site=json_site,
+                                        video_id=json_url,
+                                        video_status=STATUS_DONE,
+                                        database=database)
+
+    print(f'{datetime.now()} Moved in {file_counter_total} episodes!')
+
+    print(f'{datetime.now()} {Fore.CYAN}WAITING{Style.RESET_ALL} {sleep_time_move_in}s...')
+    time.sleep(sleep_time_move_in)
+
+    # TODO: Return amount of moved in videos / files?
+    return
+
+
+def check_leftover_files(directory_to_check):
+    """
+    Return False when there is no files left in given directory, otherwise returns the count of files.
+    """
+    try:
+        file_count = sum([len(files) for r, d, files in os.walk(directory_to_check)])
+        # file_count = len(os.listdir(directory_to_check))
+        if file_count == 0:
+            return False
+        else:
+            return file_count
+    except KeyboardInterrupt:
+        sys.exit()
+    except Exception as exception:
+        return False
+
+
+def write_nfo(path, content):
+    """
+    Writes NFO file content to file on disk
+    """
+    folder = os.path.split(path)[0]
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
+    if content:
+        try:
+            with io.open(path, 'w', encoding='utf-8-sig') as nfo_new:
+                nfo_new.write(content)
+                return True
+        except KeyboardInterrupt:
+            sys.exit()
+        except Exception as exception:
+            input(exception)
+            return False
+
+    else:
+        # TODO: Replace input with well-designed logging
+        input(f'CRITICAL ERROR')
+        return False
+
+
+# TODO: This method will become redundant when we switch to objects for channels, videos etc.
+def get_channel_name(video_site, video_id):
+    """
+    Gets database channel name from site and id
+    """
+    try:
+        # Reconnect DB every time to avoid caching
+        mydb = mysql.connector.connect(
+            host=mysql_host,
+            user=mysql_user,
+            password=mysql_password,
+            database=mysql_database
+        )
+        mycursor = mydb.cursor()
+
+        # Check status in ilus DB
+        sql = "SELECT name FROM channels WHERE site = %s AND url = (SELECT channel FROM playlists WHERE site = %s AND url = ( SELECT playlist FROM videos WHERE site = %s AND url = %s));"
+        val = (video_site, video_site, video_site, video_id)
+        mycursor.execute(sql, val)
+        myresult = mycursor.fetchall()
+
+        channel_name = myresult[0][0]
+        return channel_name
+
+    except KeyboardInterrupt:
+        sys.exit()
+    except Exception as exception:
+        print(
+            f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} getting channel name for "{video_site} {video_id}": {exception}')
+        return None
+
+
+def fix_nfo_file(nfo_file):
+    filename = nfo_file
+    nfo_modified = False
+
+    # Redundant check if file is NFO
+    if regex_nfo.search(filename) and not regex_show_nfo.search(filename) and not regex_season_nfo.search(filename):
+        path_nfo = filename
+        base_path_nfo = os.path.basename(path_nfo)
+        path_json = re.sub(regex_nfo, '.info.json', path_nfo)
+        base_path_json = os.path.basename(path_json)
+
+        if not os.path.exists(path_json):
+            # Take data from incomplete (fresh) directory instead of final (verified)
+            path_json = switch_directory(path_orig=path_json,
+                                         dir_orig=directory_final,
+                                         dir_new=directory_download_home)
+            # TODO: Remove input
+            input(path_json)
+
+        if not os.path.exists(path_json):
+            print(f'{datetime.now()} {Fore.RED}MISSING JSON{Style.RESET_ALL} {os.path.basename(path_json)}')
+            return False
+
+        with io.open(path_json, 'r', encoding='utf-8-sig') as json_txt:
+            try:
+                json_obj = json.load(json_txt)
+
+                json_id = json_obj['id']
+
+                json_title = json_obj['title']
+                json_fulltitle = json_obj['fulltitle']
+                nfo_title = json_title
+
+                try:
+                    json_description = json_obj['description']
+                    nfo_description = r'<![CDATA[' + json_description + r']]>'
+                except KeyboardInterrupt:
+                    sys.exit()
+                except Exception as exception:
+                    print(f'NO DESCRIPTION, continue?! {exception}')
+                    json_description = ''
+                    nfo_description = ''
+
+                json_upload_date = json_obj['upload_date']
+                json_upload_date = datetime.strptime(json_upload_date, '%Y%m%d')
+                nfo_upload_date = json_upload_date.strftime('%Y-%m-%d')
+
+                nfo_year = json_upload_date.strftime('%Y')
+
+                # TODO: is awill always get the video uploader name, which is fine for videos, but should NOT be used for season and/or shows without first confirming they are the same as playlist owner!
+                json_site = json_obj['extractor']
+                json_channel = json_obj['channel_id']
+                nfo_network = get_channel_name(video_site=json_site, video_id=json_id)
+                if nfo_network == None:
+                    return False
+
+            except KeyboardInterrupt:
+                sys.exit()
+            except Exception as exception:
+                print(
+                    f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} reading JSON "{base_path_json}": {exception}')
+                return False
+
+        if not os.path.exists(path_nfo) or replace_existing:
+            # Make own NFO!
+            if create_nfo_files:
+                E = lxml.builder.ElementMaker()
+
+                xml_data = E.episodedetails(
+                    # E.plot(f'{nfo_description}'),
+                    E.title(f'{nfo_title}'),
+                    E.year(f'{nfo_year}'),
+                    E.studio(f'{nfo_network}'),
+                    E.aired(f'{nfo_upload_date}')
+                )
+                xml_txt = lxml.etree.tostring(xml_data, encoding=str, pretty_print=True)
+
+                # xml_tree = BeautifulSoup(xml_txt, 'xml').prettify()
+                xml_tree = xml_txt
+
+                # FIX for '<' and '>' in BS4
+                # xml_tree = re.sub(r'&lt;', '<', xml_tree)
+                # xml_tree = re.sub(r'&gt;', '>', xml_tree)
+
+                # input(xml_tree)
+
+                nfo_txt = xml_tree
+
+                write_nfo_result = write_nfo(path=path_nfo, content=nfo_txt)
+
+                # print(f'{datetime.now()} {Fore.GREEN}CREATED{Style.RESET_ALL} new NFO {base_path_nfo}')
+
+                return write_nfo_result
+
+            else:
+                print(f'{datetime.now()} {Fore.RED}MISSING NFO{Style.RESET_ALL} {base_path_nfo}')
+        else:
+            if keep_existing:
+                print(f'{datetime.now()} {Fore.GREEN}EXISTING NFO{Style.RESET_ALL} {base_path_nfo}', end='\r')
+                return True
+            else:
+                print(f'{datetime.now()} {Fore.RED}EXISTING NFO{Style.RESET_ALL} {base_path_nfo}', end='\n')
+                return False
+
+
+def fix_nfo_files(files_to_process):
+    """
+    Fixes NFO files
+
+    files_to_process:  maximum file count to process
+    """
+    total_counter = 0
+    total_files_to_fix = len(files_to_process)
+
+    while total_counter < total_files_to_fix:
+        if sleep_time_fix_nfo > 0:
+            print(f'{datetime.now()} {Fore.CYAN}WAITING{Style.RESET_ALL} {sleep_time_fix_nfo}s for NFO files...')
+            time.sleep(sleep_time_fix_nfo)
+        for filename in files_to_process:
+            fix_nfo_result = fix_nfo_file(nfo_file=filename)
+            if fix_nfo_result:
+                total_counter += 1
+                print(
+                    f'{Fore.GREEN}CREATED{Style.RESET_ALL} {total_counter}/{total_files_to_fix} NFO files {os.path.basename(filename)}',
+                    end='\n')
+
+        if total_files_to_fix > 1:
+            print(
+                f'{datetime.now()} {Fore.GREEN}MODIFIED{Style.RESET_ALL} {total_counter}/{total_files_to_fix} NFO files')
+
+    return total_counter
+
+
+def fix_all_nfo_files():
+    """
+    Fixes all NFO files
+    """
+    print(f'{datetime.now()} Collecting NFO files in {directory_final}')
+
+    nfo_file_list = []
+
+    for directory, folders, files in os.walk(directory_final):
+        folders.sort(reverse=True, key=lambda x: os.path.getmtime(os.path.join(directory, x)))
+        files.sort(reverse=True, key=lambda x: os.path.getctime(os.path.join(directory, x)))
+
+        for filename in files:
+            if create_nfo_files:
+                # If we need to create all NFO files, it is no use to only append existing NFOs!
+                if regex_mp4.search(filename):
+                    nfo_file_list.append(re.sub(r'\.mp4$', '.nfo', os.path.join(directory, filename)))
+
+            else:
+                # Only append existing NFO files to save time
+                if regex_nfo.search(filename) and not regex_show_nfo.search(filename) and not regex_season_nfo.search(
+                        filename):
+                    nfo_file_list.append(os.path.join(directory, filename))
+
+    added_dates = fix_nfo_files(nfo_file_list)
+    return added_dates
 
 
 if __name__ == "__main__":
