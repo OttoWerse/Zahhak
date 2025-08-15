@@ -2332,6 +2332,11 @@ def check_channel_complete(channel, database_playlists):
                   f'channel "{channel_name}" ({channel_site} {channel_id})')
             return True
 
+    else:
+        print(f'{datetime.now()} {Fore.YELLOW}NO PLAYLISTS{Style.RESET_ALL} '
+              f'for channel "{channel_name}" ({channel_site} {channel_id})')
+        return True
+
 
 def update_subscriptions():
     global vpn_timestamp
