@@ -24,10 +24,6 @@ directory_download_temp = os.getenv('ZAHHAK_DIR_DOWNLOAD_TEMP')
 directory_download_home = os.getenv('ZAHHAK_DIR_DOWNLOAD_HOME')
 directory_final = os.getenv('ZAHHAK_DIR_FINAL')  # TODO: How to handle multiple final directories?
 
-if directory_download_temp is None or directory_download_home is None:
-    print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} Directories not defined!', end="\n")
-    sys.exit()
-
 '''MySQL settings'''
 mysql_host = os.getenv('ZAHHAK_MYSQL_HOSTNAME', 'localhost')
 mysql_database = os.getenv('ZAHHAK_MYSQL_DATABASE', 'zahhak')
@@ -1773,13 +1769,13 @@ def download_all_media():
     for current_status in status_priority:
         text_color = get_text_color_for_media_status(media_status=current_status)
         priority_media = get_media_from_db(database=database,
-                                            status=current_status)
+                                           status=current_status)
         all_media.extend(priority_media)
 
     for current_status in status_secondary:
         text_color = get_text_color_for_media_status(media_status=current_status)
         secondary_media = get_media_from_db(database=database,
-                                             status=current_status)
+                                            status=current_status)
         all_media.extend(secondary_media)
 
     # TODO
@@ -1825,7 +1821,7 @@ def download_all_media():
                 priority_media = []
                 for current_status in status_priority:
                     priority_media.extend(get_media_from_db(database=database,
-                                                             status=current_status))
+                                                            status=current_status))
                 if priority_media and len(priority_media) > 0:
                     print(f'{timestamp_now} {Fore.YELLOW}REFRESHING{Style.RESET_ALL} '
                           f'priority media...')
@@ -1861,9 +1857,12 @@ def download_media(media):
     playlist_name = media[6]
     playlist_id = media[7]
 
-    if directory_download_temp is None or directory_download_home is None:
-        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} download paths are not set!')
-        return False
+    if directory_download_temp is None:
+        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} download temp directory not set!')
+        sys.exit()
+    if directory_download_home is None:
+        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} download home directory not set!')
+        sys.exit()
 
     # Clear temp directory
     try:
@@ -2739,6 +2738,13 @@ def juggle_verified_media():
     """
     Move in verified files
     """
+    if directory_final is None:
+        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} final directory not set!')
+        sys.exit()
+    if directory_download_home is None:
+        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} download home directory not set!')
+        sys.exit()
+
     database = connect_database()
 
     leftover_files = check_leftover_files(directory_to_check=directory_download_home)
@@ -2799,8 +2805,8 @@ def juggle_verified_media():
                                 except KeyboardInterrupt:
                                     sys.exit()
                                 except Exception as exception_add_media:
-                                    print(
-                                        f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: No upload date in info JSON! ({exception_add_media})')
+                                    print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: '
+                                          f'No upload date in info JSON! ({exception_add_media})')
                             if json_date is None:
                                 try:
                                     json_date = datetime.strptime(json_obj['release_date'], '%Y%m%d').strftime(
@@ -3187,7 +3193,10 @@ def fix_all_nfo_files():
 
 
 def verify_fresh_media(regex_filter_url):
-    # TODO: Implement existing code from FFMPEG verification tool here
+    if directory_download_home is None:
+        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} download home directory not set!')
+        sys.exit()
+
     print(f'{datetime.now()} {Fore.GREEN}VERIFYING{Style.RESET_ALL} media matching ID regex {regex_filter_url}',
           end='\n')
 
@@ -3568,15 +3577,15 @@ if __name__ == "__main__":
             # TODO: This should probably be done with argparse error instead!
             if not letter_low:
                 # print(f'Missing parameter "--letter_low"!')
-                # exit()
+                # sys.exit()
                 letter_low = ' '
             if not letter_high:
                 # print(f'Missing parameter "--letter_high"!')
-                # exit()
+                # sys.exit()
                 letter_high = ' '
             if ord(letter_low) > ord(letter_high):
                 print(f'Invalid input, low letter {letter_low} is not preceding high letter {letter_high}!')
-                exit()
+                sys.exit()
 
             if letter_low == ' ' and letter_high == ' ':
                 regex_filter_url = fr'^[a-z0-9\-\_]'
