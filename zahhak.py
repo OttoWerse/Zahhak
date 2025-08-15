@@ -2765,13 +2765,12 @@ def move_in_verified_videos():
             if regex_mp4.search(filename):
                 # Original paths
                 path_orig = os.path.join(directory, filename)
-                json_path_orig = re.sub(r'\.mp4$', '.info.json', path_orig)
-                png_path_orig = re.sub(r'\.mp4$', '.png', path_orig)
 
-                vtt_en_path_orig = re.sub(r'\.mp4$', '.en-orig.vtt', path_orig)
-                vtt_de_path_orig = re.sub(r'\.mp4$', '.de-orig.vtt', path_orig)
-
-                nfo_path_orig = re.sub(r'\.mp4$', '.nfo', path_orig)
+                json_path_orig = regex_mp4.sub('.info.json', path_orig)
+                png_path_orig = regex_mp4.sub('.png', path_orig)
+                vtt_en_path_orig = regex_mp4.sub('.en-orig.vtt', path_orig)
+                vtt_de_path_orig = regex_mp4.sub('.de-orig.vtt', path_orig)
+                nfo_path_orig = regex_mp4.sub('.nfo', path_orig)
 
                 # Target paths
                 path_move = switch_directory(path_orig=path_orig,
@@ -2783,11 +2782,11 @@ def move_in_verified_videos():
                 png_path_move = switch_directory(path_orig=png_path_orig,
                                                  dir_orig=directory_download_home,
                                                  dir_new=directory_final)
-
                 # TODO: Remove "-orig" in name to fix being detected as ICELANDIC subtitles!
                 vtt_en_path_move = switch_directory(path_orig=vtt_en_path_orig,
                                                     dir_orig=directory_download_home,
                                                     dir_new=directory_final)
+                # TODO: Remove "-orig" in name to fix being detected as ICELANDIC subtitles!
                 vtt_de_path_move = switch_directory(path_orig=vtt_de_path_orig,
                                                     dir_orig=directory_download_home,
                                                     dir_new=directory_final)
@@ -3187,7 +3186,7 @@ def fix_all_nfo_files():
             if create_nfo_files:
                 # If we need to create all NFO files, it is no use to only append existing NFOs!
                 if regex_mp4.search(filename):
-                    nfo_file_list.append(re.sub(r'\.mp4$', '.nfo', os.path.join(directory, filename)))
+                    nfo_file_list.append(regex_mp4.sub('.nfo', os.path.join(directory, filename)))
 
             else:
                 # Only append existing NFO files to save time
