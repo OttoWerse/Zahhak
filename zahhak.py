@@ -1383,6 +1383,11 @@ def process_video(video, channel_site, channel_id, playlist_id, download, archiv
                               f'{Fore.RED}UNAVAILABLE{Style.RESET_ALL} video "{video_id}": {exception_add_video}')
                         return False
 
+            elif regex_video_live_not_started.search(str(exception_add_video)):
+                print(f'{datetime.now()} {Fore.RED}PRE-LISTED{Style.RESET_ALL} livestream / premiere video')
+                # TODO: Is it wise to add these to database etc. for faster processing later? I think it doesn't matter too much.
+                return False
+
             else:
                 print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while processing video "{video}": '
                       f'{exception_add_video}')
