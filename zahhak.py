@@ -2307,6 +2307,7 @@ def check_channel_complete(channel, database_playlists):
                 except KeyboardInterrupt:
                     return False
             else:
+                # TODO: Remove this once yt-dlp becomes reliable?!
                 print(f'{datetime.now()} {Fore.YELLOW}SUSPICIOUS PLAYLIST COUNT{Style.RESET_ALL} '
                       f'for channel "{channel_name}" ({channel_site} {channel_id})')
                 return False
