@@ -3606,11 +3606,13 @@ if __name__ == "__main__":
 
             # TODO: This should probably be done with argparse error instead!
             if not letter_low:
-                print(f'Missing parameter "--letter_low"!')
-                exit()
+                # print(f'Missing parameter "--letter_low"!')
+                # exit()
+                letter_low = ' '
             if not letter_high:
-                print(f'Missing parameter "--letter_high"!')
-                exit()
+                # print(f'Missing parameter "--letter_high"!')
+                # exit()
+                letter_high = ' '
             if ord(letter_low) > ord(letter_high):
                 print(f'Invalid input, low letter {letter_low} is not preceding high letter {letter_high}!')
                 exit()
