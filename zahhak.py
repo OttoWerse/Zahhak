@@ -3206,7 +3206,7 @@ def verify_files():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Zahhak")
     parser.add_argument("--mode",
-                        choices=('A', 'D', 'M'),
+                        choices=('A', 'M', 'D', 'V', 'J'),
                         help="'A' for Add Subscriptions, "
                              "'M' for Monitor Subscriptions, "
                              "'D' for Download Media, "
