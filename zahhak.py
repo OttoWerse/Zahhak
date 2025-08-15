@@ -3198,7 +3198,7 @@ def fix_all_nfo_files():
     return added_dates
 
 
-def verify_files():
+def verify_all_files():
     # TODO: Implement existing code from FFMPEG verification tool here
     return
 
@@ -3231,6 +3231,9 @@ if __name__ == "__main__":
             add_subscriptions()
             update_subscriptions()
             download_all_videos()
+            verify_all_files()
+            move_in_verified_files()
+
     elif len(args.mode) == 1:
         INPUT_POSSIBLE = False
         if args.mode == 'A':
@@ -3252,7 +3255,7 @@ if __name__ == "__main__":
             while True:
                 print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
                       f'Juggle Files')
-                verify_files()
+                verify_all_files()
         elif args.mode == 'J':
             while True:
                 print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
