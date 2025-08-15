@@ -2286,6 +2286,52 @@ def add_channel_media(media_list):
         print(media_list_entry)
 
 
+def check_channel_complete(channel, database_playlists):
+    """
+    Check if channel has new playlists online that we do not know of
+    """
+    channel_site = channel[0]
+    channel_id = channel[1]
+    channel_name = channel[2]
+
+    unknown_playlists_exist = False
+
+    online_playlists = get_all_channel_playlists_from_youtube(channel_id=channel_id,
+                                                              ignore_errors=DEFAULT_ignore_errors_playlist)
+    if online_playlists is not None:
+        if len(online_playlists) == 30:
+            if INPUT_POSSIBLE:
+                try:
+                    input('Press any key to continue processing channel')
+                    return True
+                except KeyboardInterrupt:
+                    return False
+            else:
+                print(f'{datetime.now()} {Fore.YELLOW}SUSPICIOUS PLAYLIST COUNT{Style.RESET_ALL} '
+                      f'for channel "{channel_name}" ({channel_site} {channel_id})')
+                return False
+
+        for online_playlist in online_playlists:
+            # TODO: Add site to query (part of changing to object based list with compare method etc.)
+            online_playlist_site = channel_site
+            online_playlist_id = online_playlist['id']
+            online_playlist_name = online_playlist['title']
+
+            if online_playlist_id not in database_playlists:
+                unknown_playlists_exist = True
+
+        if unknown_playlists_exist:
+            print(f'{datetime.now()} {Fore.RED}INCOMPLETE{Style.RESET_ALL} '
+                  f'channel "{channel_name}" ({channel_site} {channel_id})')
+            if INPUT_POSSIBLE:
+                process_channel(channel_url=f'https://www.youtube.com/channel/{channel_id}/videos')
+            return False
+        else:
+            print(f'{datetime.now()} {Fore.GREEN}COMPLETE{Style.RESET_ALL} '
+                  f'channel "{channel_name}" ({channel_site} {channel_id})')
+            return True
+
+
 def update_subscriptions():
     global vpn_timestamp
     global vpn_counter
@@ -2306,7 +2352,7 @@ def update_subscriptions():
         current_channel_name = current_channel[2]
         media_added_channel = 0
 
-        unknown_playlists_exist = False
+        channel_complete = False
 
         # Retry getting missing media for channel from YouTube
         counter_process_channel = 0
@@ -2316,28 +2362,8 @@ def update_subscriptions():
         while missing_media_channel is None and not skip_channel:
             channel_available = check_channel_availability(channel=current_channel)
             if channel_available:
-                # Check if channel has new playlists online that we do not know of
-                online_playlists = None
-                online_playlists = get_all_channel_playlists_from_youtube(channel_id=current_channel_id,
-                                                                          ignore_errors=DEFAULT_ignore_errors_playlist)
-                if online_playlists is not None:
-                    for online_playlist in online_playlists:
-                        # TODO: Add site to query (part of changing to object based list with compare method etc.)
-                        online_playlist_site = current_channel_site
-                        online_playlist_id = online_playlist['id']
-                        online_playlist_name = online_playlist['title']
-
-                        if online_playlist_id not in database_playlists:
-                            unknown_playlists_exist = True
-
-                    if unknown_playlists_exist:
-                        print(f'{datetime.now()} {Fore.RED}INCOMPLETE{Style.RESET_ALL} '
-                              f'channel "{current_channel_name}" ({current_channel_site} {current_channel_id})')
-                        if INPUT_POSSIBLE:
-                            process_channel(channel_url=f'https://www.youtube.com/channel/{current_channel_id}/videos')
-                    else:
-                        print(f'{datetime.now()} {Fore.GREEN}COMPLETE{Style.RESET_ALL} '
-                              f'channel "{current_channel_name}" ({current_channel_site} {current_channel_id})')
+                channel_complete = check_channel_complete(channel=current_channel,
+                                                          database_playlists=database_playlists)
 
                 missing_media_channel = get_new_channel_media_from_youtube(channel=current_channel,
                                                                            ignore_errors=ignore_errors_channel,
@@ -2383,7 +2409,7 @@ def update_subscriptions():
 
                     # If any playlist was not reachable (e.g. given up upon, once we can trust yt-dlp settings fully) do NOT process "Other" playlist!
                     if current_channel_id == current_playlist_id:
-                        if not all_playlists_checked_successfully or unknown_playlists_exist:
+                        if not all_playlists_checked_successfully or not channel_complete:
                             print(f'{datetime.now()} {Fore.YELLOW}SKIPPING{Style.RESET_ALL} uploads playlist for '
                                   f'channel "{current_channel_name}" ({current_playlist_site} {current_channel_id})')
                             current_playlist_checked_successfully = False  # To skip processing in case of skipped "Other" playlist
