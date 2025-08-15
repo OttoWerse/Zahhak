@@ -2747,7 +2747,7 @@ def switch_directory(path_orig, dir_orig, dir_new):
     return os.path.join(dir_new, path_orig[len(dir_orig + os.sep):len(path_orig)])
 
 
-def move_in_verified_videos():
+def move_in_verified_files():
     """
     Move in verified files
     """
@@ -3198,13 +3198,20 @@ def fix_all_nfo_files():
     return added_dates
 
 
+def verify_files():
+    # TODO: Implement existing code from FFMPEG verification tool here
+    return
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Zahhak")
     parser.add_argument("--mode",
                         choices=('A', 'D', 'M'),
                         help="'A' for Add Subscriptions, "
-                             "'D' for Download Media, "
                              "'M' for Monitor Subscriptions, "
+                             "'D' for Download Media, "
+                             "'V' for Verify Files, "
+                             "'J' for Juggle Files, "
                              "EMPTY to run in serial mode. ",
                         type=str,
                         required=False)
@@ -3226,21 +3233,31 @@ if __name__ == "__main__":
             download_all_videos()
     elif len(args.mode) == 1:
         INPUT_POSSIBLE = False
-        if args.mode == 'D':
+        if args.mode == 'A':
             while True:
                 print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
-                      f'Download Media')
-                download_all_videos()
+                      f'Add Subscriptions')
+                add_subscriptions()
         elif args.mode == 'M':
             while True:
                 print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
                       f'Monitor Subscriptions')
                 update_subscriptions()
-        elif args.mode == 'A':
+        elif args.mode == 'D':
             while True:
                 print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
-                      f'Add Subscriptions')
-                add_subscriptions()
+                      f'Download Media')
+                download_all_videos()
+        elif args.mode == 'V':
+            while True:
+                print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
+                      f'Juggle Files')
+                verify_files()
+        elif args.mode == 'J':
+            while True:
+                print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
+                      f'Juggle Files')
+                move_in_verified_files()
         else:
             print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: '
                   f'No mode "{args.mode}" exists')
