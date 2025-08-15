@@ -2014,7 +2014,7 @@ def download_media(media):
                 media_status = 'fresh'
                 mydb = connect_database()
                 mysql_cursor = mydb.cursor()
-                sql = "UPDATE videos SET status = %s, save_path = %s, media_available_date = %s WHERE site = %s AND url = %s;"
+                sql = "UPDATE videos SET status = %s, save_path = %s, original_date = %s WHERE site = %s AND url = %s;"
                 val = (media_status, path, media_available_date, media_site, media_id)
                 mysql_cursor.execute(sql, val)
                 mydb.commit()
