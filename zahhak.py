@@ -1,6 +1,7 @@
 import argparse
 import io
 import json
+import math
 import os
 import random
 import re
@@ -8,7 +9,7 @@ import shutil
 import sys
 import time
 from datetime import datetime
-from subprocess import STDOUT, check_output
+from subprocess import STDOUT, check_output, Popen, PIPE
 
 import lxml.builder
 import lxml.etree
@@ -56,6 +57,18 @@ fix_all = False
 replace_existing = False
 # This is a hotfix for "EXISTING NFO" piling up (IDK why the move after NFO creation fails so often)
 keep_existing = True
+# Maximum total amount of missing frames to tolerate
+error_limit_missing = 1
+# Maximum total amount of extra frames to tolerate
+error_limit_extra = 1
+# Cutoff to switch between relative tolerances for short and long videos
+duration_cutoff = 60
+# Relative error tolerance for short videos (below cutoff)
+tolerance_short = 0.11
+# Relative error tolerance for long videos (above cutoff)
+tolerance_long = 0.035
+# How long to wait after all videos have been verified
+sleep_time_verification = 150
 
 # Countries to connect to with NordVPN
 DEFAULT_vpn_countries = [
@@ -266,6 +279,7 @@ STATUS_UNCERTAIN = 'uncertain'
 STATUS_BROKEN = 'broken'
 STATUS_BROKEN_UNAVAILABLE = 'broken-unavailable'
 STATUS_CURSED = 'cursed'
+STATUS_FRESH = 'fresh'
 STATUS_STUCK = 'stuck'
 STATUS_DONE = 'done'
 
@@ -1702,6 +1716,9 @@ def get_videos_from_db(database, status=STATUS_WANTED):
 
     mysql_cursor = database.cursor()
 
+    # TODO: This filters videos based on download field, which will probably not cause problems
+    #  But is not 100% correct for use in verification and juggle modes
+    #  (e.g. a videos which is no longer wanted for download could remain unverified in the download directory forever)
     sql = (
         "SELECT videos.site, videos.url, videos.original_date, videos.status, "
         "channels.name, channels.url, "
@@ -3198,14 +3215,325 @@ def fix_all_nfo_files():
     return added_dates
 
 
-def verify_all_files():
+def verify_all_files(regex_filter_url):
     # TODO: Implement existing code from FFMPEG verification tool here
+    print(f'{datetime.now()} {Fore.GREEN}VERIFYING{Style.RESET_ALL} videos matching ID regex {regex_filter_url}',
+          end='\n')
+
+    # TODO: Make this global and use it everywhere for better readability in console Windows or find something better!
+    print_path_length = 128
+
+    database = connect_database()
+
+    fresh_videos = get_videos_from_db(database=database, status=STATUS_FRESH)
+
+    for fresh_video in fresh_videos:
+        # Get basic video info
+        try:
+            site = fresh_video[0]
+            url = fresh_video[1]
+            path = os.path.join(directory_download_home, fresh_video[2])
+            status = fresh_video[3]
+        except KeyboardInterrupt:
+            sys.exit()
+        except Exception as exception_sql:
+            print(f'{datetime.now()} {Fore.MAGENTA}ERROR{Style.RESET_ALL}: SQL result malformed! "{fresh_video}"',
+                  end='\n')
+            continue
+
+        json_broken = False
+
+        # Big try to catch any unforeseen exceptions
+        try:
+            if os.path.exists(path):
+                # Checks if duration value exists in Info JSON, if not: continue with next video immediately! (Since we will not assume videos to be complete naively)
+                path_json = re.sub(r'\.mp4$', '.info.json', path)
+                path_png = re.sub(r'\.mp4$', '.png', path)
+                path_vtt_en = re.sub(r'\.mp4$', '.en-orig.vtt', path)
+                path_vtt_de = re.sub(r'\.mp4$', '.de-orig.vtt', path)
+                if os.path.exists(path_json):
+                    with io.open(path_json, encoding='utf-8-sig') as json_txt:
+                        duration_json = None
+                        try:
+                            json_obj = json.load(json_txt)
+                            duration_json = float(json_obj['duration'])
+
+                            # This is to check for missing metadata in JSON
+                            try:
+                                json_description = json_obj['description']
+                            except KeyboardInterrupt:
+                                sys.exit()
+                            except Exception as exception_json:
+                                # TODO: In this case, we need to delete the video files(s) too, since the name will be different upon redownload! It would be best to detect this in download!
+                                print(
+                                    f'{datetime.now()} {Fore.RED}BROKEN{Style.RESET_ALL}: {site} {url} ({os.path.basename(path)[0:print_path_length]}) - Incomplete Info JSON at {path_json}!',
+                                    end='\n')
+                                json_broken = True
+
+                        except KeyboardInterrupt:
+                            sys.exit()
+                        except Exception as exception_json:
+                            # Patreon sadly does not always give video duration in Info JSON files.
+                            if site != 'patreon':
+                                print(
+                                    f'{datetime.now()} {Fore.MAGENTA}ERROR{Style.RESET_ALL}: {site} {url} ({os.path.basename(path)[0:print_path_length]}) - No Duration found in Info JSON at {path_json}!',
+                                    end='\n')
+                                json_broken = True
+
+                    # TODO: Rework handling of error cases to streamline the process
+                    #  We should only mark videos as "broken" in ONE way!
+                    # A broken Info JSON is immediately deleted and considered wanted to re-grab title!
+                    if json_broken:
+                        try:
+                            # Delete
+                            try:
+                                os.remove(path)
+                            except KeyboardInterrupt:
+                                sys.exit()
+                            except Exception as exception_delete:
+                                print(
+                                    f'{datetime.now()} {Fore.MAGENTA}ERROR{Style.RESET_ALL}: deleting {os.path.basename(path)[0:print_path_length]}: {exception_delete}',
+                                    end='\n')
+                                continue
+
+                            try:
+                                os.remove(path_json)
+                            except KeyboardInterrupt:
+                                sys.exit()
+                            except Exception as exception_delete:
+                                print(
+                                    f'{datetime.now()} {Fore.MAGENTA}ERROR{Style.RESET_ALL}: deleting {os.path.basename(path_json)[0:print_path_length]}: {exception_delete}',
+                                    end='\n')
+
+                            try:
+                                os.remove(path_png)
+                            except KeyboardInterrupt:
+                                sys.exit()
+                            except Exception as exception_delete:
+                                print(
+                                    f'{datetime.now()} {Fore.MAGENTA}ERROR{Style.RESET_ALL}: deleting {os.path.basename(path_png)[0:print_path_length]}: {exception_delete}',
+                                    end='\n')
+
+                            try:
+                                os.remove(path_vtt_de)
+                            except KeyboardInterrupt:
+                                sys.exit()
+                            except Exception as exception_delete:
+                                print(
+                                    f'{datetime.now()} {Fore.MAGENTA}ERROR{Style.RESET_ALL}: deleting {os.path.basename(path_vtt_de)[0:print_path_length]}: {exception_delete}',
+                                    end='\n')
+
+                            try:
+                                os.remove(path_vtt_en)
+                            except KeyboardInterrupt:
+                                sys.exit()
+                            except Exception as exception_delete:
+                                print(
+                                    f'{datetime.now()} {Fore.MAGENTA}ERROR{Style.RESET_ALL}: deleting {os.path.basename(path_vtt_en)[0:print_path_length]}: {exception_delete}',
+                                    end='\n')
+
+                            # Update DB
+                            update_video_status(video_site=site,
+                                                video_id=url,
+                                                video_status=STATUS_WANTED)
+                            continue
+
+                        except KeyboardInterrupt:
+                            sys.exit()
+                        except Exception as exception_json:
+                            print(
+                                f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL}: {exception_json}')
+
+                # A missing Info JSON is immediately considered as an error!
+                else:
+                    print(
+                        f'{datetime.now()} {Fore.RED}BROKEN{Style.RESET_ALL}: {site} {url} ({os.path.basename(path)[0:print_path_length]}) - No Info JSON at {path_json}!',
+                        end='\n')
+                    try:
+                        update_video_status(video_site=site,
+                                            video_id=url,
+                                            video_status=STATUS_BROKEN)
+                    except KeyboardInterrupt:
+                        sys.exit()
+                    except Exception as exception_sql:
+                        pass
+                    continue
+
+                # Call FFPROBE to get frame count, frame rate and duration of MP4
+                try:
+                    print(
+                        f'{datetime.now()} {Fore.CYAN}NEW{Style.RESET_ALL} Video "{site} {url}" ({os.path.basename(path)[0:print_path_length]}) - {status} - calling FFPROBE...',
+                        end='\r')
+                    ffprobe_command = ['ffprobe', '-show_entries', 'stream=r_frame_rate,nb_read_frames,duration',
+                                       '-select_streams', 'v', '-count_frames', '-of', 'compact=p=1:nk=1', '-threads',
+                                       '3', '-v',
+                                       '0', path]
+                    p = Popen(ffprobe_command, stdout=PIPE, stderr=PIPE)
+                    out, err = p.communicate()
+                # Critical - Error in FFPROBE handling of file
+                except KeyboardInterrupt:
+                    sys.exit()
+                except Exception as exception_ffprobe:
+                    print(f'{datetime.now()} {Fore.MAGENTA}ERROR{Style.RESET_ALL}: ffprobe call failed for {path}!',
+                          end='\n')
+                    # try:
+                    # sql = f'UPDATE videos SET status = "critical" WHERE site = %s AND url = %s'
+                    # val = (site, url)
+                    # mysql_cursor.execute(sql, val)
+                    # mydb.commit()
+                    # except:
+                    # pass
+                    continue
+
+                # Get & evaluate results of FFPROBE call
+                result_utf = ''
+                try:
+                    result_utf = out.decode('UTF-8')
+                    result_arr = result_utf.split('|')
+                    frame_rate_str = result_arr[1]
+                    frame_rate_arr = frame_rate_str.split('/')
+                    frame_rate = float(frame_rate_arr[0]) / float(frame_rate_arr[1])
+                    duration_mp4 = float(result_arr[2])
+                    frame_count_correct = frame_rate * duration_mp4
+                    # This handles videos with 0 (ZERO) frames in them (FFPROBE returns "N/A" instead of 0)
+                    try:
+                        frame_count_str = re.sub(r'\s*stream\s*', '', str(result_arr[3]))
+                        frame_count_actual = float(frame_count_str)
+                    except KeyboardInterrupt:
+                        sys.exit()
+                    except Exception as exception_frame_count:
+                        print(f'{datetime.now()} {Fore.RED}BROKEN{Style.RESET_ALL}: '
+                              f'{site} {url} ({os.path.basename(path)[0:print_path_length]}) - '
+                              f'Frame count {result_arr[3]} not a number!',
+                              end='\n')
+                        try:
+                            update_video_status(video_site=site,
+                                                video_id=url,
+                                                video_status=STATUS_BROKEN)
+                        except KeyboardInterrupt:
+                            sys.exit()
+                        except Exception as exception_frame_count:
+                            pass
+                        continue
+                except KeyboardInterrupt:
+                    sys.exit()
+                except Exception as exception_frame_count:
+                    try:
+                        print(
+                            f'{datetime.now()} {Fore.MAGENTA}ERROR{Style.RESET_ALL}: FFPROBE result malformed for {path}! - "{result_utf}"',
+                            end='\n')
+                        # Update videos where FFPROBE returns NOTHING as BROKEN too!
+                        if result_utf == '':
+                            print(
+                                f'{datetime.now()} {Fore.RED}BROKEN{Style.RESET_ALL}: {site} {url} ({os.path.basename(path)[0:print_path_length]}) - Frame count empty!',
+                                end='\n')
+                            update_video_status(video_site=site,
+                                                video_id=url,
+                                                video_status=STATUS_BROKEN)
+                    except KeyboardInterrupt:
+                        sys.exit()
+                    except Exception as exception_frame_count:
+                        print(
+                            f'{datetime.now()} {Fore.MAGENTA}ERROR{Style.RESET_ALL}: FFPROBE evaluation failed for {path}!',
+                            end='\n')
+                    continue
+
+                # Since Patreon does not always give durations in Info JSON files, we need to assume the length of the MP4 is always correct.
+                if site == 'patreon':
+                    duration_json = duration_mp4
+
+                # This is to allow more tolerance for SHORT videos! e.g.: a 3.2s video may be just 3.0s long and that is fine.
+                if duration_json < duration_cutoff:
+                    tolerance = tolerance_short
+                else:
+                    tolerance = tolerance_long
+
+                # Check if MP4 and JSON durations are close enough to consider the MP4 to be complete
+                if math.isclose(duration_json, duration_mp4, rel_tol=tolerance):
+                    error_count = int(frame_count_correct - frame_count_actual)
+                    result_str = f'{frame_rate}fps * {duration_mp4}s = {frame_count_correct}f - {frame_count_actual}f = {error_count} missing Frames.'
+                # Durations too far apart are calculated as n errors per missing second, where "n" is the frame rate of the video!
+                else:
+                    error_count = (duration_json - duration_mp4) * frame_rate
+                    result_str = f'Duration incorrect! {duration_json} - {duration_mp4} = {error_count} missing Frames.'
+
+                ### Start of set video status according to error count ###
+                # Verified - 0 missing or extra frames
+                # if error_count == 0:
+                if math.isclose(frame_count_actual, frame_count_correct, rel_tol=0.005):
+                    print(
+                        f'{datetime.now()} {Fore.GREEN}VERIFIED{Style.RESET_ALL}: {site} {url} ({os.path.basename(path)[0:print_path_length]}) - {result_str}',
+                        end='\n')
+                    try:
+                        update_video_status(video_site=site,
+                                            video_id=url,
+                                            video_status=STATUS_VERIFIED)
+                    except KeyboardInterrupt:
+                        sys.exit()
+                    except Exception as exception_sql:
+                        pass
+                        # Broken - missing or extra frames above threshold
+                elif error_count < (-1 * error_limit_extra) or error_count > error_limit_missing:
+                    print(
+                        f'{datetime.now()} {Fore.RED}BROKEN{Style.RESET_ALL}: {site} {url} ({os.path.basename(path)[0:print_path_length]}) - {result_str}',
+                        end='\n')
+                    try:
+                        update_video_status(video_site=site,
+                                            video_id=url,
+                                            video_status=STATUS_BROKEN)
+                    except KeyboardInterrupt:
+                        sys.exit()
+                    except Exception as exception_sql:
+                        pass
+                # Uncertain - missing or extra frames below threshold
+                else:
+                    print(
+                        f'{datetime.now()} {Fore.YELLOW}UNCERTAIN{Style.RESET_ALL}: {site} {url} ({os.path.basename(path)[0:print_path_length]}) - {result_str}',
+                        end='\n')
+                    try:
+                        update_video_status(video_site=site,
+                                            video_id=url,
+                                            video_status=STATUS_UNCERTAIN)
+                    except KeyboardInterrupt:
+                        sys.exit()
+                    except Exception as exception_sql:
+                        pass
+                    print(
+                        f'{datetime.now()} {Fore.YELLOW}UNCERTAIN{Style.RESET_ALL}: {site} {url} ({os.path.basename(path)[0:print_path_length]}) - {result_str}',
+                        end='\n')
+                ### End of set video status according to error count ###
+
+            # MP4 path non-existent is not an error, due to the "Plex Dance" these videos should re-appear later and be verified properly then!
+            else:
+                print(f'{datetime.now()} {Fore.MAGENTA}ERROR{Style.RESET_ALL}: Cannot access {path}!', end='\n')
+                # try:
+                # sql = f'UPDATE videos SET status = "missing" WHERE site = %s AND url = %s'
+                # val = (site, url)
+                # mysql_cursor.execute(sql, val)
+                # mydb.commit()
+                # except:
+                # pass
+
+        # Generic unforeseen error catch-all
+        except KeyboardInterrupt:
+            sys.exit()
+        except Exception as exception_general:
+            print(
+                f'{datetime.now()} {Fore.MAGENTA}CRITICAL{Style.RESET_ALL}: {site} {url} ({os.path.basename(path)[0:print_path_length]}) - Unexpected exception',
+                end='\n')
+
+    # Relaxed approach to an infinite loop
+    print(
+        f'{datetime.now()} {Fore.YELLOW}No more videos!{Style.RESET_ALL} - Waiting {sleep_time_verification}s before next SQL SELECT...',
+        end='\r')
+    time.sleep(sleep_time_verification)
     return
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Zahhak")
-    parser.add_argument("--mode",
+
+    parser.add_argument(name_or_flags="--mode",
                         choices=('A', 'M', 'D', 'V', 'J'),
                         help="'A' for Add Subscriptions, "
                              "'M' for Monitor Subscriptions, "
@@ -3215,6 +3543,21 @@ if __name__ == "__main__":
                              "EMPTY to run in serial mode. ",
                         type=str,
                         required=False)
+
+    parser.add_argument(name_or_flags="--letter_low",
+                        type=str,
+                        help="Enter low starting letter for URL",
+                        nargs='?',
+                        default=' ',
+                        const=0)
+
+    parser.add_argument(name_or_flags="--letter_high",
+                        type=str,
+                        help="Enter high starting letter for URL",
+                        nargs='?',
+                        default=' ',
+                        const=0)
+
     args = parser.parse_args()
 
     init(convert=True)
@@ -3237,33 +3580,61 @@ if __name__ == "__main__":
     elif len(args.mode) == 1:
         INPUT_POSSIBLE = False
         if args.mode == 'A':
+            print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
+                  f'Add Subscriptions')
             while True:
-                print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
-                      f'Add Subscriptions')
                 add_subscriptions()
+
         elif args.mode == 'M':
+            print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
+                  f'Monitor Subscriptions')
             while True:
-                print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
-                      f'Monitor Subscriptions')
                 update_subscriptions()
+
         elif args.mode == 'D':
+            print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
+                  f'Download Media')
             while True:
-                print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
-                      f'Download Media')
                 download_all_videos()
+
         elif args.mode == 'V':
+            print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
+                  f'Verify Files')
+
+            letter_low = args.letter_low
+            letter_high = args.letter_high
+
+            # TODO: This should probably be done with argparse error instead!
+            if not letter_low:
+                print(f'Missing parameter "--letter_low"!')
+                exit()
+            if not letter_high:
+                print(f'Missing parameter "--letter_high"!')
+                exit()
+            if ord(letter_low) > ord(letter_high):
+                print(f'Invalid input, low letter {letter_low} is not preceding high letter {letter_high}!')
+                exit()
+
+            if letter_low == ' ' and letter_high == ' ':
+                regex_filter_url = fr'^[a-z0-9\-\_]'
+            elif letter_low == '0' and letter_high == '9':
+                regex_filter_url = fr'^[{letter_low}-{letter_high}\-\_]'
+            else:
+                regex_filter_url = fr'^[{letter_low}-{letter_high}]'
+
             while True:
-                print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
-                      f'Juggle Files')
-                verify_all_files()
+                verify_all_files(regex_filter_url=regex_filter_url)
+
         elif args.mode == 'J':
+            print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
+                  f'Juggle Files')
             while True:
-                print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
-                      f'Juggle Files')
                 move_in_verified_files()
+
         else:
             print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: '
                   f'No mode "{args.mode}" exists')
+
     else:
         print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: '
               f'Malformed arguments found!')
