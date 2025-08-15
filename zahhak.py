@@ -3494,7 +3494,7 @@ def verify_fresh_media(regex_filter_url):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Zahhak")
 
-    parser.add_argument(name_or_flags="--mode",
+    parser.add_argument("--mode",
                         choices=('A', 'M', 'D', 'V', 'J'),
                         help="'A' for Add Subscriptions, "
                              "'M' for Monitor Subscriptions, "
@@ -3505,14 +3505,14 @@ if __name__ == "__main__":
                         type=str,
                         required=False)
 
-    parser.add_argument(name_or_flags="--letter_low",
+    parser.add_argument("--letter_low",
                         type=str,
                         help="Enter low starting letter for URL",
                         nargs='?',
                         default=' ',
                         const=0)
 
-    parser.add_argument(name_or_flags="--letter_high",
+    parser.add_argument("--letter_high",
                         type=str,
                         help="Enter high starting letter for URL",
                         nargs='?',
