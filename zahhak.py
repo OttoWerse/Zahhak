@@ -38,7 +38,7 @@ sleep_time_vpn = 10
 # How often to retry connecting to a VPN country before giving up
 retry_reconnect_new_vpn_node = 5
 # Frequency to check if switch from downloading secondary to primary media is needed (in seconds)
-select_newest_media_frequency = 600
+select_newest_media_frequency = 1800
 # How long to wait after all verified media has been moved into final directory
 sleep_time_move_in = 300
 # Create a NFO file with data needed for presentation in Jellyfin/Emby
@@ -1744,10 +1744,12 @@ def download_all_media():
     database = connect_database()
 
     # media which is not downloaded and available to download
-    status_priority = {STATUS_BROKEN, STATUS_WANTED}
+    status_priority = {STATUS_BROKEN}
+    
+    status_secondary = {STATUS_WANTED}
 
     # media which could have been unreleased before (or simply taken private for other reasons, sadly no way to tell)
-    status_secondary = {STATUS_PRIVATE}
+    status_tertiary = {STATUS_PRIVATE}
 
     # media that can only be downloaded using YT account
     status_account_required = {STATUS_AGE_RESTRICTED}
@@ -1773,6 +1775,12 @@ def download_all_media():
         all_media.extend(priority_media)
 
     for current_status in status_secondary:
+        text_color = get_text_color_for_media_status(media_status=current_status)
+        priority_media = get_media_from_db(database=database,
+                                           status=current_status)
+        all_media.extend(priority_media)
+
+    for current_status in status_tertiary:
         text_color = get_text_color_for_media_status(media_status=current_status)
         secondary_media = get_media_from_db(database=database,
                                             status=current_status)
@@ -1814,18 +1822,10 @@ def download_all_media():
                       f'to downloading {text_color}"{media_status}"{Style.RESET_ALL} media!')
             old_media_status = media_status
 
-            # TODO: We should check whether there are actually NEWER or MORE media available and only do this restart if there IS!
+            # TODO: I think it's fine to just break out of the loop / return the function and have it rerun from the top.
             if timestamp_distance.seconds > select_newest_media_frequency:
                 timestamp_old = timestamp_now
-                database = connect_database()  # We HAVE to reconnect DB for updated results!
-                priority_media = []
-                for current_status in status_priority:
-                    priority_media.extend(get_media_from_db(database=database,
-                                                            status=current_status))
-                if priority_media and len(priority_media) > 0:
-                    print(f'{timestamp_now} {Fore.YELLOW}REFRESHING{Style.RESET_ALL} '
-                          f'priority media...')
-                    break
+                break
 
             media_downloaded = False
 
