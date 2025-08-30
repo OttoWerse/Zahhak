@@ -2965,20 +2965,25 @@ def juggle_verified_media():
                     print(
                         f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} Moving {os.path.basename(path_move)} in: {exception}')
                     move_in_error = True
-
-                if move_in_error:
-                    # TODO: Rollback moved files instead and DO NOT update DB to anything (auto retry happens later)!
-                    # Update DB
-                    update_media_status(media_site=json_site,
-                                        media_id=json_url,
-                                        media_status=STATUS_STUCK,
-                                        database=database)
-                else:
-                    # Update DB
-                    update_media_status(media_site=json_site,
-                                        media_id=json_url,
-                                        media_status=STATUS_DONE,
-                                        database=database)
+                try:
+                    if move_in_error:
+                        # TODO: Rollback moved files instead and DO NOT update DB to anything (auto retry happens later)!
+                        # Update DB
+                        update_media_status(media_site=json_site,
+                                            media_id=json_url,
+                                            media_status=STATUS_STUCK,
+                                            database=database)
+                    else:
+                        # Update DB
+                        update_media_status(media_site=json_site,
+                                            media_id=json_url,
+                                            media_status=STATUS_DONE,
+                                            database=database)
+                except KeyboardInterrupt:
+                    sys.exit()
+                except Exception as exception:
+                    print(
+                        f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} Moving {os.path.basename(path_move)} in: {exception}')
 
     print(f'{datetime.now()} Moved in {file_counter_total} episodes!')
 
