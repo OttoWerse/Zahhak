@@ -1745,7 +1745,7 @@ def download_all_media():
 
     # media which is not downloaded and available to download
     status_priority = {STATUS_BROKEN}
-    
+
     status_secondary = {STATUS_WANTED}
 
     # media which could have been unreleased before (or simply taken private for other reasons, sadly no way to tell)
@@ -1769,29 +1769,28 @@ def download_all_media():
     #    all_media.extend(account_required_media)
 
     for current_status in status_priority:
-        text_color = get_text_color_for_media_status(media_status=current_status)
-        priority_media = get_media_from_db(database=database,
-                                           status=current_status)
-        all_media.extend(priority_media)
+        # text_color = get_text_color_for_media_status(media_status=current_status)
+        media = get_media_from_db(database=database,
+                                  status=current_status)
+        all_media.extend(media)
 
     for current_status in status_secondary:
-        text_color = get_text_color_for_media_status(media_status=current_status)
-        priority_media = get_media_from_db(database=database,
-                                           status=current_status)
-        all_media.extend(priority_media)
+        # text_color = get_text_color_for_media_status(media_status=current_status)
+        media = get_media_from_db(database=database,
+                                  status=current_status)
+        all_media.extend(media)
 
     for current_status in status_tertiary:
-        text_color = get_text_color_for_media_status(media_status=current_status)
-        secondary_media = get_media_from_db(database=database,
-                                            status=current_status)
-        all_media.extend(secondary_media)
+        # text_color = get_text_color_for_media_status(media_status=current_status)
+        media = get_media_from_db(database=database,
+                                  status=current_status)
+        all_media.extend(media)
 
-    # TODO
-    #  for current_status in status_hopeless:
-    #    text_color = get_text_color_for_media_status(media_status=current_status)
-    #    hopeless_media = get_media_from_db(database=database,
-    #    status=current_status)
-    #    all_media.extend(hopeless_media)
+    for current_status in status_hopeless:
+        # text_color = get_text_color_for_media_status(media_status=current_status)
+        media = get_media_from_db(database=database,
+                                  status=current_status)
+        all_media.extend(media)
 
     if len(all_media) == 0:
         print(f'{datetime.now()} {Fore.CYAN}DONE{Style.RESET_ALL} waiting {sleep_time_download_done} seconds')
