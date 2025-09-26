@@ -233,7 +233,7 @@ regex_error_get_addr_info = re.compile(r'getaddrinfo failed')
 regex_error_win_10054 = re.compile(r'WinError 10054')
 regex_error_win_2 = re.compile(r'WinError 2')
 regex_error_http_403 = re.compile(r'HTTP Error 403')
-regex_bot = re.compile(r"Sign in to confirm you're not a bot")
+regex_bot = re.compile(r"Sign in to confirm") # Sign in to confirm you're not a bot
 
 # MySQL Error messages
 regex_sql_duplicate = re.compile(r'Duplicate entry')
