@@ -232,6 +232,7 @@ regex_error_timeout = re.compile(r'The read operation timed out')
 regex_error_get_addr_info = re.compile(r'getaddrinfo failed')
 regex_error_win_10054 = re.compile(r'WinError 10054')
 regex_error_win_2 = re.compile(r'WinError 2')
+regex_error_http_403 = re.compile(r'HTTP Error 403')
 regex_bot = re.compile(r"Sign in to confirm you're not a bot")
 
 # MySQL Error messages
@@ -1011,7 +1012,7 @@ def get_channel_playlists_from_db(channel):
 def get_media_details_from_youtube(media_id, ignore_errors, archive_set):
     """Fills the details for media by its ID"""
     global vpn_frequency
-    vpn_counter = 0
+    local_vpn_counter = 0
     done = False
 
     while not done:
@@ -1052,7 +1053,7 @@ def get_media_details_from_youtube(media_id, ignore_errors, archive_set):
             if regex_bot.search(str(e)):
                 print(f'{datetime.now()} {Fore.RED}BOT DETECTED{Style.RESET_ALL}')
                 vpn_frequency = DEFAULT_vpn_frequency
-                vpn_counter = reconnect_vpn(vpn_counter)
+                local_vpn_counter = reconnect_vpn(counter=local_vpn_counter, vpn_countries=None)
 
             else:
                 # print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while getting details for media "{media_id}": {e}')
@@ -1646,6 +1647,8 @@ def reconnect_vpn(counter, vpn_countries=None):
 
         if vpn_countries is None:
             vpn_countries = DEFAULT_vpn_countries
+            # ONLY shuffle VPN countries when there is no given list. IDK if this really makes sense, logic here needs to be way more advanced to really cope with Google...
+            random.shuffle(vpn_countries)
 
         if counter is None:
             counter = 0
@@ -2029,8 +2032,13 @@ def download_media(media):
         except KeyboardInterrupt:
             sys.exit()
         except Exception as exception_download:
-            if (regex_media_members_only.search(str(exception_download))
-                    or regex_media_members_tier.search(str(exception_download))):
+            if regex_error_http_403.search(str(exception_download)):
+                print(f'{datetime.now()} {Fore.RED}IP BANNED{Style.RESET_ALL} while downloading media "{media_id}"')
+                reconnect_vpn(counter=None, vpn_countries=None)
+                return False
+
+            elif (regex_media_members_only.search(str(exception_download))
+                  or regex_media_members_tier.search(str(exception_download))):
                 # print(f'{datetime.now()} {Fore.RED}MEMBERS ONLY{Style.RESET_ALL} media "{media_id}"')
                 # Update DB
                 try:
@@ -2349,9 +2357,6 @@ def update_subscriptions():
     for current_channel in all_channels:
         database = connect_database()
 
-        # TESTING: random new order of countries each channel
-        random.shuffle(DEFAULT_vpn_countries)
-
         current_channel_site = current_channel[0]
         current_channel_id = current_channel[1]
         current_channel_name = current_channel[2]
@@ -2377,7 +2382,7 @@ def update_subscriptions():
 
             if missing_media_channel is None:
                 if counter_process_channel % retry_channel_before_reconnecting_vpn == 0:
-                    vpn_counter = reconnect_vpn(counter=vpn_counter)
+                    vpn_counter = reconnect_vpn(counter=vpn_counter, vpn_countries=None)
                     vpn_timestamp = datetime.now()
                 if counter_process_channel > retry_channel_before_ignoring_errors:
                     ignore_errors_channel = True
@@ -2441,7 +2446,7 @@ def update_subscriptions():
 
                             if missing_media_playlist is None:
                                 if counter_process_playlist % retry_playlist_before_reconnecting_vpn == 0:
-                                    vpn_counter = reconnect_vpn(counter=vpn_counter)
+                                    vpn_counter = reconnect_vpn(counter=vpn_counter, vpn_countries=None)
                                     vpn_timestamp = datetime.now()
                                 if counter_process_playlist > retry_playlist_before_ignoring_errors:
                                     ignore_errors_playlist = True
