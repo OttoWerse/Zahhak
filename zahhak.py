@@ -1243,7 +1243,7 @@ def add_media(media_site, media_id, channel, playlist, media_status, media_avail
     text_color = get_text_color_for_media_status(media_status=media_status)
 
     if f'{media_site} {media_id}' in global_archive_set:
-        print(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} media "{media_site} {media_id}" '
+        print(f'{datetime.now()} {Fore.GREEN}UPDATED{Style.RESET_ALL} media "{media_site} {media_id}" '
               f'to status {text_color}"{media_status}"{Style.RESET_ALL}')
     else:
         global_archive_set.add(f'{media_site} {media_id}')
@@ -1262,7 +1262,7 @@ def update_media_status(media_site, media_id, media_status, database=None):
     database.commit()
 
     text_color = get_text_color_for_media_status(media_status=media_status)
-    print(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} media "{media_site} {media_id}" '
+    print(f'{datetime.now()} {Fore.GREEN}UPDATED{Style.RESET_ALL} media "{media_site} {media_id}" '
           f'to status {text_color}"{media_status}"{Style.RESET_ALL}')
 
 
@@ -2023,7 +2023,7 @@ def download_media(media):
 
                 text_color = get_text_color_for_media_status(media_status=media_status)
 
-                print(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} media "{media_id}"'
+                print(f'{datetime.now()} {Fore.GREEN}UPDATED{Style.RESET_ALL} media "{media_id}"'
                       f'to status {text_color}"{media_status}"{Style.RESET_ALL}')
                 return True
             except KeyboardInterrupt:
