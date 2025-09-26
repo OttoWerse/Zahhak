@@ -2020,8 +2020,11 @@ def download_media(media):
                 val = (media_status, path, media_available_date, media_site, media_id)
                 mysql_cursor.execute(sql, val)
                 mydb.commit()
+
+                text_color = get_text_color_for_media_status(media_status=media_status)
+
                 print(f'{datetime.now()} {Fore.CYAN}UPDATED{Style.RESET_ALL} media "{media_id}"'
-                      f'to status "{media_status}"')
+                      f'to status {text_color}"{media_status}"{Style.RESET_ALL}')
                 return True
             except KeyboardInterrupt:
                 sys.exit()
