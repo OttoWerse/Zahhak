@@ -2032,7 +2032,7 @@ def download_media(media):
         except KeyboardInterrupt:
             sys.exit()
         except Exception as exception_download:
-            if regex_error_http_403.search(str(exception_download)):
+            if regex_error_http_403.search(str(exception_download)) or regex_bot.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}IP BANNED{Style.RESET_ALL} while downloading media "{media_id}"')
                 reconnect_vpn(counter=None, vpn_countries=None)
                 return False
