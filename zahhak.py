@@ -1312,6 +1312,8 @@ def get_text_color_for_media_status(media_status):
         text_color = Fore.GREEN
     elif media_status == STATUS_DONE:
         text_color = Fore.GREEN
+    elif media_status == STATUS_FRESH:
+        text_color = Fore.GREEN
 
     return text_color
 
@@ -2103,7 +2105,7 @@ def download_media(media):
 
                 text_color = get_text_color_for_media_status(media_status=media_status)
 
-                print(f'{datetime.now()} {Fore.GREEN}UPDATED{Style.RESET_ALL} media "{media_id}"'
+                print(f'{datetime.now()} {Fore.GREEN}UPDATED{Style.RESET_ALL} media "{media_id}" '
                       f'to status {text_color}"{media_status}"{Style.RESET_ALL}')
                 return True
             except KeyboardInterrupt:
