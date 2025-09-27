@@ -38,7 +38,7 @@ sleep_time_vpn = 10
 # How often to retry connecting to a VPN country before giving up
 retry_reconnect_new_vpn_node = 5
 # Frequency to check if switch from downloading secondary to primary media is needed (in seconds)
-select_newest_media_frequency = 1800
+select_newest_media_frequency = 300
 # How long to wait after all verified media has been moved into final directory
 sleep_time_move_in = 300
 # Create a NFO file with data needed for presentation in Jellyfin/Emby
@@ -1920,7 +1920,22 @@ def download_all_media():
             # TODO: I think it's fine to just break out of the loop / return the function and have it rerun from the top.
             if timestamp_distance.seconds > select_newest_media_frequency:
                 timestamp_old = timestamp_now
-                break
+                new_media = []
+
+                for current_status in status_priority:
+                    # text_color = get_text_color_for_media_status(media_status=current_status)
+                    media = get_media_from_db(database=database,
+                                              status=current_status)
+                    new_media.extend(media)
+
+                for current_status in status_secondary:
+                    # text_color = get_text_color_for_media_status(media_status=current_status)
+                    media = get_media_from_db(database=database,
+                                              status=current_status)
+                    new_media.extend(media)
+
+                if new_media is not []:
+                    break
 
             media_downloaded = False
 
