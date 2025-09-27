@@ -322,8 +322,9 @@ regex_error_timeout = re.compile(r'The read operation timed out')
 regex_error_get_addr_info = re.compile(r'getaddrinfo failed')
 regex_error_win_10054 = re.compile(r'WinError 10054')
 regex_error_win_2 = re.compile(r'WinError 2')
+regex_error_win_32 = re.compile(r'WinError 32')
 regex_error_http_403 = re.compile(r'HTTP Error 403')
-regex_bot = re.compile(r"Sign in to confirm") # Sign in to confirm you're not a bot
+regex_bot = re.compile(r"Sign in to confirm")  # Sign in to confirm you're not a bot
 
 # MySQL Error messages
 regex_sql_duplicate = re.compile(r'Duplicate entry')
@@ -1956,18 +1957,7 @@ def download_media(media):
         print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} download home directory not set!')
         sys.exit()
 
-    # Clear temp directory
-    try:
-        print(f'{datetime.now()} {Fore.CYAN}DELETING TEMP DIRECTORY{Style.RESET_ALL} {directory_download_temp}',
-              end='\r')
-        shutil.rmtree(directory_download_temp)
-        print(f'{datetime.now()} {Fore.CYAN}DELETED TEMP DIRECTORY{Style.RESET_ALL} {directory_download_temp} ',
-              end='\n')
-    except KeyboardInterrupt:
-        sys.exit()
-    except Exception as exception_clear_temp:
-        if not regex_error_win_2.search(str(exception_clear_temp)):
-            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} {exception_clear_temp}')
+    clear_temp_dir()
 
     text_color = get_text_color_for_media_status(media_status=media_status)
 
@@ -2136,7 +2126,8 @@ def download_media(media):
                 return False
 
             elif regex_error_get_addr_info.search(str(exception_download)):
-                print(f'{datetime.now()} {Fore.RED}GET ADDR INFO FAILED{Style.RESET_ALL} while downloading media "{media_id}"')
+                print(
+                    f'{datetime.now()} {Fore.RED}GET ADDR INFO FAILED{Style.RESET_ALL} while downloading media "{media_id}"')
                 reconnect_vpn(counter=None, vpn_countries=None)
                 return False
 
@@ -2259,9 +2250,31 @@ def download_media(media):
                     print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
                           f'{exception_update_db}')
                     return False
+
+            elif regex_error_win_32.search(str(exception_download)):
+                print(f'{datetime.now()} {Fore.RED}WIN ERROR 32{Style.RESET_ALL} '
+                      f'while downloading media "{media_id}"')
+                clear_temp_dir()
+                return False
+
             else:
                 print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} downloading media: {exception_download}')
                 return True
+
+
+def clear_temp_dir():
+    """Clears the download temp directory"""
+    try:
+        print(f'{datetime.now()} {Fore.CYAN}DELETING TEMP DIRECTORY{Style.RESET_ALL} {directory_download_temp}',
+              end='\r')
+        shutil.rmtree(directory_download_temp)
+        print(f'{datetime.now()} {Fore.CYAN}DELETED TEMP DIRECTORY{Style.RESET_ALL} {directory_download_temp} ',
+              end='\n')
+    except KeyboardInterrupt:
+        sys.exit()
+    except Exception as exception_clear_temp:
+        if not regex_error_win_2.search(str(exception_clear_temp)):
+            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} {exception_clear_temp}')
 
 
 def get_monitored_playlists_from_db():
@@ -2364,8 +2377,9 @@ def get_all_channel_playlists_from_youtube(channel_id, ignore_errors):
             except KeyboardInterrupt:
                 sys.exit()
             except Exception as exception_find_entries_in_info_json:
-                print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} cannot find entries in Info JSON "{info_json}": '
-                      f'{exception_find_entries_in_info_json}')
+                print(
+                    f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} cannot find entries in Info JSON "{info_json}": '
+                    f'{exception_find_entries_in_info_json}')
                 return None
 
         except KeyboardInterrupt:
@@ -2376,7 +2390,7 @@ def get_all_channel_playlists_from_youtube(channel_id, ignore_errors):
             elif regex_error_timeout.search(str(exception_get_online_playlists)):
                 print(f'{datetime.now()} {Fore.RED}TIMEOUT{Style.RESET_ALL} while getting playlists for channel '
                       f'"{channel_id}": {exception_get_online_playlists}')
-                continue # Retry in method instead of external
+                continue  # Retry in method instead of external
             elif not regex_channel_no_playlists.search(str(exception_get_online_playlists)):
                 print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while getting playlists for channel '
                       f'"{channel_id}": {exception_get_online_playlists}')
