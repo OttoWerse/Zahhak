@@ -1,4 +1,4 @@
 mysql-connector-python>=9.2.0
-yt-dlp>=2025.8.11
+yt-dlp>=2025.09.26
 colorama>=0.4.6
 lxml~=6.0.0

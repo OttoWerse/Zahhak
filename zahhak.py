@@ -2371,7 +2371,9 @@ def get_all_channel_playlists_from_youtube(channel_id, ignore_errors):
         except KeyboardInterrupt:
             sys.exit()
         except Exception as exception_get_online_playlists:
-            if regex_error_timeout.search(str(exception_get_online_playlists)):
+            if regex_channel_no_playlists.search(str(exception_get_online_playlists)):
+                return None
+            elif regex_error_timeout.search(str(exception_get_online_playlists)):
                 print(f'{datetime.now()} {Fore.RED}TIMEOUT{Style.RESET_ALL} while getting playlists for channel '
                       f'"{channel_id}": {exception_get_online_playlists}')
                 continue # Retry in method instead of external
