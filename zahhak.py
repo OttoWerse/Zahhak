@@ -2320,61 +2320,65 @@ def get_all_channel_media_from_youtube(channel):
 
 def get_all_channel_playlists_from_youtube(channel_id, ignore_errors):
     """Returns a list of all online YouTube playlists for the given channel"""
-    print(f'{datetime.now()} Collecting playlists for channel "{channel_id}"', end='\r')
-
-    channel_playlists_url = f'https://www.youtube.com/channel/{channel_id}/playlists'
-
     playlists = []
+    while not playlists:
+        print(f'{datetime.now()} Collecting playlists for channel "{channel_id}"', end='\r')
 
-    # Set download options for YT-DLP
-    channel_playlists_download_options = {
-        'logger': VoidLogger(),
-        'extract_flat': True,
-        'skip_download': True,
-        'allow_playlist_files': False,
-        'quiet': True,
-        'no_warnings': True,
-        'ignoreerrors': ignore_errors,
-        'download_archive': None,
-        'extractor_args': {'youtube': {'skip': ['configs', 'webpage', 'js']}},
-        'extractor_retries': retry_extraction_channel,
-        'socket_timeout': timeout_channel,
-        'source_address': external_ip
-    }
+        channel_playlists_url = f'https://www.youtube.com/channel/{channel_id}/playlists'
 
-    # Try-Except Block to handle YT-DLP exceptions such as "playlist does not exist"
-    try:
-        # Run YT-DLP
-        with yt_dlp.YoutubeDL(channel_playlists_download_options) as ilus:
-            info_json = ilus.sanitize_info(ilus.extract_info(channel_playlists_url, process=True, download=False))
+        # Set download options for YT-DLP
+        channel_playlists_download_options = {
+            'logger': VoidLogger(),
+            'extract_flat': True,
+            'skip_download': True,
+            'allow_playlist_files': False,
+            'quiet': True,
+            'no_warnings': True,
+            'ignoreerrors': ignore_errors,
+            'download_archive': None,
+            'extractor_args': {'youtube': {'skip': ['configs', 'webpage', 'js']}},
+            'extractor_retries': retry_extraction_channel,
+            'socket_timeout': timeout_channel,
+            'source_address': external_ip
+        }
 
-        if DEBUG_channel_playlists:
-            with open('debug.json', 'w', encoding='utf-8') as json_file:
-                # noinspection PyTypeChecker
-                json.dump(info_json, json_file, ensure_ascii=False, indent=4)
-            input(f'Dumped JSON... Continue?')
-
+        # Try-Except Block to handle YT-DLP exceptions such as "playlist does not exist"
         try:
-            playlists = info_json['entries']
-            if playlists[0] is not None:
-                playlists_count = len(playlists)
-                print(f'{datetime.now()} {Fore.GREEN}FOUND{Style.RESET_ALL} {playlists_count} online playlists '
-                      f'for channel "{channel_id}"')  # TODO: Improve logging
-                return playlists
+            # Run YT-DLP
+            with yt_dlp.YoutubeDL(channel_playlists_download_options) as ilus:
+                info_json = ilus.sanitize_info(ilus.extract_info(channel_playlists_url, process=True, download=False))
+
+            if DEBUG_channel_playlists:
+                with open('debug.json', 'w', encoding='utf-8') as json_file:
+                    # noinspection PyTypeChecker
+                    json.dump(info_json, json_file, ensure_ascii=False, indent=4)
+                input(f'Dumped JSON... Continue?')
+
+            try:
+                playlists = info_json['entries']
+                if playlists[0] is not None:
+                    playlists_count = len(playlists)
+                    print(f'{datetime.now()} {Fore.GREEN}FOUND{Style.RESET_ALL} {playlists_count} online playlists '
+                          f'for channel "{channel_id}"')
+                    return playlists
+            except KeyboardInterrupt:
+                sys.exit()
+            except Exception as exception_find_entries_in_info_json:
+                print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} cannot find entries in Info JSON "{info_json}": '
+                      f'{exception_find_entries_in_info_json}')
+                return None
+
         except KeyboardInterrupt:
             sys.exit()
-        except Exception as e:
-            print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} cannot find entries in Info JSON "{info_json}": '
-                  f'{e}')
-            return None
-
-    except KeyboardInterrupt:
-        sys.exit()
-    except Exception as exception_get_online_playlists:
-        if not regex_channel_no_playlists.search(str(exception_get_online_playlists)):
-            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while getting playlists for channel '
-                  f'"{channel_id}": {exception_get_online_playlists}')
-        return None
+        except Exception as exception_get_online_playlists:
+            if regex_error_timeout.search(str(exception_get_online_playlists)):
+                print(f'{datetime.now()} {Fore.RED}TIMEOUT{Style.RESET_ALL} while getting playlists for channel '
+                      f'"{channel_id}": {exception_get_online_playlists}')
+                continue # Retry in method instead of external
+            elif not regex_channel_no_playlists.search(str(exception_get_online_playlists)):
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while getting playlists for channel '
+                      f'"{channel_id}": {exception_get_online_playlists}')
+                return None
 
 
 def get_all_playlist_media_from_youtube(playlist):
