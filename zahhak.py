@@ -322,6 +322,7 @@ regex_error_timeout = re.compile(r'The read operation timed out')
 regex_error_get_addr_info = re.compile(r'getaddrinfo failed')
 regex_error_win_10054 = re.compile(r'WinError 10054')
 regex_error_win_2 = re.compile(r'WinError 2')
+regex_error_win_5 = re.compile(r'WinError 5')
 regex_error_win_32 = re.compile(r'WinError 32')
 regex_error_http_403 = re.compile(r'HTTP Error 403')
 regex_bot = re.compile(r"Sign in to confirm")  # Sign in to confirm you're not a bot
@@ -2270,6 +2271,12 @@ def download_media(media):
 
             elif regex_error_win_32.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}WIN ERROR 32{Style.RESET_ALL} '
+                      f'while downloading media "{media_id}"')
+                clear_temp_dir()
+                return False
+
+            elif regex_error_win_5.search(str(exception_download)):
+                print(f'{datetime.now()} {Fore.RED}WIN ERROR 5{Style.RESET_ALL} '
                       f'while downloading media "{media_id}"')
                 clear_temp_dir()
                 return False
