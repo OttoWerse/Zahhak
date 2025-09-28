@@ -307,6 +307,7 @@ regex_channel_deleted = re.compile(r'This channel does not exist')
 regex_offline = re.compile(r"Offline")
 regex_playlist_deleted = re.compile(r'The playlist does not exist')
 regex_media_age_restricted = re.compile(r'Sign in to confirm your age')
+regex_media_format_unavailable = re.compile(r'Requested format is not available')
 regex_media_private = re.compile(r'Private video')
 regex_media_unavailable = re.compile(r'Video unavailable')
 regex_media_unavailable_live = re.compile(r'This live stream recording is not available')
@@ -2268,6 +2269,12 @@ def download_media(media):
                     print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
                           f'{exception_update_db}')
                     return False
+
+            elif regex_media_format_unavailable.search(str(exception_download)):
+                print(f'{datetime.now()} {Fore.RED}FORMAT UNAVAILABLE{Style.RESET_ALL} '
+                      f'while downloading media "{media_id}"')
+                # TODO: This triggers indefinete retry, consider counter ifi t becomes an issue blocking other downloads!
+                return False
 
             elif regex_error_win_32.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}WIN ERROR 32{Style.RESET_ALL} '
