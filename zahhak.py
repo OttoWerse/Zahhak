@@ -2150,6 +2150,12 @@ def download_media(media):
                 reconnect_vpn(counter=None, vpn_countries=None)
                 return False
 
+            elif regex_media_format_unavailable.search(str(exception_download)):
+                print(f'{datetime.now()} {Fore.RED}FORMAT UNAVAILABLE{Style.RESET_ALL} '
+                      f'while downloading media "{media_id}"')
+                reconnect_vpn(counter=None, vpn_countries=None)
+                return False
+
             elif regex_error_win_5.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}WIN ERROR 5{Style.RESET_ALL} '
                       f'while downloading media "{media_id}"')
@@ -2296,12 +2302,6 @@ def download_media(media):
                     print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
                           f'{exception_update_db}')
                     return False
-
-            elif regex_media_format_unavailable.search(str(exception_download)):
-                print(f'{datetime.now()} {Fore.RED}FORMAT UNAVAILABLE{Style.RESET_ALL} '
-                      f'while downloading media "{media_id}"')
-                # TODO: This triggers infinite retry, consider counter ifi t becomes an issue blocking other downloads!
-                return False
 
             else:
                 print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} downloading media: {exception_download}')
