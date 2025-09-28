@@ -2150,6 +2150,33 @@ def download_media(media):
                 reconnect_vpn(counter=None, vpn_countries=None)
                 return False
 
+            elif regex_error_win_5.search(str(exception_download)):
+                print(f'{datetime.now()} {Fore.RED}WIN ERROR 5{Style.RESET_ALL} '
+                      f'while downloading media "{media_id}"')
+                clear_temp_dir()
+                reconnect_vpn(counter=None, vpn_countries=None)
+                return False
+                # TODO: IDK if we can recover from this error, it seems like once it comes up, it stays until full program restart
+                # sys.exit()
+
+            elif regex_error_win_32.search(str(exception_download)):
+                print(f'{datetime.now()} {Fore.RED}WIN ERROR 32{Style.RESET_ALL} '
+                      f'while downloading media "{media_id}"')
+                clear_temp_dir()
+                reconnect_vpn(counter=None, vpn_countries=None)
+                return False
+                # TODO: IDK if we can recover from this error, it seems like once it comes up, it stays until full program restart
+                # sys.exit()
+
+            elif regex_error_win_10054.search(str(exception_download)):
+                print(f'{datetime.now()} {Fore.RED}WIN ERROR 10054{Style.RESET_ALL} '
+                      f'while downloading media "{media_id}"')
+                clear_temp_dir()
+                reconnect_vpn(counter=None, vpn_countries=None)
+                return False
+                # TODO: IDK if we can recover from this error, it seems like once it comes up, it stays until full program restart
+                # sys.exit()
+
             elif (regex_media_members_only.search(str(exception_download))
                   or regex_media_members_tier.search(str(exception_download))):
                 # print(f'{datetime.now()} {Fore.RED}MEMBERS ONLY{Style.RESET_ALL} media "{media_id}"')
@@ -2274,28 +2301,6 @@ def download_media(media):
                 print(f'{datetime.now()} {Fore.RED}FORMAT UNAVAILABLE{Style.RESET_ALL} '
                       f'while downloading media "{media_id}"')
                 # TODO: This triggers infinite retry, consider counter ifi t becomes an issue blocking other downloads!
-                return False
-
-            elif regex_error_win_5.search(str(exception_download)):
-                print(f'{datetime.now()} {Fore.RED}WIN ERROR 5{Style.RESET_ALL} '
-                      f'while downloading media "{media_id}"')
-                clear_temp_dir()
-                # return False
-                # TODO: IDK if we can recover from this error, it seems like once it comes up, it stays until full program restart
-                sys.exit()
-
-            elif regex_error_win_32.search(str(exception_download)):
-                print(f'{datetime.now()} {Fore.RED}WIN ERROR 32{Style.RESET_ALL} '
-                      f'while downloading media "{media_id}"')
-                clear_temp_dir()
-                # return False
-                # TODO: IDK if we can recover from this error, it seems like once it comes up, it stays until full program restart
-                sys.exit()
-
-            elif regex_error_win_10054.search(str(exception_download)):
-                print(f'{datetime.now()} {Fore.RED}WIN ERROR 10054{Style.RESET_ALL} '
-                      f'while downloading media "{media_id}"')
-                clear_temp_dir()
                 return False
 
             else:
