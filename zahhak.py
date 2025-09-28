@@ -2280,13 +2280,17 @@ def download_media(media):
                 print(f'{datetime.now()} {Fore.RED}WIN ERROR 5{Style.RESET_ALL} '
                       f'while downloading media "{media_id}"')
                 clear_temp_dir()
-                return False
+                # return False
+                # TODO: IDK if we can recover from this error, it seems like once it comes up, it stays until full program restart
+                sys.exit()
 
             elif regex_error_win_32.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}WIN ERROR 32{Style.RESET_ALL} '
                       f'while downloading media "{media_id}"')
                 clear_temp_dir()
-                return False
+                # return False
+                # TODO: IDK if we can recover from this error, it seems like once it comes up, it stays until full program restart
+                sys.exit()
 
             elif regex_error_win_10054.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}WIN ERROR 10054{Style.RESET_ALL} '
