@@ -1936,7 +1936,7 @@ def download_all_media():
                                               status=current_status)
                     new_media.extend(media)
 
-                if len(new_media) < 1:
+                if len(new_media) > 1:
                     break
 
             media_downloaded = False
