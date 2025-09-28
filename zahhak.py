@@ -2273,7 +2273,13 @@ def download_media(media):
             elif regex_media_format_unavailable.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}FORMAT UNAVAILABLE{Style.RESET_ALL} '
                       f'while downloading media "{media_id}"')
-                # TODO: This triggers indefinete retry, consider counter ifi t becomes an issue blocking other downloads!
+                # TODO: This triggers infinite retry, consider counter ifi t becomes an issue blocking other downloads!
+                return False
+
+            elif regex_error_win_5.search(str(exception_download)):
+                print(f'{datetime.now()} {Fore.RED}WIN ERROR 5{Style.RESET_ALL} '
+                      f'while downloading media "{media_id}"')
+                clear_temp_dir()
                 return False
 
             elif regex_error_win_32.search(str(exception_download)):
@@ -2282,8 +2288,8 @@ def download_media(media):
                 clear_temp_dir()
                 return False
 
-            elif regex_error_win_5.search(str(exception_download)):
-                print(f'{datetime.now()} {Fore.RED}WIN ERROR 5{Style.RESET_ALL} '
+            elif regex_error_win_10054.search(str(exception_download)):
+                print(f'{datetime.now()} {Fore.RED}WIN ERROR 10054{Style.RESET_ALL} '
                       f'while downloading media "{media_id}"')
                 clear_temp_dir()
                 return False
