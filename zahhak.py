@@ -326,7 +326,7 @@ regex_error_win_2 = re.compile(r'WinError 2')
 regex_error_win_5 = re.compile(r'WinError 5')
 regex_error_win_32 = re.compile(r'WinError 32')
 regex_error_http_403 = re.compile(r'HTTP Error 403')
-regex_bot = re.compile(r"Sign in to confirm")  # Sign in to confirm you're not a bot
+regex_bot = re.compile(r"Sign in to confirm you.re not a bot")  # Sign in to confirm you're not a bot
 
 # MySQL Error messages
 regex_sql_duplicate = re.compile(r'Duplicate entry')
@@ -1923,6 +1923,7 @@ def download_all_media():
             if timestamp_distance.seconds > select_newest_media_frequency:
                 timestamp_old = timestamp_now
                 new_media = []
+                database = connect_database()
 
                 for current_status in status_priority:
                     # text_color = get_text_color_for_media_status(media_status=current_status)
