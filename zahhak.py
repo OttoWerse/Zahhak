@@ -1901,6 +1901,8 @@ def download_all_media():
         for current_media in all_media:
             media_downloaded = False
             while not media_downloaded:
+                timestamp_now = datetime.now()
+                timestamp_distance = timestamp_now - timestamp_old
                 media_counter += 1
 
                 media_site = current_media[0]
@@ -1912,16 +1914,12 @@ def download_all_media():
                 playlist_name = current_media[6]
                 playlist_id = current_media[7]
 
-                timestamp_now = datetime.now()
-                timestamp_distance = timestamp_now - timestamp_old
-
                 if old_media_status != media_status:
                     text_color = get_text_color_for_media_status(media_status=media_status)
                     print(f'{timestamp_now} {Fore.CYAN}SWITCHED{Style.RESET_ALL} '
                           f'to downloading {text_color}"{media_status}"{Style.RESET_ALL} media!')
                 old_media_status = media_status
 
-                # TODO: I think it's fine to just break out of the loop / return the function and have it rerun from the top.
                 if timestamp_distance.seconds > select_newest_media_frequency:
                     timestamp_old = timestamp_now
                     new_media = []
@@ -1947,10 +1945,10 @@ def download_all_media():
                 GEO_BLOCKED_vpn_countries = []
 
                 media_downloaded = download_media(media=current_media)
-                if media_downloaded is True:
-                    continue
-                elif media_downloaded is None:
+                if media_downloaded is None:
                     return
+                elif media_downloaded:
+                    continue
                 else:
                     if GEO_BLOCKED_vpn_countries:
                         vpn_frequency = GEO_BLOCKED_vpn_frequency
