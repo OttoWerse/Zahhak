@@ -1899,53 +1899,53 @@ def download_all_media():
         timestamp_old = datetime.now()
         media_counter = 0
         for current_media in all_media:
-            media_counter += 1
-
-            media_site = current_media[0]
-            media_id = current_media[1]
-            media_available_date = current_media[2]
-            media_status = current_media[3]
-            channel_name = current_media[4]
-            channel_id = current_media[5]
-            playlist_name = current_media[6]
-            playlist_id = current_media[7]
-
-            timestamp_now = datetime.now()
-            timestamp_distance = timestamp_now - timestamp_old
-
-            if old_media_status != media_status:
-                text_color = get_text_color_for_media_status(media_status=media_status)
-                print(f'{timestamp_now} {Fore.CYAN}SWITCHED{Style.RESET_ALL} '
-                      f'to downloading {text_color}"{media_status}"{Style.RESET_ALL} media!')
-            old_media_status = media_status
-
-            # TODO: I think it's fine to just break out of the loop / return the function and have it rerun from the top.
-            if timestamp_distance.seconds > select_newest_media_frequency:
-                timestamp_old = timestamp_now
-                new_media = []
-                database = connect_database()
-
-                for current_status in status_priority:
-                    # text_color = get_text_color_for_media_status(media_status=current_status)
-                    media = get_media_from_db(database=database,
-                                              status=current_status)
-                    new_media.extend(media)
-
-                for current_status in status_secondary:
-                    # text_color = get_text_color_for_media_status(media_status=current_status)
-                    media = get_media_from_db(database=database,
-                                              status=current_status)
-                    new_media.extend(media)
-
-                if len(new_media) > 1:
-                    break
-
             media_downloaded = False
-
-            vpn_counter_geo = 0
-            GEO_BLOCKED_vpn_countries = []
-
             while not media_downloaded:
+                media_counter += 1
+
+                media_site = current_media[0]
+                media_id = current_media[1]
+                media_available_date = current_media[2]
+                media_status = current_media[3]
+                channel_name = current_media[4]
+                channel_id = current_media[5]
+                playlist_name = current_media[6]
+                playlist_id = current_media[7]
+
+                timestamp_now = datetime.now()
+                timestamp_distance = timestamp_now - timestamp_old
+
+                if old_media_status != media_status:
+                    text_color = get_text_color_for_media_status(media_status=media_status)
+                    print(f'{timestamp_now} {Fore.CYAN}SWITCHED{Style.RESET_ALL} '
+                          f'to downloading {text_color}"{media_status}"{Style.RESET_ALL} media!')
+                old_media_status = media_status
+
+                # TODO: I think it's fine to just break out of the loop / return the function and have it rerun from the top.
+                if timestamp_distance.seconds > select_newest_media_frequency:
+                    timestamp_old = timestamp_now
+                    new_media = []
+                    database = connect_database()
+
+                    for current_status in status_priority:
+                        # text_color = get_text_color_for_media_status(media_status=current_status)
+                        media = get_media_from_db(database=database,
+                                                  status=current_status)
+                        new_media.extend(media)
+
+                    for current_status in status_secondary:
+                        # text_color = get_text_color_for_media_status(media_status=current_status)
+                        media = get_media_from_db(database=database,
+                                                  status=current_status)
+                        new_media.extend(media)
+
+                    if len(new_media) > 1:
+                        # This by itself only breaks the INNER loop (while not downloaded), NOT the outer loop (over all entries)!
+                        break
+
+                vpn_counter_geo = 0
+                GEO_BLOCKED_vpn_countries = []
+
                 media_downloaded = download_media(media=current_media)
                 if media_downloaded is True:
                     continue
@@ -1958,6 +1958,11 @@ def download_all_media():
                         # To break endless loop
                         if vpn_counter_geo == 0:
                             continue
+            # To break out of nested loop
+            # TODO: This should be done using return and a second inner function for the "while not downloaded" loop instead!
+            else:
+                continue
+            break
 
 
 def download_media(media):
