@@ -1898,9 +1898,10 @@ def download_all_media():
         old_media_status = ''
         timestamp_old = datetime.now()
         media_counter = 0
+        refresh_media_list = False
         for current_media in all_media:
             media_downloaded = False
-            while not media_downloaded:
+            while not media_downloaded and not refresh_media_list:
                 timestamp_now = datetime.now()
                 timestamp_distance = timestamp_now - timestamp_old
                 media_counter += 1
@@ -1938,7 +1939,8 @@ def download_all_media():
                         new_media.extend(media)
 
                     if len(new_media) > 1:
-                        # This by itself only breaks the INNER loop (while not downloaded), NOT the outer loop (over all entries)!
+                        refresh_media_list = True
+                        # This by itself only breaks the INNER loop (while not downloaded)
                         break
 
                 vpn_counter_geo = 0
@@ -1957,10 +1959,8 @@ def download_all_media():
                         if vpn_counter_geo == 0:
                             continue
             # To break out of nested loop
-            # TODO: This should be done using return and a second inner function for the "while not downloaded" loop instead!
-            else:
-                continue
-            break
+            if refresh_media_list:
+                break
 
 
 def download_media(media):
