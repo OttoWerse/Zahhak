@@ -1939,7 +1939,7 @@ def download_all_media():
                                                   status=current_status)
                         new_media.extend(media)
 
-                    if len(new_media) > 1:
+                    if len(new_media) > 0:
                         refresh_media_list = True
                         # This by itself only breaks the INNER loop (while not downloaded)
                         break
