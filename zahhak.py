@@ -318,6 +318,7 @@ regex_media_members_only = re.compile(r'Join this channel to get access to membe
                                       r'and other exclusive perks')
 regex_media_members_tier = re.compile(r'This video is available to this channel')
 regex_media_live_not_started = re.compile(r'This live event will begin in a few moments')
+regex_json_write = re.compile(r'Cannot write video metadata to JSON file')
 regex_error_connection = re.compile(r'Remote end closed connection without response')
 regex_error_timeout = re.compile(r'The read operation timed out')
 regex_error_get_addr_info = re.compile(r'getaddrinfo failed')
@@ -2016,6 +2017,8 @@ def download_media(media):
             'nocheckcertificate': True,
             'restrictfilenames': True,
             'windowsfilenames': True,
+            'trim_file_name': True,
+            # TODO: This may or may not lead to additional error "[Errno 63] File name too long due to poor implementation on yt-dlp side!"
             'throttledratelimit': 1000,
             'retries': 0,
             'concurrent_fragment_downloads': 20,
@@ -2158,6 +2161,12 @@ def download_media(media):
                 print(f'{datetime.now()} {Fore.RED}FORMAT UNAVAILABLE{Style.RESET_ALL} '
                       f'while downloading media "{media_id}"')
                 reconnect_vpn(counter=None, vpn_countries=None)
+                return False
+
+            elif regex_json_write.search(str(exception_download)):
+                print(f'{datetime.now()} {Fore.RED}JSON WRITE ERROR{Style.RESET_ALL} '
+                      f'while downloading media "{media_id}"')
+                clear_temp_dir()
                 return False
 
             elif regex_error_win_5.search(str(exception_download)):
