@@ -304,8 +304,9 @@ regex_channel_no_playlists = re.compile(r'This channel does not have a playlists
 regex_channel_unavailable = re.compile(r'This channel is not available')
 regex_channel_removed = re.compile(r'This channel was removed because it violated our Community Guidelines')
 regex_channel_deleted = re.compile(r'This channel does not exist')
-regex_offline = re.compile(r"Offline")
+
 regex_playlist_deleted = re.compile(r'The playlist does not exist')
+
 regex_media_age_restricted = re.compile(r'Sign in to confirm your age')
 regex_media_format_unavailable = re.compile(r'Requested format is not available')
 regex_media_private = re.compile(r'Private video')
@@ -317,17 +318,22 @@ regex_media_removed = re.compile(r'This video has been removed')
 regex_media_members_only = re.compile(r'Join this channel to get access to members-only content like this video, '
                                       r'and other exclusive perks')
 regex_media_members_tier = re.compile(r'This video is available to this channel')
+regex_media_paid = re.compile(r'This video requires payment to watch')
 regex_media_live_not_started = re.compile(r'This live event will begin in a few moments')
-regex_json_write = re.compile(r'Cannot write video metadata to JSON file')
-regex_error_connection = re.compile(r'Remote end closed connection without response')
+
+regex_bot = re.compile(r"Sign in to confirm you.re not a bot")  # Sign in to confirm you're not a bot
+regex_offline = re.compile(r"Offline")
 regex_error_timeout = re.compile(r'The read operation timed out')
 regex_error_get_addr_info = re.compile(r'getaddrinfo failed')
-regex_error_win_10054 = re.compile(r'WinError 10054')
+regex_error_connection = re.compile(r'Remote end closed connection without response')
+regex_error_http_403 = re.compile(r'HTTP Error 403')
+
+regex_json_write = re.compile(r'Cannot write video metadata to JSON file')
 regex_error_win_2 = re.compile(r'WinError 2')
 regex_error_win_5 = re.compile(r'WinError 5')
 regex_error_win_32 = re.compile(r'WinError 32')
-regex_error_http_403 = re.compile(r'HTTP Error 403')
-regex_bot = re.compile(r"Sign in to confirm you.re not a bot")  # Sign in to confirm you're not a bot
+regex_error_win_10054 = re.compile(r'WinError 10054')
+
 
 # MySQL Error messages
 regex_sql_duplicate = re.compile(r'Duplicate entry')
@@ -361,6 +367,7 @@ regex_network_add_position = re.compile(r'(?<=<\/runtime>).*')
 '''Status values'''
 STATUS_UNWANTED = 'unwanted'
 STATUS_WANTED = 'wanted'
+STATUS_PAID = 'paid'
 STATUS_MEMBERS_ONLY = 'members-only'
 STATUS_AGE_RESTRICTED = 'age-restricted'
 STATUS_UNAVAILABLE = 'unavailable'
@@ -1431,6 +1438,26 @@ def process_media(media, channel_site, channel_id, playlist_id, download, archiv
                           f'{exception_update_db}')
                     return False
 
+            elif regex_media_paid.search(str(exception_add_media)):
+                print(f'{datetime.now()} {Fore.RED}PAID{Style.RESET_ALL} media "{media_id}"')
+                # Update DB
+                try:
+                    add_media(media_site=media_site,
+                              media_id=media_id,
+                              channel=channel_id,
+                              playlist=playlist_id,
+                              media_status=STATUS_PAID,
+                              media_available_date=original_date,
+                              download=download,
+                              database=database)
+                    return True
+                except KeyboardInterrupt:
+                    sys.exit()
+                except Exception as exception_update_db:
+                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
+                          f'{exception_update_db}')
+                    return False
+
             elif regex_media_removed.search(str(exception_add_media)):
                 print(f'{datetime.now()} {Fore.RED}REMOVED{Style.RESET_ALL} media "{media_id}"')
                 # Update DB
@@ -2207,6 +2234,26 @@ def download_media(media):
                                   channel=channel_id,
                                   playlist=playlist_id,
                                   media_status=STATUS_MEMBERS_ONLY,
+                                  media_available_date=media_available_date,
+                                  download=True)  # Download can be assumed to be True for media that is being downloaded
+                    return True
+                except KeyboardInterrupt:
+                    sys.exit()
+                except Exception as exception_update_db:
+                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
+                          f'{exception_update_db}')
+                    return False
+
+            elif regex_media_paid.search(str(exception_download)):
+                # print(f'{datetime.now()} {Fore.RED}PAID{Style.RESET_ALL} media "{media_id}"')
+                # Update DB
+                try:
+                    if media_status != STATUS_PAID:
+                        add_media(media_site=media_site,
+                                  media_id=media_id,
+                                  channel=channel_id,
+                                  playlist=playlist_id,
+                                  media_status=STATUS_PAID,
                                   media_available_date=media_available_date,
                                   download=True)  # Download can be assumed to be True for media that is being downloaded
                     return True
