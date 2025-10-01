@@ -291,65 +291,60 @@ download_livestreams = False
 playlist_name_shorts = 'Shorts'
 playlist_name_livestreams = 'Livestreams'
 
-'''REGEX'''
-# Channel names
-regex_live_channel = re.compile(r'.* LIVE$')
-regex_fake_channel = re.compile(r'^#.*$')
-regex_fake_playlist = re.compile(r'^#.*$')
-regex_handle_as_id = re.compile(r'^@.*$')
-
-# YT-DLP Error messages
+'''Error messages REGEX'''
+# Channel
 regex_channel_no_media = re.compile(r'This channel does not have a videos tab')
 regex_channel_no_playlists = re.compile(r'This channel does not have a playlists tab')
 regex_channel_unavailable = re.compile(r'This channel is not available')
 regex_channel_removed = re.compile(r'This channel was removed because it violated our Community Guidelines')
 regex_channel_deleted = re.compile(r'This channel does not exist')
-
+# Playlist
 regex_playlist_deleted = re.compile(r'The playlist does not exist')
-
-regex_media_age_restricted = re.compile(r'Sign in to confirm your age')
+# Media
 regex_media_format_unavailable = re.compile(r'Requested format is not available')
 regex_media_private = re.compile(r'Private video')
+regex_media_removed = re.compile(r'This video has been removed')
 regex_media_unavailable = re.compile(r'Video unavailable')
 regex_media_unavailable_live = re.compile(r'This live stream recording is not available')
 regex_media_unavailable_geo = re.compile(r'The uploader has not made this video available in your country')
 regex_media_unavailable_geo_fix = re.compile(r'(?<=This video is available in ).*(?<!\.)')
-regex_media_removed = re.compile(r'This video has been removed')
-regex_media_members_only = re.compile(r'Join this channel to get access to members-only content like this video, '
-                                      r'and other exclusive perks')
-regex_media_members_tier = re.compile(r'This video is available to this channel')
+regex_media_age_restricted = re.compile(r'Sign in to confirm your age')
+regex_media_members_only = re.compile(r'Join this channel to get access to members-only content like this video')
+regex_media_members_tier = re.compile(r'This video is available to this channel.s members on level')
 regex_media_paid = re.compile(r'This video requires payment to watch')
 regex_media_live_not_started = re.compile(r'This live event will begin in a few moments')
-
-regex_bot = re.compile(r"Sign in to confirm you.re not a bot")  # Sign in to confirm you're not a bot
+# Networking
+regex_bot = re.compile(r"Sign in to confirm you.re not a bot")
 regex_offline = re.compile(r"Offline")
 regex_error_timeout = re.compile(r'The read operation timed out')
 regex_error_get_addr_info = re.compile(r'getaddrinfo failed')
 regex_error_connection = re.compile(r'Remote end closed connection without response')
 regex_error_http_403 = re.compile(r'HTTP Error 403')
-
+# Storage
 regex_json_write = re.compile(r'Cannot write video metadata to JSON file')
 regex_error_win_2 = re.compile(r'WinError 2')
 regex_error_win_5 = re.compile(r'WinError 5')
 regex_error_win_32 = re.compile(r'WinError 32')
 regex_error_win_10054 = re.compile(r'WinError 10054')
-
-
-# MySQL Error messages
+# MySQL
 regex_sql_duplicate = re.compile(r'Duplicate entry')
 regex_sql_unavailable = re.compile(r'MySQL Connection not available')
 
+'''Other REGEX'''
+# Channel names
+regex_live_channel = re.compile(r'.* LIVE$')
+regex_fake_channel = re.compile(r'^#.*$')
+regex_fake_playlist = re.compile(r'^#.*$')
+regex_handle_as_id = re.compile(r'^@.*$')
 # noinspection RegExpRedundantEscape
 regex_val = re.compile(r'[^\.a-zA-Z0-9 -]')
 regex_caps = re.compile(r'[A-Z][A-Z]+')
-
 # File extensions
 regex_mp4 = re.compile(r'\.mp4$')
 regex_json = re.compile(r'\.info\.json$')
 regex_nfo = re.compile(r'\.nfo$')
 regex_show_nfo = re.compile(r'^tvshow\.nfo$')
 regex_season_nfo = re.compile(r'^season\.nfo$')
-
 # NFO components
 # noinspection RegExpRedundantEscape
 regex_date_present = re.compile(r'<aired>\d{4}-\d{2}-\d{2}<\/aired>')
