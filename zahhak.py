@@ -2017,8 +2017,8 @@ def download_media(media):
             'nocheckcertificate': True,
             'restrictfilenames': True,
             'windowsfilenames': True,
-            'trim_file_name': True,
-            # TODO: This may or may not lead to additional error "[Errno 63] File name too long due to poor implementation on yt-dlp side!"
+            # 'trim_file_name': True,
+            # TODO: This leads to -o being igonred?
             'throttledratelimit': 1000,
             'retries': 0,
             'concurrent_fragment_downloads': 20,
