@@ -1021,7 +1021,7 @@ def get_new_playlist_media_from_youtube(playlist, ignore_errors, counter, archiv
         # return [] # This is to stop repeating to try in this (rare) case of not getting entries for playlist EVER (cause unknown, possibly related to single media lists or hidden media etc.)
 
 
-def get_monitored_channels_from_db():
+def get_monitored_channels_from_db(database):
     """Returns a list of all known YouTube channels als list of lists
     Inner list field order is as follows:
       - channels.site
@@ -1030,10 +1030,7 @@ def get_monitored_channels_from_db():
       - channels.priority"""
 
     print(f'{datetime.now()} Collecting channels...', end='\r')
-
-    mydb = connect_database()
-
-    mysql_cursor = mydb.cursor()
+    mysql_cursor = database.cursor()
 
     sql = ("SELECT channels.site, channels.url, channels.name, channels.priority "
            "FROM channels "
@@ -2526,12 +2523,11 @@ def update_subscriptions():
     global vpn_counter
     global global_archive_set
 
-    database_playlists = get_database_playlist_names()
-
-    all_channels = get_monitored_channels_from_db()
+    database = connect_database()  # TODO: This was previously done every channel, I think it is not needed/buggy, testing.
+    database_playlists = get_database_playlist_names(database=database)
+    all_channels = get_monitored_channels_from_db(database=database)
 
     for current_channel in all_channels:
-        database = connect_database()
 
         current_channel_site = current_channel[0]
         current_channel_id = current_channel[1]
@@ -2719,7 +2715,7 @@ def update_subscriptions():
 
 
 # TODO: This is redundant and needs to be merged with get_monitored_channels_from_db()
-def get_database_channel_names():
+def get_database_channel_names(database):
     """
     Returns a list of all known YouTube channels
     Field order:
@@ -2728,14 +2724,7 @@ def get_database_channel_names():
     """
 
     print(f'{datetime.now()} Collecting channel names...', end='\r')
-
-    mydb = mysql.connector.connect(
-        host=mysql_host,
-        user=mysql_user,
-        password=mysql_password,
-        database=mysql_database)
-
-    mysql_cursor = mydb.cursor()
+    mysql_cursor = database.cursor()
 
     sql = ("select channels.url, channels.name FROM channels "
            "WHERE site = %s AND url not like '%#%'"
@@ -2753,7 +2742,7 @@ def get_database_channel_names():
 
 
 # TODO: This is redundant and needs to be merged with get_monitored_playlists_from_db()
-def get_database_playlist_names():
+def get_database_playlist_names(database):
     """
     Returns a list of all known YouTube playlists
         Field order:
@@ -2761,14 +2750,7 @@ def get_database_playlist_names():
             - playlists.name
     """
     print(f'{datetime.now()} Collecting playlists...', end='\r')
-
-    mydb = mysql.connector.connect(
-        host=mysql_host,
-        user=mysql_user,
-        password=mysql_password,
-        database=mysql_database)
-
-    mysql_cursor = mydb.cursor()
+    mysql_cursor = database.cursor()
 
     sql = "select playlists.url, playlists.name from playlists WHERE site = %s;"
     val = ('youtube',)  # DO NOT REMOVE COMMA, it is necessary for MySQL to work!
@@ -2779,8 +2761,9 @@ def get_database_playlist_names():
 
 
 def add_subscriptions():
-    database_channels = get_database_channel_names()
-    database_playlists = get_database_playlist_names()
+    database = connect_database()
+    database_channels = get_database_channel_names(database=database)
+    database_playlists = get_database_playlist_names(database=database)
 
     channel_list = []
 
@@ -2817,10 +2800,13 @@ def add_subscriptions():
 
 
 def process_channel(channel_url, database_channels=None, database_playlists=None):
+    """Add online channel playlists to database"""
+
+    database = connect_database()
     if not database_channels:
-        database_channels = get_database_channel_names()
+        database_channels = get_database_channel_names(database=database)
     if not database_playlists:
-        database_playlists = get_database_playlist_names()
+        database_playlists = get_database_playlist_names(database=database)
 
     channel = get_channel_details(channel_url=channel_url, ignore_errors=DEFAULT_ignore_errors_channel)
     print()
