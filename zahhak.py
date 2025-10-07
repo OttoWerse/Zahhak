@@ -1952,7 +1952,7 @@ def download_media(media):
         print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} download home directory not set!')
         sys.exit()
 
-    clear_temp_dir()
+    clear_temp_dir(media_status=media_status)
 
     text_color = get_text_color_for_media_status(media_status=media_status)
 
@@ -2007,7 +2007,7 @@ def download_media(media):
             'subtitleslangs': ['de-orig', 'en-orig'],
             'outtmpl': full_path,
             'paths': {
-                'temp': directory_download_temp,
+                'temp': os.path.join(directory_download_temp, media_status),
                 'home': directory_download_home,
             },
             'postprocessors': [
@@ -2137,13 +2137,13 @@ def download_media(media):
             elif regex_json_write.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}JSON WRITE ERROR{Style.RESET_ALL} '
                       f'while downloading media "{media_id}"')
-                clear_temp_dir()
+                clear_temp_dir(media_status=media_status)
                 return False
 
             elif regex_error_win_5.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}WIN ERROR 5{Style.RESET_ALL} '
                       f'while downloading media "{media_id}"')
-                clear_temp_dir()
+                clear_temp_dir(media_status=media_status)
                 reconnect_vpn(counter=None, vpn_countries=None)
                 return False
                 # TODO: IDK if we can recover from this error, it seems like once it comes up, it stays until full program restart
@@ -2152,7 +2152,7 @@ def download_media(media):
             elif regex_error_win_32.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}WIN ERROR 32{Style.RESET_ALL} '
                       f'while downloading media "{media_id}"')
-                clear_temp_dir()
+                clear_temp_dir(media_status=media_status)
                 reconnect_vpn(counter=None, vpn_countries=None)
                 return False
                 # TODO: IDK if we can recover from this error, it seems like once it comes up, it stays until full program restart
@@ -2161,7 +2161,7 @@ def download_media(media):
             elif regex_error_win_10054.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}WIN ERROR 10054{Style.RESET_ALL} '
                       f'while downloading media "{media_id}"')
-                clear_temp_dir()
+                clear_temp_dir(media_status=media_status)
                 reconnect_vpn(counter=None, vpn_countries=None)
                 return False
                 # TODO: IDK if we can recover from this error, it seems like once it comes up, it stays until full program restart
@@ -2312,13 +2312,15 @@ def download_media(media):
                 return True
 
 
-def clear_temp_dir():
+def clear_temp_dir(media_status):
     """Clears the download temp directory"""
+    temp_dir_path = os.path.join(directory_download_temp, media_status)
+
     try:
-        print(f'{datetime.now()} {Fore.CYAN}DELETING TEMP DIRECTORY{Style.RESET_ALL} {directory_download_temp}',
+        print(f'{datetime.now()} {Fore.CYAN}DELETING TEMP DIRECTORY{Style.RESET_ALL} {temp_dir_path}',
               end='\r')
-        shutil.rmtree(directory_download_temp)
-        print(f'{datetime.now()} {Fore.CYAN}DELETED TEMP DIRECTORY{Style.RESET_ALL} {directory_download_temp} ',
+        shutil.rmtree(temp_dir_path)
+        print(f'{datetime.now()} {Fore.CYAN}DELETED TEMP DIRECTORY{Style.RESET_ALL} {temp_dir_path} ',
               end='\n')
     except KeyboardInterrupt:
         sys.exit()
