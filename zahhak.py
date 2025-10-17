@@ -488,39 +488,37 @@ def connect_database():
 
 def create_download_archive():
     """Uses MySQL database to build a list of all known media IDs and writes them to YT-DLP archive file"""
-    result_archive = []
-    while not result_archive:
-        try:
-            print(f'{datetime.now()} {Fore.CYAN}CREATING{Style.RESET_ALL} download archive from DB',
-                  end="\r")
+    try:
+        print(f'{datetime.now()} {Fore.CYAN}CREATING{Style.RESET_ALL} download archive from DB',
+              end="\r")
 
-            mydb = connect_database()
-            mysql_cursor = mydb.cursor()
-            sql = "SELECT videos.site AS 'site', videos.url AS 'url' FROM videos;"
-            mysql_cursor.execute(sql)
+        mydb = connect_database()
+        mysql_cursor = mydb.cursor()
+        sql = "SELECT videos.site AS 'site', videos.url AS 'url' FROM videos;"
+        mysql_cursor.execute(sql)
 
-            result_archive = mysql_cursor.fetchall()
-            result_archive_length = len(result_archive)
+        result_archive = mysql_cursor.fetchall()
+        result_archive_length = len(result_archive)
 
-            counter_archive = 0
-            for x in result_archive:
-                counter_archive += 1
-                if counter_archive % 100 == 0 or counter_archive == result_archive_length:
-                    print(f'{datetime.now()} {Fore.CYAN}CREATING{Style.RESET_ALL} download archive from DB '
-                          f'({counter_archive}/{len(result_archive)})',
-                          end="\r")
-                site = x[0]
-                url = x[1]
-                global_archive_set.add(f'{site} {url}')
+        counter_archive = 0
+        for x in result_archive:
+            counter_archive += 1
+            if counter_archive % 100 == 0 or counter_archive == result_archive_length:
+                print(f'{datetime.now()} {Fore.CYAN}CREATING{Style.RESET_ALL} download archive from DB '
+                      f'({counter_archive}/{len(result_archive)})',
+                      end="\r")
+            site = x[0]
+            url = x[1]
+            global_archive_set.add(f'{site} {url}')
 
-            print('', end="\n")
+        print('', end="\n")
 
-        except KeyboardInterrupt:
-            sys.exit()
-        except Exception as exception_download_archive:
-            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while creating download archive: '
-                  f'{exception_download_archive}')
-            time.sleep(sleep_time_mysql)
+    except KeyboardInterrupt:
+        sys.exit()
+    except Exception as exception_download_archive:
+        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while creating download archive: '
+              f'{exception_download_archive}')
+        time.sleep(sleep_time_mysql)
 
 
 def update_channel(date, channel, database):
@@ -1021,7 +1019,7 @@ def get_new_playlist_media_from_youtube(playlist, ignore_errors, counter, archiv
         # return [] # This is to stop repeating to try in this (rare) case of not getting entries for playlist EVER (cause unknown, possibly related to single media lists or hidden media etc.)
 
 
-def get_monitored_channels_from_db(database):
+def get_monitored_channels_from_db(database, regex_channel_url=fr'^UC[a-z0-9\-\_]'):
     """Returns a list of all known YouTube channels als list of lists
     Inner list field order is as follows:
       - channels.site
@@ -1029,12 +1027,15 @@ def get_monitored_channels_from_db(database):
       - channels.name
       - channels.priority"""
 
-    print(f'{datetime.now()} Collecting channels...', end='\r')
+    print(f'{datetime.now()} {Fore.GREEN}SELECTING{Style.RESET_ALL} channels '
+          f'matching ID regex {regex_channel_url}',
+          end='\n')
     mysql_cursor = database.cursor()
 
     sql = ("SELECT channels.site, channels.url, channels.name, channels.priority "
            "FROM channels "
            "WHERE site = %s "
+           "AND (LOWER(channels.url) REGEXP %s)"
            "AND channels.url IN("
            "SELECT playlists.channel FROM playlists "
            "WHERE playlists.done IS NOT TRUE "
@@ -1044,7 +1045,7 @@ def get_monitored_channels_from_db(database):
            "ORDER BY channels.priority DESC, EXTRACT(year FROM channels.date_checked) ASC, "
            "EXTRACT(month FROM channels.date_checked) ASC, EXTRACT(day FROM channels.date_checked) ASC, "
            "EXTRACT(hour FROM channels.date_checked) ASC, RAND();")
-    val = ('youtube',)  # DO NOT REMOVE COMMA, it is necessary for MySQL to work!
+    val = ('youtube', regex_channel_url)
     mysql_cursor.execute(sql, val)
     mysql_result = mysql_cursor.fetchall()
     return mysql_result
@@ -1801,7 +1802,7 @@ def reconnect_vpn(counter, vpn_countries=None):
         print(f'{datetime.now()} {Fore.CYAN}VPN DISABLED{Style.RESET_ALL}')
 
 
-def get_media_from_db(database, status=STATUS['wanted']):
+def get_media_from_db(database, status=STATUS['wanted'], regex_media_url=fr'^[a-z0-9\-\_]'):
     """
     Returns a list of all wanted YouTube media als list of lists
     Inner list field order is as follows:
@@ -1809,6 +1810,7 @@ def get_media_from_db(database, status=STATUS['wanted']):
       - videos.url
       - videos.original_date
       - videos.status
+      - videos.save_path
       - channels.name
       - channels.url
       - playlists.name
@@ -1816,8 +1818,9 @@ def get_media_from_db(database, status=STATUS['wanted']):
       """
 
     text_color = get_text_color_for_media_status(status)
-
-    print(f'{datetime.now()} Collecting {text_color}{status}{Style.RESET_ALL} media...', end='\r')
+    print(f'{datetime.now()} {Fore.GREEN}SELECTING{Style.RESET_ALL} {text_color}{status}{Style.RESET_ALL} media '
+          f'matching ID regex {regex_media_url}',
+          end='\n')
 
     mysql_cursor = database.cursor()
 
@@ -1825,7 +1828,7 @@ def get_media_from_db(database, status=STATUS['wanted']):
     #  But is not 100% correct for use in verification and juggle modes
     #  (e.g. media which is no longer wanted for download could remain unverified in the download directory forever)
     sql = (
-        "SELECT videos.site, videos.url, videos.original_date, videos.status, "
+        "SELECT videos.site, videos.url, videos.original_date, videos.status, videos.save_path, "
         "channels.name, channels.url, "
         "playlists.name, playlists.url "
         "FROM videos "
@@ -1833,6 +1836,7 @@ def get_media_from_db(database, status=STATUS['wanted']):
         "INNER JOIN channels ON playlists.channel=channels.url "
         "WHERE (videos.status = %s) "
         "AND videos.download IS TRUE "
+        "AND (LOWER(videos.url) REGEXP %s)"
         "ORDER BY "
         "EXTRACT(year FROM videos.original_date) DESC, "
         "EXTRACT(month FROM videos.original_date) DESC, "
@@ -1841,7 +1845,7 @@ def get_media_from_db(database, status=STATUS['wanted']):
         "playlists.priority DESC, "
         "RAND();")
 
-    val = (status,)
+    val = (status, regex_media_url)
 
     mysql_cursor.execute(sql, val)
 
@@ -1888,10 +1892,11 @@ def download_all_media(status_values, enable_reselect_new_media=False):
                 media_id = current_media[1]
                 media_available_date = current_media[2]
                 media_status = current_media[3]
-                channel_name = current_media[4]
-                channel_id = current_media[5]
-                playlist_name = current_media[6]
-                playlist_id = current_media[7]
+                media_save_path = current_media[4]
+                channel_name = current_media[5]
+                channel_id = current_media[6]
+                playlist_name = current_media[7]
+                playlist_id = current_media[8]
 
                 if old_media_status != media_status:
                     text_color = get_text_color_for_media_status(media_status=media_status)
@@ -1940,10 +1945,11 @@ def download_media(media):
     media_id = media[1]
     media_available_date = media[2]
     media_status = media[3]
-    channel_name = media[4]
-    channel_id = media[5]
-    playlist_name = media[6]
-    playlist_id = media[7]
+    media_save_path = media[4]
+    channel_name = media[5]
+    channel_id = media[6]
+    playlist_name = media[7]
+    playlist_id = media[8]
 
     if directory_download_temp is None:
         print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} download temp directory not set!')
@@ -2520,17 +2526,16 @@ def check_channel_complete(channel, database_playlists):
         return True
 
 
-def update_subscriptions():
+def update_subscriptions(regex_channel_url=fr'^UC[a-z0-9\-\_]'):
     global vpn_timestamp
     global vpn_counter
     global global_archive_set
 
     database = connect_database()  # TODO: This was previously done every channel, I think it is not needed/buggy, testing.
     database_playlists = get_database_playlist_names(database=database)
-    all_channels = get_monitored_channels_from_db(database=database)
+    filtered_channels = get_monitored_channels_from_db(database=database, regex_channel_url=regex_channel_url)
 
-    for current_channel in all_channels:
-
+    for current_channel in filtered_channels:
         current_channel_site = current_channel[0]
         current_channel_id = current_channel[1]
         current_channel_name = current_channel[2]
@@ -2739,8 +2744,8 @@ def get_database_channel_names(database):
     val = ('youtube',)  # DO NOT REMOVE COMMA, it is necessary for MySQL to work!
     mysql_cursor.execute(sql, val)
     mysql_result = mysql_cursor.fetchall()
-
-    return dict(mysql_result)
+    channel_name_list = dict(mysql_result)
+    return channel_name_list
 
 
 # TODO: This is redundant and needs to be merged with get_monitored_playlists_from_db()
@@ -2781,6 +2786,12 @@ def add_subscriptions():
         else:
             continue
 
+    # TODO: In the VERY RARE case that there are no playlists added for a channel, it will not show up here.
+    ## This has SIDE EFFECTS; User will be prompted for channel name again, but no change is committed to DB
+    ## This was done to purposefully ignore channels which were added by the initial disk scan on our legacy
+    ## system with 100'000+ videos on it. Once we have built a new routine to rebuild DB from disk, we need
+    ## to fix this finally! WORKAROUND: Just add the channels again using /videos URL. As long as at least
+    ## ONE playlist IS added to DB, the channel WILL show up in this list.
     if use_database:
         for database_channel in database_channels:
             channel_list.append(f'https://www.youtube.com/channel/{database_channel}/videos')
@@ -3397,12 +3408,14 @@ def fix_all_nfo_files():
     return added_dates
 
 
-def verify_fresh_media(regex_filter_url):
+def verify_fresh_media(status=STATUS['fresh'], regex_media_url=fr'^[a-z0-9\-\_]'):
     if directory_download_home is None:
         print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} download home directory not set!')
         sys.exit()
 
-    print(f'{datetime.now()} {Fore.GREEN}VERIFYING{Style.RESET_ALL} media matching ID regex {regex_filter_url}',
+    text_color = get_text_color_for_media_status(status)
+    print(f'{datetime.now()} {Fore.GREEN}VERIFYING{Style.RESET_ALL} {text_color}{status}{Style.RESET_ALL} media '
+          f'matching ID regex {regex_media_url}',
           end='\n')
 
     # TODO: Make this global and use it everywhere for better readability in console Windows or find something better!
@@ -3410,15 +3423,20 @@ def verify_fresh_media(regex_filter_url):
 
     database = connect_database()
 
-    fresh_media = get_media_from_db(database=database, status=STATUS['fresh'])
+    # TODO: This result is ALWAYS "malformed", since the return format mismatches between our "next gen" Zahhak code and
+    ## the original "Old School" Ilus codebase. We NEED to switch these things to OBJECTS and not waste more time
+    ## unifying Tuple formats etc. it is exhausting!
+    fresh_media = get_media_from_db(database=database,
+                                    status=status,
+                                    regex_media_url=regex_media_url)
 
     for current_media in fresh_media:
         # Get basic media info
         try:
             site = current_media[0]
             url = current_media[1]
-            path = os.path.join(directory_download_home, current_media[2])
             status = current_media[3]
+            path = os.path.join(directory_download_home, current_media[4])
         except KeyboardInterrupt:
             sys.exit()
         except Exception as exception_sql:
@@ -3700,7 +3718,7 @@ def verify_fresh_media(regex_filter_url):
     # Relaxed approach to an infinite loop
     print(f'{datetime.now()} {Fore.YELLOW}No more media to verify!{Style.RESET_ALL} '
           f'Waiting {sleep_time_verification}s before next SQL SELECT...',
-          end='\r')
+          end='\n')
     time.sleep(sleep_time_verification)
     return
 
@@ -3758,12 +3776,12 @@ if __name__ == "__main__":
 
     '''Parse URL regex for verification'''
     # TODO: This should probably be done with argparse error instead!
-    letter_low = args.letter_low
+    letter_low = args.letter_low.lower()
     if not letter_low:
         # print(f'Missing parameter "--letter_low"!')
         # sys.exit()
         letter_low = ' '
-    letter_high = args.letter_high
+    letter_high = args.letter_high.lower()
     if not letter_high:
         # print(f'Missing parameter "--letter_high"!')
         # sys.exit()
@@ -3772,11 +3790,14 @@ if __name__ == "__main__":
         print(f'Invalid input, low letter {letter_low} is not preceding high letter {letter_high}!')
         sys.exit()
     if letter_low == ' ' and letter_high == ' ':
-        regex_filter_url = fr'^[a-z0-9\-\_]'
+        regex_filter_media = fr'^[a-z0-9\-\_]'
+        regex_filter_channel = fr'^UC[a-z0-9\-\_]'
     elif letter_low == '0' and letter_high == '9':
-        regex_filter_url = fr'^[{letter_low}-{letter_high}\-\_]'
+        regex_filter_media = fr'^[{letter_low}-{letter_high}\-\_]'
+        regex_filter_channel = fr'^UC[{letter_low}-{letter_high}\-\_]'
     else:
-        regex_filter_url = fr'^[{letter_low}-{letter_high}]'
+        regex_filter_media = fr'^[{letter_low}-{letter_high}]'
+        regex_filter_channel = fr'^UC[{letter_low}-{letter_high}]'
 
     '''Parse mode'''
     if not args.mode:
@@ -3785,9 +3806,9 @@ if __name__ == "__main__":
               f'no operating mode was set. Running in user interactive mode!')
         while True:
             add_subscriptions()
-            update_subscriptions()
+            update_subscriptions(regex_channel_url=regex_filter_channel)
             download_all_media(status_values=status_values)
-            verify_fresh_media(regex_filter_url=regex_filter_url)
+            verify_fresh_media(regex_media_url=regex_filter_media)
             juggle_verified_media()
 
     elif len(args.mode) == 1:
@@ -3802,7 +3823,7 @@ if __name__ == "__main__":
             print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
                   f'Monitor Subscriptions')
             while True:
-                update_subscriptions()
+                update_subscriptions(regex_channel_url=regex_filter_channel)
 
         elif args.mode == 'D':
             print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
@@ -3815,7 +3836,7 @@ if __name__ == "__main__":
                   f'Verify Files')
 
             while True:
-                verify_fresh_media(regex_filter_url=regex_filter_url)
+                verify_fresh_media(regex_media_url=regex_filter_media)
 
         elif args.mode == 'J':
             print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
