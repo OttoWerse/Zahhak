@@ -1857,7 +1857,7 @@ def get_media_from_db(database, status=STATUS['wanted'], regex_media_url=fr'^[a-
     return mysql_result
 
 
-def download_all_media(status_values, enable_reselect_new_media=False):
+def download_all_media(status_values):
     global GEO_BLOCKED_vpn_countries
     global vpn_frequency
 
@@ -1904,7 +1904,7 @@ def download_all_media(status_values, enable_reselect_new_media=False):
                           f'to downloading {text_color}"{media_status}"{Style.RESET_ALL} media!')
                 old_media_status = media_status
 
-                if (enable_reselect_new_media and timestamp_distance.seconds > select_newest_media_frequency):
+                if media_status is STATUS['wanted'] and timestamp_distance.seconds > select_newest_media_frequency:
                     timestamp_old = timestamp_now
                     new_media = []
                     database = connect_database()
@@ -2535,6 +2535,7 @@ def update_subscriptions(regex_channel_url=fr'^UC[a-z0-9\-\_]'):
     database_playlists = get_database_playlist_names(database=database)
     filtered_channels = get_monitored_channels_from_db(database=database, regex_channel_url=regex_channel_url)
 
+    # TODO: Not reconnecting DB every channel may lead to issue where stuck at messages "Database connection unavailable"
     for current_channel in filtered_channels:
         current_channel_site = current_channel[0]
         current_channel_id = current_channel[1]
