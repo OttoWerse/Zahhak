@@ -1880,10 +1880,11 @@ def download_all_media(status_values):
         old_media_status = ''
         timestamp_old = datetime.now()
         media_counter = 0
-        refresh_media_list = False
+        break_for_loop = False
+
         for current_media in all_media:
             media_downloaded = False
-            while not media_downloaded and not refresh_media_list:
+            while not media_downloaded:
                 timestamp_now = datetime.now()
                 timestamp_distance = timestamp_now - timestamp_old
                 media_counter += 1
@@ -1904,21 +1905,24 @@ def download_all_media(status_values):
                           f'to downloading {text_color}"{media_status}"{Style.RESET_ALL} media!')
                 old_media_status = media_status
 
-                if media_status is STATUS['wanted'] and timestamp_distance.seconds > select_newest_media_frequency:
+                if timestamp_distance.seconds > select_newest_media_frequency:
                     timestamp_old = timestamp_now
-                    new_media = []
-                    database = connect_database()
+                    if media_status == STATUS['wanted']:
+                        new_media = []
+                        database = connect_database()
 
-                    for current_status in status_values:
-                        # text_color = get_text_color_for_media_status(media_status=current_status)
-                        media = get_media_from_db(database=database,
-                                                  status=current_status)
-                        new_media.extend(media)
+                        for current_status in status_values:
+                            # text_color = get_text_color_for_media_status(media_status=current_status)
+                            media = get_media_from_db(database=database,
+                                                      status=current_status)
+                            new_media.extend(media)
 
-                    if len(new_media) > 0:
-                        refresh_media_list = True
-                        # This by itself only breaks the INNER loop (while not downloaded)
-                        break
+                        if len(new_media) > 0:
+                            text_color = get_text_color_for_media_status(media_status=media_status)
+                            print(f'{timestamp_now} {Fore.CYAN}REFRESHING{Style.RESET_ALL} '
+                                  f'{text_color}"{media_status}"{Style.RESET_ALL} media list!')
+                            break_for_loop = True
+                            break
 
                 vpn_counter_geo = 0
                 GEO_BLOCKED_vpn_countries = []
@@ -1935,8 +1939,8 @@ def download_all_media(status_values):
                         # To break endless loop
                         if vpn_counter_geo == 0:
                             continue
-            # To break out of nested loop
-            if refresh_media_list:
+
+            if break_for_loop:
                 break
 
 
