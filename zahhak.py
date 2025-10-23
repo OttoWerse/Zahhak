@@ -9,6 +9,7 @@ import shutil
 import sys
 import time
 from datetime import datetime
+from faulthandler import enable
 from subprocess import STDOUT, check_output, Popen, PIPE
 
 import lxml.builder
@@ -31,8 +32,6 @@ mysql_user = os.getenv('ZAHHAK_MYSQL_USERNAME', 'admin')
 mysql_password = os.getenv('ZAHHAK_MYSQL_PASSWORD', 'admin')
 
 '''Variables'''
-# Enable or disable VPN reconnect functionality
-enable_vpn = True
 # Frequency to reconnect VPN (in seconds)
 sleep_time_vpn = 10
 # How often to retry connecting to a VPN country before giving up
@@ -1147,7 +1146,7 @@ def get_media_details_from_youtube(media_id, ignore_errors, archive_set):
             if regex_bot.search(str(e)):
                 print(f'{datetime.now()} {Fore.RED}BOT DETECTED{Style.RESET_ALL}')
                 vpn_frequency = DEFAULT_vpn_frequency
-                local_vpn_counter = reconnect_vpn(counter=local_vpn_counter, vpn_countries=None)
+                local_vpn_counter = reconnect_vpn(counter=local_vpn_counter)
 
             else:
                 # print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while getting details for media "{media_id}": {e}')
@@ -1750,7 +1749,7 @@ def sanitize_name(name, is_user=False):
     return name_sane
 
 
-def reconnect_vpn(counter, vpn_countries=None):
+def reconnect_vpn(counter=None, vpn_countries=None):
     """Reconnects NordVPN to a random country from list"""
     if enable_vpn:
         time_difference = (datetime.now() - vpn_timestamp).total_seconds()
@@ -2124,24 +2123,24 @@ def download_media(media):
         except Exception as exception_download:
             if regex_error_http_403.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}IP BANNED{Style.RESET_ALL} while downloading media "{media_id}"')
-                reconnect_vpn(counter=None, vpn_countries=None)
+                reconnect_vpn()
                 return False
 
             elif regex_bot.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}BOT DETECTED{Style.RESET_ALL} while downloading media "{media_id}"')
-                reconnect_vpn(counter=None, vpn_countries=None)
+                reconnect_vpn()
                 return False
 
             elif regex_error_get_addr_info.search(str(exception_download)):
                 print(
                     f'{datetime.now()} {Fore.RED}GET ADDR INFO FAILED{Style.RESET_ALL} while downloading media "{media_id}"')
-                reconnect_vpn(counter=None, vpn_countries=None)
+                reconnect_vpn()
                 return False
 
             elif regex_media_format_unavailable.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}FORMAT UNAVAILABLE{Style.RESET_ALL} '
                       f'while downloading media "{media_id}"')
-                reconnect_vpn(counter=None, vpn_countries=None)
+                reconnect_vpn()
                 return False
 
             elif regex_json_write.search(str(exception_download)):
@@ -2154,7 +2153,7 @@ def download_media(media):
                 print(f'{datetime.now()} {Fore.RED}WIN ERROR 5{Style.RESET_ALL} '
                       f'while downloading media "{media_id}"')
                 clear_temp_dir(media_status=media_status)
-                reconnect_vpn(counter=None, vpn_countries=None)
+                reconnect_vpn()
                 return False
                 # TODO: IDK if we can recover from this error, it seems like once it comes up, it stays until full program restart
                 # sys.exit()
@@ -2163,7 +2162,7 @@ def download_media(media):
                 print(f'{datetime.now()} {Fore.RED}WIN ERROR 32{Style.RESET_ALL} '
                       f'while downloading media "{media_id}"')
                 clear_temp_dir(media_status=media_status)
-                reconnect_vpn(counter=None, vpn_countries=None)
+                reconnect_vpn()
                 return False
                 # TODO: IDK if we can recover from this error, it seems like once it comes up, it stays until full program restart
                 # sys.exit()
@@ -2172,7 +2171,7 @@ def download_media(media):
                 print(f'{datetime.now()} {Fore.RED}WIN ERROR 10054{Style.RESET_ALL} '
                       f'while downloading media "{media_id}"')
                 clear_temp_dir(media_status=media_status)
-                reconnect_vpn(counter=None, vpn_countries=None)
+                reconnect_vpn()
                 return False
                 # TODO: IDK if we can recover from this error, it seems like once it comes up, it stays until full program restart
                 # sys.exit()
@@ -2566,7 +2565,7 @@ def update_subscriptions(regex_channel_url=fr'^UC[a-z0-9\-\_]'):
 
             if missing_media_channel is None:
                 if counter_process_channel % retry_channel_before_reconnecting_vpn == 0:
-                    vpn_counter = reconnect_vpn(counter=vpn_counter, vpn_countries=None)
+                    vpn_counter = reconnect_vpn(counter=vpn_counter)
                     vpn_timestamp = datetime.now()
                 if counter_process_channel > retry_channel_before_ignoring_errors:
                     ignore_errors_channel = True
@@ -2630,7 +2629,7 @@ def update_subscriptions(regex_channel_url=fr'^UC[a-z0-9\-\_]'):
 
                             if missing_media_playlist is None:
                                 if counter_process_playlist % retry_playlist_before_reconnecting_vpn == 0:
-                                    vpn_counter = reconnect_vpn(counter=vpn_counter, vpn_countries=None)
+                                    vpn_counter = reconnect_vpn(counter=vpn_counter)
                                     vpn_timestamp = datetime.now()
                                 if counter_process_playlist > retry_playlist_before_ignoring_errors:
                                     ignore_errors_playlist = True
@@ -3731,6 +3730,10 @@ def verify_fresh_media(status=STATUS['fresh'], regex_media_url=fr'^[a-z0-9\-\_]'
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Zahhak")
 
+    parser.add_argument("--vpn",
+                        help="Enable VPN reconnecting for this instance",
+                        action=argparse.BooleanOptionalAction, )
+
     parser.add_argument("--mode",
                         choices=('A', 'M', 'D', 'V', 'J'),
                         help="'A' for Add Subscriptions, "
@@ -3767,6 +3770,12 @@ if __name__ == "__main__":
 
     # Skips ALL processing of known media to speed up skript
     create_download_archive()
+
+    '''Parse enable VPN'''
+    if args.vpn:
+        enable_vpn = True
+    else:
+        enable_vpn = False
 
     '''Parse status values for download'''
     if args.status:
