@@ -37,7 +37,7 @@ sleep_time_vpn = 10
 # How often to retry connecting to a VPN country before giving up
 retry_reconnect_new_vpn_node = 5
 # Frequency to check if switch from downloading secondary to primary media is needed (in seconds)
-select_newest_media_frequency = 300
+select_newest_media_frequency = 900
 # How long to wait after all verified media has been moved into final directory
 sleep_time_move_in = 300
 # Create a NFO file with data needed for presentation in Jellyfin/Emby
