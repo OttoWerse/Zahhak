@@ -1979,6 +1979,7 @@ def download_media(media):
         # print(f'Path for media "{media_site} {media_id}": {full_path}')
 
         media_url = f'https://www.youtube.com/watch?v={media_id}'
+        temp_dir_path = os.path.join(directory_download_temp, f'{media_status} {letter_low}-{letter_high}')
 
         # Set download options for YT-DLP
         media_download_options = {
@@ -2016,7 +2017,7 @@ def download_media(media):
             'subtitleslangs': ['de-orig', 'en-orig'],
             'outtmpl': full_path,
             'paths': {
-                'temp': os.path.join(directory_download_temp, media_status),
+                'temp': temp_dir_path,
                 'home': directory_download_home,
             },
             'postprocessors': [
@@ -2323,7 +2324,7 @@ def download_media(media):
 
 def clear_temp_dir(media_status):
     """Clears the download temp directory"""
-    temp_dir_path = os.path.join(directory_download_temp, media_status)
+    temp_dir_path = os.path.join(directory_download_temp, f'{media_status} {letter_low}-{letter_high}')
 
     try:
         print(f'{datetime.now()} {Fore.CYAN}DELETING TEMP DIRECTORY{Style.RESET_ALL} {temp_dir_path}',
@@ -2336,6 +2337,9 @@ def clear_temp_dir(media_status):
     except Exception as exception_clear_temp:
         if not regex_error_win_2.search(str(exception_clear_temp)):
             print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} {exception_clear_temp}')
+        else:
+            print(f'{datetime.now()} {Fore.CYAN}NO SUCH TEMP DIRECTORY{Style.RESET_ALL} {temp_dir_path} ',
+                  end='\n')
 
 
 def get_monitored_playlists_from_db():
