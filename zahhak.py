@@ -1856,7 +1856,7 @@ def get_media_from_db(database, status=STATUS['wanted'], regex_media_url=fr'^[a-
     return mysql_result
 
 
-def download_all_media(status_values):
+def download_all_media(status_values, regex_media_url=fr'^[a-z0-9\-\_]'):
     global GEO_BLOCKED_vpn_countries
     global vpn_frequency
 
@@ -1868,7 +1868,8 @@ def download_all_media(status_values):
     for current_status in status_values:
         # text_color = get_text_color_for_media_status(media_status=current_status)
         media = get_media_from_db(database=database,
-                                  status=current_status)
+                                  status=current_status,
+                                  regex_media_url=regex_media_url)
         all_media.extend(media)
 
     if len(all_media) == 0:
@@ -1913,7 +1914,8 @@ def download_all_media(status_values):
                         for current_status in status_values:
                             # text_color = get_text_color_for_media_status(media_status=current_status)
                             media = get_media_from_db(database=database,
-                                                      status=current_status)
+                                                      status=current_status,
+                                                      regex_media_url=regex_media_url)
                             new_media.extend(media)
 
                         if len(new_media) > 0:
@@ -3825,7 +3827,7 @@ if __name__ == "__main__":
         while True:
             add_subscriptions()
             update_subscriptions(regex_channel_url=regex_filter_channel)
-            download_all_media(status_values=status_values)
+            download_all_media(status_values=status_values, regex_media_url=regex_filter_media)
             verify_fresh_media(regex_media_url=regex_filter_media)
             juggle_verified_media()
 
@@ -3847,7 +3849,7 @@ if __name__ == "__main__":
             print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
                   f'Download Media')
             while True:
-                download_all_media(status_values=status_values)
+                download_all_media(status_values=status_values, regex_media_url=regex_filter_media)
 
         elif args.mode == 'V':
             print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
