@@ -1981,7 +1981,12 @@ def download_media(media):
         # print(f'Path for media "{media_site} {media_id}": {full_path}')
 
         media_url = f'https://www.youtube.com/watch?v={media_id}'
-        temp_dir_path = os.path.join(directory_download_temp, f'{media_status} {letter_low}-{letter_high}')
+
+        # TODO: This code is duplicated and should be a method or just an attribute of the downloader (limit 1 status)
+        if letter_low == ' ' and letter_high == ' ':
+            temp_dir_path = os.path.join(directory_download_temp, f'{media_status}')
+        else:
+            temp_dir_path = os.path.join(directory_download_temp, f'{media_status} {letter_low}-{letter_high}')
 
         # Set download options for YT-DLP
         media_download_options = {
@@ -2326,7 +2331,12 @@ def download_media(media):
 
 def clear_temp_dir(media_status):
     """Clears the download temp directory"""
-    temp_dir_path = os.path.join(directory_download_temp, f'{media_status} {letter_low}-{letter_high}')
+
+    # TODO: This code is duplicated and should be a method or just an attribute of the downloader (limit 1 status)
+    if letter_low == ' ' and letter_high == ' ':
+        temp_dir_path = os.path.join(directory_download_temp, f'{media_status}')
+    else:
+        temp_dir_path = os.path.join(directory_download_temp, f'{media_status} {letter_low}-{letter_high}')
 
     try:
         print(f'{datetime.now()} {Fore.CYAN}DELETING TEMP DIRECTORY{Style.RESET_ALL} {temp_dir_path}',
