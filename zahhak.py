@@ -3691,33 +3691,27 @@ def verify_fresh_media(status=STATUS['fresh'], regex_media_url=fr'^[a-z0-9\-\_]'
     return
 
 
-def enrich_database():
-    """
-
-    :return:
-    """
-    dry_run = True  # TODO: parameterize, etc.!
-
+def migrate_to_status_done(dry_run=True):
     # Check current time for calculating time it took
     timestamp_start = datetime.now()
     # Connect Database
     database = connect_database()
-    done_media = get_media_from_db(
+    media_to_migrate = get_media_from_db(
         database=database,
-        status=STATUS['done'],
+        status=STATUS['verified'],
     )
-    done_media_count = len(done_media)
+    count_media_to_migrate = len(media_to_migrate)
     # Check dry run
     if dry_run:
         type_of_run = 'DRY RUN'
-        print(f'{datetime.now()} {Fore.YELLOW}{type_of_run}{Style.RESET_ALL} for {done_media_count} media...')
+        print(f'{datetime.now()} {Fore.YELLOW}{type_of_run}{Style.RESET_ALL} for {count_media_to_migrate} media...')
     else:
         type_of_run = 'MIGRATION'
-        print(f'{datetime.now()} {Fore.CYAN}{type_of_run}{Style.RESET_ALL} for {done_media_count} media...')
+        print(f'{datetime.now()} {Fore.CYAN}{type_of_run}{Style.RESET_ALL} for {count_media_to_migrate} media...')
     # Reset error count
     errors = 0
     # Start migration/dry run
-    for current_media in done_media:
+    for current_media in media_to_migrate:
         media_site = current_media[0]
         media_id = current_media[1]
         media_available_date = current_media[2]
@@ -3727,7 +3721,145 @@ def enrich_database():
         channel_id = current_media[6]
         playlist_name = current_media[7]
         playlist_id = current_media[8]
+        '''MP4 Check'''
+        # Get MP4
+        path_mp4 = media_save_path
+        # Check MP4 exists
+        if not os.path.exists(path_mp4):
+            print(f'{datetime.now()} {Fore.RED}MISSING MP4{Style.RESET_ALL} {os.path.basename(path_mp4)}')
+            errors += 1
+            continue
+        '''JSON Check'''
+        # Get JSON
+        path_json = media_save_path
+        try:
+            path_json = re.sub(regex_mp4, '.info.json', path_json)
+        except KeyboardInterrupt:
+            sys.exit()
+        except Exception as exception:
+            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} forming path for JSON "{path_json}": '
+                  f'{exception}')
+            errors += 1
+            continue
+        # Check JSON exists
+        if not os.path.exists(path_json):
+            print(f'{datetime.now()} {Fore.RED}MISSING JSON{Style.RESET_ALL} {os.path.basename(path_json)}')
+            errors += 1
+            continue
+        # Open JSON
+        with io.open(path_json, 'r', encoding='utf-8-sig') as json_txt:
+            try:
+                json_obj = json.load(json_txt)
+                json_site = json_obj['extractor']
+                json_id = json_obj['id']
+            except KeyboardInterrupt:
+                sys.exit()
+            except Exception as exception:
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} reading site/id in JSON "{path_json}": '
+                      f'{exception}')
+                errors += 1
+                continue
+            # Check if JSON contains same ID as Database.
+            if json_id != media_id:
+                print(f'{datetime.now()} {Fore.RED}ID MISMATCH{Style.RESET_ALL} {json_id} =|= {media_id}')
+                errors += 1
+                continue
+        '''NFO Check'''
+        # Get NFO
+        path_nfo = media_save_path
+        try:
+            path_nfo = re.sub(regex_mp4, '.nfo', path_nfo)
+        except KeyboardInterrupt:
+            sys.exit()
+        except Exception as exception:
+            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} forming path for NFO "{path_nfo}": '
+                  f'{exception}')
+            errors += 1
+            continue
+        # Check NFO exists
+        if not os.path.exists(path_nfo):
+            print(f'{datetime.now()} {Fore.RED}MISSING NFO{Style.RESET_ALL} {os.path.basename(path_nfo)}')
+            errors += 1
+            continue
+        '''PNG Check'''
+        # Get PNG
+        path_png = media_save_path
+        try:
+            path_png = re.sub(regex_mp4, '.nfo', path_png)
+        except KeyboardInterrupt:
+            sys.exit()
+        except Exception as exception:
+            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} forming path for PNG "{path_png}": '
+                  f'{exception}')
+            errors += 1
+            continue
+        # Check PNG exists
+        if not os.path.exists(path_png):
+            print(f'{datetime.now()} {Fore.RED}MISSING PNG{Style.RESET_ALL} {os.path.basename(path_png)}')
+            errors += 1
+            continue
+        '''Log'''
+        print(f'{datetime.now()} {Fore.CYAN}MEDIA{Style.RESET_ALL} "{json_site} {json_id}" will be updated')
+        '''Write information to Database'''
+        if not dry_run:
+            try:
+                update_media_status(json_site, json_id, STATUS['done'], database)
+            except KeyboardInterrupt:
+                sys.exit()
+            except Exception as exception:
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} updating database for media '
+                      f'"{json_site} {json_id}": {exception}')
+                errors += 1
+                continue
+    '''Final steps'''
+    # Calculate time it took
+    timestamp_end = datetime.now()
+    timestamp_distance = timestamp_end - timestamp_start
+    duration_minutes = timestamp_distance.seconds / 60
+    # Check for errors
+    if errors > 0:
+        color = Fore.RED
+    else:
+        color = Fore.GREEN
+    # Print final message
+    print(f'{datetime.now()} {color}FINISHED {type_of_run}{Style.RESET_ALL} '
+          f'with {color}{errors} ERRORS{Style.RESET_ALL} '
+          f'took {duration_minutes} minutes to process {count_media_to_migrate - errors}/{count_media_to_migrate} media items.')
 
+
+def enrich_database_with_media_information(dry_run=True):
+    """
+        Adds the resolution, codec and file size to the database (after scheme has already been migrated manually!)
+    """
+    # Check current time for calculating time it took
+    timestamp_start = datetime.now()
+    # Connect Database
+    database = connect_database()
+    media_to_migrate = get_media_from_db(
+        database=database,
+        status=STATUS['done'],
+    )
+    count_media_to_migrate = len(media_to_migrate)
+    # Check dry run
+    if dry_run:
+        type_of_run = 'DRY RUN'
+        print(f'{datetime.now()} {Fore.YELLOW}{type_of_run}{Style.RESET_ALL} for {count_media_to_migrate} media...')
+    else:
+        type_of_run = 'MIGRATION'
+        print(f'{datetime.now()} {Fore.CYAN}{type_of_run}{Style.RESET_ALL} for {count_media_to_migrate} media...')
+    # Reset error count
+    errors = 0
+    # Start migration/dry run
+    for current_media in media_to_migrate:
+        media_site = current_media[0]
+        media_id = current_media[1]
+        media_available_date = current_media[2]
+        media_status = current_media[3]
+        media_save_path = os.path.join(directory_final, current_media[4])
+        channel_name = current_media[5]
+        channel_id = current_media[6]
+        playlist_name = current_media[7]
+        playlist_id = current_media[8]
         '''MP4 Information'''
         # Get MP4
         path_mp4 = media_save_path
@@ -3746,7 +3878,6 @@ def enrich_database():
                   f'{exception}')
             errors += 1
             continue
-
         '''JSON Information'''
         # Get JSON
         path_json = media_save_path
@@ -3795,7 +3926,6 @@ def enrich_database():
                       f'{exception}')
                 errors += 1
                 continue
-
             # TODO: Do we need the JSON file size at all? I'd say MP4 filesize is the perfect measure for existing files
             #  JSON should only be relevant for files NOT yet downloaded (to preview size on Disk etc.)
             # '''Compare JSON and MP4 information'''
@@ -3803,10 +3933,9 @@ def enrich_database():
             #    print(f'{datetime.now()} {Fore.RED}SIZE MISMATCH{Style.RESET_ALL} {json_filesize} =|= {mp4_filesize}')
             #    errors += 1
             #    continue
-
+            '''Log'''
             print(f'{datetime.now()} {Fore.CYAN}MEDIA{Style.RESET_ALL} "{json_site} {json_id}" with details '
                   f'{json_height}x{json_width}@{json_vcodec}={json_filesize}/{mp4_filesize}')
-
             '''Write information to Database'''
             if not dry_run:
                 try:
@@ -3838,7 +3967,7 @@ def enrich_database():
     # Print final message
     print(f'{datetime.now()} {color}FINISHED {type_of_run}{Style.RESET_ALL} '
           f'with {color}{errors} ERRORS{Style.RESET_ALL} '
-          f'took {duration_minutes} minutes to process {done_media_count - errors}/{done_media_count} media items.')
+          f'took {duration_minutes} minutes to process {count_media_to_migrate - errors}/{count_media_to_migrate} media items.')
 
 
 if __name__ == "__main__":
@@ -3976,7 +4105,8 @@ if __name__ == "__main__":
         elif args.mode == 'X':
             print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
                   f'Experimental')
-            enrich_database()
+            enrich_database_with_media_information()
+            migrate_to_status_done()
 
         else:
             print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: '
