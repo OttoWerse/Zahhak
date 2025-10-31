@@ -405,60 +405,6 @@ GEO_BLOCKED_vpn_frequency = 30
 vpn_frequency = DEFAULT_vpn_frequency
 
 
-class Playlist:
-    def __init__(self, url_site, url_id, db_name):
-        self.url_site = url_site
-        self.url_id = url_id
-        self.db_name = db_name
-
-    def __eq__(self, other):
-        if not isinstance(other, Playlist):
-            return NotImplemented
-        else:
-            same = True
-            if not self.url_site == other.url_site:
-                same = False
-            if not self.url_id == other.url_id:
-                same = False
-            return same
-
-
-class Channel:
-    def __init__(self, url_site, url_id, db_name):
-        self.url_site = url_site
-        self.url_id = url_id
-        self.db_name = db_name
-
-    def __eq__(self, other):
-        if not isinstance(other, Channel):
-            return NotImplemented
-        else:
-            same = True
-            if not self.url_site == other.url_site:
-                same = False
-            if not self.url_id == other.url_id:
-                same = False
-            return same
-
-
-class MediaItem:
-    def __init__(self, url_site, url_id, media_type):
-        self.url_site = url_site
-        self.url_id = url_id
-        self.media_type = media_type
-
-    def __eq__(self, other):
-        if not isinstance(other, MediaItem):
-            return NotImplemented
-        else:
-            same = True
-            if not self.url_site == other.url_site:
-                same = False
-            if not self.url_id == other.url_id:
-                same = False
-            return same
-
-
 # TODO: Look into using logger, progress_hooks, progress (https://github.com/yt-dlp/yt-dlp/issues/66) effectively!
 class VoidLogger:
     def debug(self, msg):
@@ -3881,7 +3827,7 @@ def enrich_database():
     '''Final steps'''
     # Calculate time it took
     timestamp_end = datetime.now()
-    timestamp_distance = timestamp_start - timestamp_end
+    timestamp_distance = timestamp_end - timestamp_start
     duration_minutes = timestamp_distance.seconds / 60
     # Check for errors
     if errors > 0:
