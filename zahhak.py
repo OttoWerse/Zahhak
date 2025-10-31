@@ -3799,7 +3799,8 @@ def migrate_to_status_done(dry_run=True):
             errors += 1
             continue
         '''Log'''
-        print(f'{datetime.now()} {Fore.CYAN}MEDIA{Style.RESET_ALL} "{json_site} {json_id}" will be updated')
+        print(f'{datetime.now()} {Fore.CYAN}MEDIA{Style.RESET_ALL} "{json_site} {json_id}" will be updated',
+              end='\r')
         '''Write information to Database'''
         if not dry_run:
             try:
@@ -3933,9 +3934,9 @@ def enrich_database_with_media_information(dry_run=True):
             #    print(f'{datetime.now()} {Fore.RED}SIZE MISMATCH{Style.RESET_ALL} {json_filesize} =|= {mp4_filesize}')
             #    errors += 1
             #    continue
-            '''Log'''
             print(f'{datetime.now()} {Fore.CYAN}MEDIA{Style.RESET_ALL} "{json_site} {json_id}" with details '
-                  f'{json_height}x{json_width}@{json_vcodec}={json_filesize}/{mp4_filesize}')
+                  f'{json_height}x{json_width}@{json_vcodec}={json_filesize}/{mp4_filesize}                 ',
+                  end='\r')
             '''Write information to Database'''
             if not dry_run:
                 try:
