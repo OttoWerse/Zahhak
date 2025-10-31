@@ -3808,7 +3808,7 @@ def enrich_database():
                 errors += 1
                 continue
 
-            if json_id == media_id:
+            if json_id != media_id:
                 print(f'{datetime.now()} {Fore.RED}ID MISMATCH{Style.RESET_ALL} {json_id} =|= {media_id}')
                 errors += 1
                 continue
