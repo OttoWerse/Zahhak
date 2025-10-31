@@ -3804,7 +3804,10 @@ def migrate_to_status_done(dry_run=True):
         '''Write information to Database'''
         if not dry_run:
             try:
-                update_media_status(json_site, json_id, STATUS['done'], database)
+                update_media_status(media_site=json_site,
+                                    media_id=json_id,
+                                    media_status=STATUS['done'],
+                                    database=database)
             except KeyboardInterrupt:
                 sys.exit()
             except Exception as exception:
