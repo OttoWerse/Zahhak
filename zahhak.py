@@ -3743,6 +3743,82 @@ def verify_fresh_media(status=STATUS['fresh'], regex_media_url=fr'^[a-z0-9\-\_]'
     return
 
 
+def enrich_database():
+    database = connect_database()
+    done_media = get_media_from_db(
+        database=database,
+        status=STATUS['done'],
+    )
+    print(len(done_media))
+
+    for current_media in done_media:
+        media_site = current_media[0]
+        media_id = current_media[1]
+        media_available_date = current_media[2]
+        media_status = current_media[3]
+        media_save_path = current_media[4]
+        channel_name = current_media[5]
+        channel_id = current_media[6]
+        playlist_name = current_media[7]
+        playlist_id = current_media[8]
+
+        path_json = re.sub(regex_mp4, '.info.json', media_save_path)
+
+        if not os.path.exists(path_json):
+            print(f'{datetime.now()} {Fore.RED}MISSING JSON{Style.RESET_ALL} {os.path.basename(path_json)}')
+            return False
+
+        with io.open(path_json, 'r', encoding='utf-8-sig') as json_txt:
+            try:
+                json_obj = json.load(json_txt)
+                json_site = json_obj['site']
+                json_id = json_obj['id']
+            except KeyboardInterrupt:
+                sys.exit()
+            except Exception as exception:
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} reading site/id in JSON "{path_json}": '
+                      f'{exception}')
+                return False
+
+            if json_id == media_id:
+                input(f'{datetime.now()} {Fore.RED}ID MISMATCH{Style.RESET_ALL} {json_id} =|= {media_id} '
+                      f'aborting migration!')
+                sys.exit()
+
+            try:
+                # Read resolution, codec, size
+                json_height = json_obj['height']
+                json_width = json_obj['width']
+                json_vcodec = json_obj['vcodec']
+                json_filesize = json_obj['filesize_approx']
+
+                print(f'{datetime.now()} {Fore.CYAN}MEDIA{Style.RESET_ALL} "{json_site} {json_id}" with details '
+                      f'{json_height}x{json_width}@{json_vcodec}={json_filesize}')
+            except KeyboardInterrupt:
+                sys.exit()
+            except Exception as exception:
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} reading details in JSON "{path_json}": '
+                      f'{exception}')
+                return False
+
+            # TODO: Change DB scheme and check everything works etc.
+            if False:
+                try:
+                    mysql_cursor = database.cursor()
+                    sql = ("UPDATE videos set res_height = %s, res_width = %s, codec = %s, filesize = %s "
+                           "WHERE site = %s "
+                           "AND url = %s, );")
+                    val = (json_height, json_width, json_vcodec, json_filesize, media_site, media_id)
+                    mysql_cursor.execute(sql, val)
+                    database.commit()
+                except KeyboardInterrupt:
+                    sys.exit()
+                except Exception as exception:
+                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} updating database for media '
+                          f'"{json_site} {json_id}": {exception}')
+                    return False
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Zahhak")
 
@@ -3751,12 +3827,13 @@ if __name__ == "__main__":
                         action=argparse.BooleanOptionalAction, )
 
     parser.add_argument("--mode",
-                        choices=('A', 'M', 'D', 'V', 'J'),
+                        choices=('A', 'M', 'D', 'V', 'J', 'X'),
                         help="'A' for Add Subscriptions, "
                              "'M' for Monitor Subscriptions, "
                              "'D' for Download Media, "
                              "'V' for Verify Files, "
                              "'J' for Juggle Files, "
+                             "'X' for Experimental (DO NOT USE!!!), "
                              "EMPTY to run in serial mode. ",
                         type=str,
                         required=False, )
@@ -3873,6 +3950,11 @@ if __name__ == "__main__":
                   f'Juggle Files')
             while True:
                 juggle_verified_media()
+
+        elif args.mode == 'X':
+            print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
+                  f'Experimental')
+            enrich_database()
 
         else:
             print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: '
