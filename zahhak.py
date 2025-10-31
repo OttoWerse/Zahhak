@@ -2969,6 +2969,8 @@ def juggle_verified_media():
     """
     Move in verified files
     """
+
+    # TODO: These sorts of checks need to happen somewhere centrally instead of within methods!
     if directory_final is None:
         print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} final directory not set!')
         sys.exit()
@@ -3790,7 +3792,7 @@ def enrich_database():
         with io.open(path_json, 'r', encoding='utf-8-sig') as json_txt:
             try:
                 json_obj = json.load(json_txt)
-                json_site = json_obj['site']
+                json_site = json_obj['extractor']
                 json_id = json_obj['id']
             except KeyboardInterrupt:
                 sys.exit()
