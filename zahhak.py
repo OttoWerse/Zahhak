@@ -3708,10 +3708,12 @@ def migrate_to_status_done(dry_run=True):
     else:
         type_of_run = 'MIGRATION'
         print(f'{datetime.now()} {Fore.CYAN}{type_of_run}{Style.RESET_ALL} for {count_media_to_migrate} media...')
-    # Reset error count
+    # Reset error and counter
     errors = 0
+    counter = 0
     # Start migration/dry run
     for current_media in media_to_migrate:
+        counter += 1
         media_site = current_media[0]
         media_id = current_media[1]
         media_available_date = current_media[2]
@@ -3800,7 +3802,8 @@ def migrate_to_status_done(dry_run=True):
             errors += 1
             continue
         '''Log'''
-        print(f'{datetime.now()} {Fore.CYAN}MEDIA{Style.RESET_ALL} "{json_site} {json_id}" will be updated',
+        print(f'{datetime.now()} {Fore.CYAN}MEDIA{Style.RESET_ALL} ({counter}/{count_media_to_migrate}) '
+              f'"{json_site} {json_id}" will be updated',
               end='\r')
         '''Write information to Database'''
         if not dry_run:
@@ -3852,10 +3855,12 @@ def enrich_database_with_media_information(dry_run=True):
     else:
         type_of_run = 'MIGRATION'
         print(f'{datetime.now()} {Fore.CYAN}{type_of_run}{Style.RESET_ALL} for {count_media_to_migrate} media...')
-    # Reset error count
+    # Reset error and counter
     errors = 0
+    counter = 0
     # Start migration/dry run
     for current_media in media_to_migrate:
+        counter += 1
         media_site = current_media[0]
         media_id = current_media[1]
         media_available_date = current_media[2]
@@ -3939,8 +3944,9 @@ def enrich_database_with_media_information(dry_run=True):
             #    print(f'{datetime.now()} {Fore.RED}SIZE MISMATCH{Style.RESET_ALL} {json_filesize} =|= {mp4_filesize}')
             #    errors += 1
             #    continue
-            print(f'{datetime.now()} {Fore.CYAN}MEDIA{Style.RESET_ALL} "{json_site} {json_id}" with details '
-                  f'{json_height}x{json_width}@{json_vcodec}={json_filesize}/{mp4_filesize}                 ',
+            print(f'{datetime.now()} {Fore.CYAN}MEDIA{Style.RESET_ALL} ({counter}/{count_media_to_migrate}) '
+                  f'"{json_site} {json_id}" with details {json_height}x{json_width}@{json_vcodec} '
+                  f'file size {json_filesize}/{mp4_filesize} ',
                   end='\r')
             '''Write information to Database'''
             if not dry_run:
