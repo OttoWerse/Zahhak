@@ -3750,14 +3750,20 @@ def enrich_database():
 
     :return:
     """
-    errors = 0
+    dry_run = True # TODO: parameterize, etc.!
+
     database = connect_database()
     done_media = get_media_from_db(
         database=database,
         status=STATUS['done'],
     )
-    print(len(done_media))
 
+    if dry_run:
+        print(f'{datetime.now()} {Fore.YELLOW}TESTING MIGRATION{Style.RESET_ALL} for {len(done_media)} media...')
+    else:
+        print(f'{datetime.now()} {Fore.CYAN}MIGRATING{Style.RESET_ALL} {len(done_media)} media...')
+
+    errors = 0
     for current_media in done_media:
         media_site = current_media[0]
         media_id = current_media[1]
@@ -3825,7 +3831,7 @@ def enrich_database():
                 continue
 
             # TODO: Change DB scheme and check everything works etc.
-            if False:
+            if not dry_run:
                 try:
                     mysql_cursor = database.cursor()
                     sql = ("UPDATE videos set res_height = %s, res_width = %s, codec = %s, filesize = %s "
