@@ -3706,13 +3706,14 @@ def enrich_database():
         database=database,
         status=STATUS['done'],
     )
+    done_media_count = len(done_media)
     # Check dry run
     if dry_run:
         type_of_run = 'DRY RUN'
-        print(f'{datetime.now()} {Fore.YELLOW}{type_of_run}{Style.RESET_ALL} for {len(done_media)} media...')
+        print(f'{datetime.now()} {Fore.YELLOW}{type_of_run}{Style.RESET_ALL} for {done_media_count} media...')
     else:
         type_of_run = 'MIGRATION'
-        print(f'{datetime.now()} {Fore.CYAN}{type_of_run}{Style.RESET_ALL} for {len(done_media)} media...')
+        print(f'{datetime.now()} {Fore.CYAN}{type_of_run}{Style.RESET_ALL} for {done_media_count} media...')
     # Reset error count
     errors = 0
     # Start migration/dry run
@@ -3831,11 +3832,13 @@ def enrich_database():
     duration_minutes = timestamp_distance.seconds / 60
     # Check for errors
     if errors > 0:
-        input(f'{datetime.now()} {Fore.RED}{type_of_run} DONE WITH {errors} ERRORS{Style.RESET_ALL} '
-              f'took {duration_minutes} minutes for {len(done_media) - errors} media items.')
+        color = Fore.RED
     else:
-        print(f'{datetime.now()} {Fore.GREEN}{type_of_run} DONE WITH {errors} ERRORS{Style.RESET_ALL} '
-              f'took {duration_minutes} minutes for {len(done_media) - errors} media items.')
+        color = Fore.GREEN
+    # Print final message
+    print(f'{datetime.now()} {color}FINISHED {type_of_run}{Style.RESET_ALL} '
+          f'with {color}{errors} ERRORS{Style.RESET_ALL} '
+          f'took {duration_minutes} minutes to process {done_media_count - errors}/{done_media_count} media items.')
 
 
 if __name__ == "__main__":
