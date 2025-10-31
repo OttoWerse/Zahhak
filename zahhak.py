@@ -3737,8 +3737,8 @@ def migrate_to_status_done(dry_run=True):
         except KeyboardInterrupt:
             sys.exit()
         except Exception as exception:
-            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} forming path for JSON "{path_json}": '
-                  f'{exception}')
+            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} forming path for JSON '
+                  f'"{os.path.basename(path_json)}": {exception}')
             errors += 1
             continue
         # Check JSON exists
@@ -3755,13 +3755,14 @@ def migrate_to_status_done(dry_run=True):
             except KeyboardInterrupt:
                 sys.exit()
             except Exception as exception:
-                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} reading site/id in JSON "{path_json}": '
-                      f'{exception}')
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} reading site/id in JSON '
+                      f'"{os.path.basename(path_json)}": {exception}')
                 errors += 1
                 continue
             # Check if JSON contains same ID as Database.
             if json_id != media_id:
-                print(f'{datetime.now()} {Fore.RED}ID MISMATCH{Style.RESET_ALL} {json_id} =|= {media_id}')
+                print(f'{datetime.now()} {Fore.RED}ID MISMATCH{Style.RESET_ALL} {json_id} =|= {media_id} in JSON file '
+                      f'"{os.path.basename(path_json)}"')
                 errors += 1
                 continue
         '''NFO Check'''
@@ -3772,8 +3773,8 @@ def migrate_to_status_done(dry_run=True):
         except KeyboardInterrupt:
             sys.exit()
         except Exception as exception:
-            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} forming path for NFO "{path_nfo}": '
-                  f'{exception}')
+            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} forming path for NFO '
+                  f'"{os.path.basename(path_nfo)}": {exception}')
             errors += 1
             continue
         # Check NFO exists
@@ -3789,8 +3790,8 @@ def migrate_to_status_done(dry_run=True):
         except KeyboardInterrupt:
             sys.exit()
         except Exception as exception:
-            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} forming path for PNG "{path_png}": '
-                  f'{exception}')
+            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} forming path for PNG '
+                  f'"{os.path.basename(path_png)}": {exception}')
             errors += 1
             continue
         # Check PNG exists
@@ -3878,8 +3879,8 @@ def enrich_database_with_media_information(dry_run=True):
         except KeyboardInterrupt:
             sys.exit()
         except Exception as exception:
-            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} getting file size for "{path_mp4}": '
-                  f'{exception}')
+            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} getting file size for '
+                  f'"{os.path.basename(path_mp4)}": {exception}')
             errors += 1
             continue
         '''JSON Information'''
@@ -3890,8 +3891,8 @@ def enrich_database_with_media_information(dry_run=True):
         except KeyboardInterrupt:
             sys.exit()
         except Exception as exception:
-            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} forming path for JSON "{path_json}": '
-                  f'{exception}')
+            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} forming path for JSON '
+                  f'"{os.path.basename(path_json)}": {exception}')
             errors += 1
             continue
         # Check JSON exists
@@ -3908,13 +3909,14 @@ def enrich_database_with_media_information(dry_run=True):
             except KeyboardInterrupt:
                 sys.exit()
             except Exception as exception:
-                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} reading site/id in JSON "{path_json}": '
-                      f'{exception}')
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} reading site/id in JSON '
+                      f'"{os.path.basename(path_json)}": {exception}')
                 errors += 1
                 continue
             # Check if JSON contains same ID as Database.
             if json_id != media_id:
-                print(f'{datetime.now()} {Fore.RED}ID MISMATCH{Style.RESET_ALL} {json_id} =|= {media_id}')
+                print(f'{datetime.now()} {Fore.RED}ID MISMATCH{Style.RESET_ALL} {json_id} =|= {media_id} in JSON file '
+                      f'"{os.path.basename(path_json)}"')
                 errors += 1
                 continue
             # Read resolution, codec, size from JSON
@@ -3926,8 +3928,8 @@ def enrich_database_with_media_information(dry_run=True):
             except KeyboardInterrupt:
                 sys.exit()
             except Exception as exception:
-                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} reading details in JSON "{path_json}": '
-                      f'{exception}')
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} reading details in JSON '
+                      f'"{os.path.basename(path_json)}": {exception}')
                 errors += 1
                 continue
             # TODO: Do we need the JSON file size at all? I'd say MP4 filesize is the perfect measure for existing files
