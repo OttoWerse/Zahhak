@@ -3762,11 +3762,11 @@ def enrich_database():
         playlist_name = current_media[7]
         playlist_id = current_media[8]
 
-        path_json = re.sub(regex_mp4, '.info.json', media_save_path)
+        path_json = os.path.join(directory_final, re.sub(regex_mp4, '.info.json', media_save_path))
 
         if not os.path.exists(path_json):
             print(f'{datetime.now()} {Fore.RED}MISSING JSON{Style.RESET_ALL} {os.path.basename(path_json)}')
-            continue #TODO: This seems to randomly happen with some JSON files that DO exist with certainty.
+            continue
 
         with io.open(path_json, 'r', encoding='utf-8-sig') as json_txt:
             try:
