@@ -3750,36 +3750,61 @@ def enrich_database():
 
     :return:
     """
-    dry_run = True # TODO: parameterize, etc.!
+    dry_run = True  # TODO: parameterize, etc.!
 
+    # Check current time for calculating time it took
+    timestamp_start = datetime.now()
+    # Connect Database
     database = connect_database()
     done_media = get_media_from_db(
         database=database,
         status=STATUS['done'],
     )
-
+    # Check dry run
     if dry_run:
-        print(f'{datetime.now()} {Fore.YELLOW}TESTING MIGRATION{Style.RESET_ALL} for {len(done_media)} media...')
+        type_of_run = 'DRY RUN'
+        print(f'{datetime.now()} {Fore.YELLOW}{type_of_run}{Style.RESET_ALL} for {len(done_media)} media...')
     else:
-        print(f'{datetime.now()} {Fore.CYAN}MIGRATING{Style.RESET_ALL} {len(done_media)} media...')
-
+        type_of_run = 'MIGRATION'
+        print(f'{datetime.now()} {Fore.CYAN}{type_of_run}{Style.RESET_ALL} for {len(done_media)} media...')
+    # Reset error count
     errors = 0
+    # Start migration/dry run
     for current_media in done_media:
         media_site = current_media[0]
         media_id = current_media[1]
         media_available_date = current_media[2]
         media_status = current_media[3]
-        media_save_path = current_media[4]
+        media_save_path = os.path.join(directory_final, current_media[4])
         channel_name = current_media[5]
         channel_id = current_media[6]
         playlist_name = current_media[7]
         playlist_id = current_media[8]
 
+        '''MP4 Information'''
+        # Get MP4
+        path_mp4 = media_save_path
+        # Check MP4 exists
+        if not os.path.exists(path_mp4):
+            print(f'{datetime.now()} {Fore.RED}MISSING MP4{Style.RESET_ALL} {os.path.basename(path_mp4)}')
+            errors += 1
+            continue
+        # Read MP4 details
+        try:
+            mp4_filesize = os.path.getsize(path_mp4)
+        except KeyboardInterrupt:
+            sys.exit()
+        except Exception as exception:
+            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} getting file size for "{path_mp4}": '
+                  f'{exception}')
+            errors += 1
+            continue
+
+        '''JSON Information'''
         # Get JSON
         path_json = media_save_path
         try:
             path_json = re.sub(regex_mp4, '.info.json', path_json)
-            path_json = os.path.join(directory_final, path_json)
         except KeyboardInterrupt:
             sys.exit()
         except Exception as exception:
@@ -3787,13 +3812,11 @@ def enrich_database():
                   f'{exception}')
             errors += 1
             continue
-
         # Check JSON exists
         if not os.path.exists(path_json):
             print(f'{datetime.now()} {Fore.RED}MISSING JSON{Style.RESET_ALL} {os.path.basename(path_json)}')
             errors += 1
             continue
-
         # Open JSON
         with io.open(path_json, 'r', encoding='utf-8-sig') as json_txt:
             try:
@@ -3807,21 +3830,17 @@ def enrich_database():
                       f'{exception}')
                 errors += 1
                 continue
-
+            # Check if JSON contains same ID as Database.
             if json_id != media_id:
                 print(f'{datetime.now()} {Fore.RED}ID MISMATCH{Style.RESET_ALL} {json_id} =|= {media_id}')
                 errors += 1
                 continue
-
+            # Read resolution, codec, size from JSON
             try:
-                # Read resolution, codec, size
                 json_height = json_obj['height']
                 json_width = json_obj['width']
                 json_vcodec = json_obj['vcodec']
                 json_filesize = json_obj['filesize_approx']
-
-                print(f'{datetime.now()} {Fore.CYAN}MEDIA{Style.RESET_ALL} "{json_site} {json_id}" with details '
-                      f'{json_height}x{json_width}@{json_vcodec}={json_filesize}')
             except KeyboardInterrupt:
                 sys.exit()
             except Exception as exception:
@@ -3830,14 +3849,26 @@ def enrich_database():
                 errors += 1
                 continue
 
-            # TODO: Change DB scheme and check everything works etc.
+            # TODO: Do we need the JSON file size at all? I'd say MP4 filesize is the perfect measure for existing files
+            #  JSON should only be relevant for files NOT yet downloaded (to preview size on Disk etc.)
+            # '''Compare JSON and MP4 information'''
+            # if json_filesize != mp4_filesize:
+            #    print(f'{datetime.now()} {Fore.RED}SIZE MISMATCH{Style.RESET_ALL} {json_filesize} =|= {mp4_filesize}')
+            #    errors += 1
+            #    continue
+
+            print(f'{datetime.now()} {Fore.CYAN}MEDIA{Style.RESET_ALL} "{json_site} {json_id}" with details '
+                  f'{json_height}x{json_width}@{json_vcodec}={json_filesize}/{mp4_filesize}')
+
+            '''Write information to Database'''
             if not dry_run:
                 try:
+                    # TODO: Change DB scheme and check everything works etc.
                     mysql_cursor = database.cursor()
                     sql = ("UPDATE videos set res_height = %s, res_width = %s, codec = %s, filesize = %s "
                            "WHERE site = %s "
                            "AND url = %s, );")
-                    val = (json_height, json_width, json_vcodec, json_filesize, media_site, media_id)
+                    val = (json_height, json_width, json_vcodec, mp4_filesize, media_site, media_id)
                     mysql_cursor.execute(sql, val)
                     database.commit()
                 except KeyboardInterrupt:
@@ -3847,12 +3878,18 @@ def enrich_database():
                           f'"{json_site} {json_id}": {exception}')
                     errors += 1
                     continue
-
-    # Final check for errors
+    '''Final steps'''
+    # Calculate time it took
+    timestamp_end = datetime.now()
+    timestamp_distance = timestamp_start - timestamp_end
+    duration_minutes = timestamp_distance.seconds / 60
+    # Check for errors
     if errors > 0:
-        input(f'{datetime.now()} {Fore.RED}MIGRATION DONE WITH {errors} ERRORS{Style.RESET_ALL}')
+        input(f'{datetime.now()} {Fore.RED}{type_of_run} DONE WITH {errors} ERRORS{Style.RESET_ALL} '
+              f'took {duration_minutes} minutes for {len(done_media) - errors} media items.')
     else:
-        print(f'{datetime.now()} {Fore.GREEN}MIGRATION DONE WITH {errors} ERRORS{Style.RESET_ALL}')
+        print(f'{datetime.now()} {Fore.GREEN}{type_of_run} DONE WITH {errors} ERRORS{Style.RESET_ALL} '
+              f'took {duration_minutes} minutes for {len(done_media) - errors} media items.')
 
 
 if __name__ == "__main__":
