@@ -3744,6 +3744,11 @@ def verify_fresh_media(status=STATUS['fresh'], regex_media_url=fr'^[a-z0-9\-\_]'
 
 
 def enrich_database():
+    """
+
+    :return:
+    """
+    errors = 0
     database = connect_database()
     done_media = get_media_from_db(
         database=database,
@@ -3762,12 +3767,26 @@ def enrich_database():
         playlist_name = current_media[7]
         playlist_id = current_media[8]
 
-        path_json = os.path.join(directory_final, re.sub(regex_mp4, '.info.json', media_save_path))
-
-        if not os.path.exists(path_json):
-            print(f'{datetime.now()} {Fore.RED}MISSING JSON{Style.RESET_ALL} {os.path.basename(path_json)}')
+        # Get JSON
+        path_json = media_save_path
+        try:
+            path_json = re.sub(regex_mp4, '.info.json', path_json)
+            path_json = os.path.join(directory_final, path_json)
+        except KeyboardInterrupt:
+            sys.exit()
+        except Exception as exception:
+            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} forming path for JSON "{path_json}": '
+                  f'{exception}')
+            errors += 1
             continue
 
+        # Check JSON exists
+        if not os.path.exists(path_json):
+            print(f'{datetime.now()} {Fore.RED}MISSING JSON{Style.RESET_ALL} {os.path.basename(path_json)}')
+            errors += 1
+            continue
+
+        # Open JSON
         with io.open(path_json, 'r', encoding='utf-8-sig') as json_txt:
             try:
                 json_obj = json.load(json_txt)
@@ -3778,7 +3797,8 @@ def enrich_database():
             except Exception as exception:
                 print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} reading site/id in JSON "{path_json}": '
                       f'{exception}')
-                return False
+                errors += 1
+                continue
 
             if json_id == media_id:
                 input(f'{datetime.now()} {Fore.RED}ID MISMATCH{Style.RESET_ALL} {json_id} =|= {media_id} '
@@ -3799,7 +3819,8 @@ def enrich_database():
             except Exception as exception:
                 print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} reading details in JSON "{path_json}": '
                       f'{exception}')
-                return False
+                errors += 1
+                continue
 
             # TODO: Change DB scheme and check everything works etc.
             if False:
@@ -3816,7 +3837,14 @@ def enrich_database():
                 except Exception as exception:
                     print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} updating database for media '
                           f'"{json_site} {json_id}": {exception}')
-                    return False
+                    errors += 1
+                    continue
+
+    # Final check for errors
+    if errors > 0:
+        input(f'{datetime.now()} {Fore.RED}MIGRATION DONE WITH {errors} ERRORS{Style.RESET_ALL}')
+    else:
+        print(f'{datetime.now()} {Fore.GREEN}MIGRATION DONE WITH {errors} ERRORS{Style.RESET_ALL}')
 
 
 if __name__ == "__main__":
