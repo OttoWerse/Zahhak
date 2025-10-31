@@ -4109,8 +4109,8 @@ if __name__ == "__main__":
         elif args.mode == 'X':
             print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
                   f'Experimental')
-            enrich_database_with_media_information()
             migrate_to_status_done()
+            enrich_database_with_media_information()
 
         else:
             print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: '
