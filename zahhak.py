@@ -3803,9 +3803,9 @@ def enrich_database():
                 continue
 
             if json_id == media_id:
-                input(f'{datetime.now()} {Fore.RED}ID MISMATCH{Style.RESET_ALL} {json_id} =|= {media_id} '
-                      f'aborting migration!')
-                sys.exit()
+                input(f'{datetime.now()} {Fore.RED}ID MISMATCH{Style.RESET_ALL} {json_id} =|= {media_id}')
+                errors += 1
+                continue
 
             try:
                 # Read resolution, codec, size
