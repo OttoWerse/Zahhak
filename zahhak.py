@@ -3766,7 +3766,7 @@ def enrich_database():
 
         if not os.path.exists(path_json):
             print(f'{datetime.now()} {Fore.RED}MISSING JSON{Style.RESET_ALL} {os.path.basename(path_json)}')
-            return False
+            continue #TODO: This seems to randomly happen with some JSON files that DO exist with certainty.
 
         with io.open(path_json, 'r', encoding='utf-8-sig') as json_txt:
             try:
