@@ -4071,7 +4071,7 @@ if __name__ == "__main__":
                 "FROM videos "
                 "WHERE (videos.status = %s) "
                 "AND (videos.height IS NULL OR videos.width IS NULL OR videos.codec IS NULL OR videos.filesize IS NULL;")
-            val = (STATUS['DONE'],)
+            val = (STATUS['done'],)
             mysql_cursor.execute(sql, val)
             media = mysql_cursor.fetchall()
             migrate_to_media_information(database=database,
