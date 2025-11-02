@@ -3271,7 +3271,7 @@ def fix_nfo_file(filepath, json_title, json_description, json_upload_date, json_
         base_path_nfo = os.path.basename(filepath)
         nfo_title = json_title
         nfo_description = r'<![CDATA[' + json_description + r']]>'
-        nfo_upload_date = json_upload_date.strftime('%Y-%m-%d')
+        nfo_upload_date = json_upload_date
         nfo_year = json_upload_date.strftime('%Y')
         nfo_network = get_channel_name(media_site=json_site, media_id=json_id)
         if nfo_network == None:
