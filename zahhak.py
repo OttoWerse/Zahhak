@@ -3959,7 +3959,7 @@ def enrich_database_with_media_information(dry_run=True):
                     mysql_cursor = database.cursor()
                     sql = ("UPDATE videos set res_height = %s, res_width = %s, codec = %s, filesize = %s "
                            "WHERE site = %s "
-                           "AND url = %s, );")
+                           "AND url = %s;")
                     val = (json_height, json_width, json_vcodec, mp4_filesize, media_site, media_id)
                     mysql_cursor.execute(sql, val)
                     database.commit()
