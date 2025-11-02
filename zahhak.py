@@ -3950,7 +3950,7 @@ def enrich_database_with_media_information(dry_run=True):
             #    continue
             print(f'{datetime.now()} {Fore.CYAN}MEDIA{Style.RESET_ALL} ({counter}/{count_media_to_migrate}) '
                   f'"{json_site} {json_id}" with details {json_height}x{json_width}@{json_vcodec} '
-                  f'file size {json_filesize}/{mp4_filesize} ',
+                  f'file size {mp4_filesize} ',
                   end='\r')
             '''Write information to Database'''
             if not dry_run:
