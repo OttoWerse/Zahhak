@@ -3003,8 +3003,7 @@ def juggle_verified_media():
                             json_date = None
                             if json_date is None:
                                 try:
-                                    json_date = datetime.strptime(json_obj['upload_date'], '%Y%m%d').strftime(
-                                        '%Y-%m-%d')
+                                    json_date = datetime.strptime(json_obj['upload_date'], '%Y%m%d')
                                 except KeyboardInterrupt:
                                     sys.exit()
                                 except Exception as exception_add_media:
@@ -3012,8 +3011,7 @@ def juggle_verified_media():
                                           f'No upload date in info JSON! ({exception_add_media})')
                             if json_date is None:
                                 try:
-                                    json_date = datetime.strptime(json_obj['release_date'], '%Y%m%d').strftime(
-                                        '%Y-%m-%d')
+                                    json_date = datetime.strptime(json_obj['release_date'], '%Y%m%d')
                                 except KeyboardInterrupt:
                                     sys.exit()
                                 except Exception as exception_add_media:
@@ -3271,7 +3269,7 @@ def fix_nfo_file(filepath, json_title, json_description, json_upload_date, json_
         base_path_nfo = os.path.basename(filepath)
         nfo_title = json_title
         nfo_description = r'<![CDATA[' + json_description + r']]>'
-        nfo_upload_date = json_upload_date
+        nfo_upload_date = json_upload_date.strftime('%Y-%m-%d')
         nfo_year = json_upload_date.strftime('%Y')
         nfo_network = get_channel_name(media_site=json_site, media_id=json_id)
         if nfo_network == None:
