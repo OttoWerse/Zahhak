@@ -4070,7 +4070,10 @@ if __name__ == "__main__":
                 "SELECT videos.site, videos.url, videos.original_date, videos.status, videos.save_path "
                 "FROM videos "
                 "WHERE (videos.status = 'done') "
-                "AND (videos.height IS NULL OR videos.width IS NULL OR videos.codec IS NULL OR videos.filesize IS NULL;")
+                "AND (videos.res_height IS NULL "
+                "OR videos.res_width IS NULL "
+                "OR videos.codec IS NULL "
+                "OR videos.filesize IS NULL);")
             mysql_cursor.execute(sql)
             media = mysql_cursor.fetchall()
             migrate_to_media_information(database=database,
