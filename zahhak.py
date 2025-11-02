@@ -3929,7 +3929,6 @@ def enrich_database_with_media_information(dry_run=True):
                 json_height = json_obj['height']
                 json_width = json_obj['width']
                 json_vcodec = json_obj['vcodec']
-                json_filesize = json_obj['filesize_approx']
             except KeyboardInterrupt:
                 sys.exit()
             except Exception as exception:
@@ -3940,6 +3939,11 @@ def enrich_database_with_media_information(dry_run=True):
             # TODO: Do we need the JSON file size at all? I'd say MP4 filesize is the perfect measure for existing files
             #  JSON should only be relevant for files NOT yet downloaded (to preview size on Disk etc.)
             # '''Compare JSON and MP4 information'''
+            # try:
+            #     json_filesize = json_obj['filesize_approx']
+            # except Exception as exception:
+            #     print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} reading details in JSON '
+            #           f'"{os.path.basename(path_json)}": {exception}')
             # if json_filesize != mp4_filesize:
             #    print(f'{datetime.now()} {Fore.RED}SIZE MISMATCH{Style.RESET_ALL} {json_filesize} =|= {mp4_filesize}')
             #    errors += 1
