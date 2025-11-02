@@ -9,7 +9,6 @@ import shutil
 import sys
 import time
 from datetime import datetime
-from faulthandler import enable
 from subprocess import STDOUT, check_output, Popen, PIPE
 
 import lxml.builder
@@ -2971,11 +2970,36 @@ def juggle_verified_media():
                 if os.path.exists(json_path_orig):
                     with io.open(json_path_orig, encoding='utf-8-sig') as json_txt:
                         try:
-                            # Get keys for ilus DB from Info JSON
-                            json_obj = json.load(json_txt)
-                            json_site = json_obj['extractor']
-                            json_url = json_obj['id']
-
+                            try:
+                                json_obj = json.load(json_txt)
+                            except Exception as exception:
+                                print(f'{datetime.now()} {Fore.RED}MISSING MANDATORY FIELD{Style.RESET_ALL} '
+                                      f'{os.path.basename(json_path_orig)}: {exception}')
+                            # Get mandatory fields
+                            try:
+                                json_site = json_obj['extractor']
+                                json_id = json_obj['id']
+                                json_title = json_obj['title']
+                                json_fulltitle = json_obj['fulltitle']
+                                json_channel = json_obj['channel_id']  # TODO: Uploader name NOT use for season/shows!
+                                json_height = json_obj['height']
+                                json_width = json_obj['width']
+                                json_vcodec = json_obj['vcodec']
+                            except KeyboardInterrupt:
+                                sys.exit()
+                            except Exception as exception:
+                                print(f'{datetime.now()} {Fore.RED}MISSING MANDATORY FIELD{Style.RESET_ALL} '
+                                      f'{os.path.basename(json_path_orig)}: {exception}')
+                                return False
+                            # Get optional fields
+                            try:
+                                json_description = json_obj['description']
+                            except KeyboardInterrupt:
+                                sys.exit()
+                            except Exception as exception:
+                                print(f'{datetime.now()} {Fore.YELLOW}MISSING OPTIONAL FIELD{Style.RESET_ALL} in '
+                                      f'{os.path.basename(json_path_orig)}: {exception}')
+                            # Get date fields (there is two mutually exclusive ones!)
                             json_date = None
                             if json_date is None:
                                 try:
@@ -2995,7 +3019,6 @@ def juggle_verified_media():
                                 except Exception as exception_add_media:
                                     print(
                                         f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: No release date in info JSON! ({exception_add_media})')
-
                         except KeyboardInterrupt:
                             sys.exit()
                         except Exception as exception:
@@ -3015,7 +3038,7 @@ def juggle_verified_media():
 
                             # Check status in ilus DB
                             sql = "SELECT status FROM videos WHERE site = %s AND url = %s;"
-                            val = (json_site, json_url)
+                            val = (json_site, json_id)
                             mycursor.execute(sql, val)
                             myresult = mycursor.fetchall()
                             try:
@@ -3048,17 +3071,42 @@ def juggle_verified_media():
                             print(f'{datetime.now()} {Fore.RED}SQL SELECT ERROR{Style.RESET_ALL} '
                                   f'{os.path.basename(path_move)}: {exception}')
                             continue
-
-                # Move in Files
+                '''Read MP4 details'''
+                if os.path.exists(path_orig):
+                    try:
+                        mp4_filesize = os.path.getsize(path_orig)
+                    except KeyboardInterrupt:
+                        sys.exit()
+                    except Exception as exception:
+                        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} getting file size for '
+                              f'"{os.path.basename(path_orig)}": {exception}')
+                        return False
+                else:
+                    print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} missing MP4 file '
+                          f'"{os.path.basename(path_orig)}"')
+                    return False
+                '''Update DB'''
+                enrich_database_with_media_information(database=database,
+                                                       media_site=json_site,
+                                                       media_id=json_id,
+                                                       media_filesize=mp4_filesize,
+                                                       media_height=json_height,
+                                                       media_width=json_width,
+                                                       media_vcodec=json_vcodec)
+                ''' Move in Files '''
                 move_in_error = False
-
                 # NFO
-                nfo_created = fix_nfo_file(nfo_path_move)
+                nfo_created = fix_nfo_file(filepath=nfo_path_move,
+                                           json_id=json_id,
+                                           json_site=json_site,
+                                           json_title=json_title,
+                                           json_upload_date=json_date,
+                                           json_description=json_description,
+                                           )
                 if not nfo_created:
                     # print(f'NO NFO')
                     move_in_error = True
                     continue
-
                 # Thumbnail
                 try:
                     # os.renames(png_path_orig, png_path_move)
@@ -3069,7 +3117,6 @@ def juggle_verified_media():
                     print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} '
                           f'Moving {os.path.basename(png_path_move)} in: {exception}')
                     move_in_error = True
-
                 # Info JSON
                 try:
                     # os.renames(json_path_orig, json_path_move)
@@ -3080,7 +3127,6 @@ def juggle_verified_media():
                     print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL} '
                           f'Moving {os.path.basename(json_path_move)} in: {exception}')
                     move_in_error = True
-
                 # English Subtitles
                 # TODO: This needs to be changed to work for ALL subtitles!
                 try:
@@ -3099,7 +3145,6 @@ def juggle_verified_media():
                     except Exception as exception:
                         print(f'{datetime.now()} {Fore.CYAN}INFO{Style.RESET_ALL} No Subtitles found.')
                         # TODO: Handle as seperate case! move_in_error = True
-
                 # MP4 video file
                 try:
                     # os.renames(path_orig, path_move)
@@ -3117,13 +3162,13 @@ def juggle_verified_media():
                         # TODO: Rollback moved files instead and DO NOT update DB to anything (auto retry happens later)!
                         # Update DB
                         update_media_status(media_site=json_site,
-                                            media_id=json_url,
+                                            media_id=json_id,
                                             media_status=STATUS['stuck'],
                                             database=database)
                     else:
                         # Update DB
                         update_media_status(media_site=json_site,
-                                            media_id=json_url,
+                                            media_id=json_id,
                                             media_status=STATUS['done'],
                                             database=database)
                 except KeyboardInterrupt:
@@ -3131,12 +3176,10 @@ def juggle_verified_media():
                 except Exception as exception:
                     print(
                         f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} Moving {os.path.basename(path_move)} in: {exception}')
-
+    '''Finally log to console'''
     print(f'{datetime.now()} Moved in {file_counter_total} episodes!')
-
     print(f'{datetime.now()} {Fore.CYAN}WAITING{Style.RESET_ALL} {sleep_time_move_in}s...')
     time.sleep(sleep_time_move_in)
-
     # TODO: Return amount of moved in media / files?
     return
 
@@ -3215,70 +3258,26 @@ def get_channel_name(media_site, media_id):
         return None
 
 
-def fix_nfo_file(nfo_file):
-    filename = nfo_file
+def fix_nfo_file(filepath, json_title, json_description, json_upload_date, json_site, json_id):
+    """
+
+    :param filepath: path where the NFO file is supposed to be located
+    :return:
+    """
     nfo_modified = False
-
-    # Redundant check if file is NFO
-    if regex_nfo.search(filename) and not regex_show_nfo.search(filename) and not regex_season_nfo.search(filename):
-        path_nfo = filename
-        base_path_nfo = os.path.basename(path_nfo)
-        path_json = re.sub(regex_nfo, '.info.json', path_nfo)
-        base_path_json = os.path.basename(path_json)
-
-        if not os.path.exists(path_json):
-            # Take data from incomplete (fresh) directory instead of final (verified)
-            path_json = switch_directory(path_orig=path_json,
-                                         dir_orig=directory_final,
-                                         dir_new=directory_download_home)
-            # TODO: Remove input
-            input(path_json)
-
-        if not os.path.exists(path_json):
-            print(f'{datetime.now()} {Fore.RED}MISSING JSON{Style.RESET_ALL} {os.path.basename(path_json)}')
+    # TODO: we need to change this to a switch case for all the types of NFO files.
+    # Redundant check if file is episode NFO
+    if regex_nfo.search(filepath) and not regex_show_nfo.search(filepath) and not regex_season_nfo.search(filepath):
+        base_path_nfo = os.path.basename(filepath)
+        nfo_title = json_title
+        nfo_description = r'<![CDATA[' + json_description + r']]>'
+        nfo_upload_date = json_upload_date.strftime('%Y-%m-%d')
+        nfo_year = json_upload_date.strftime('%Y')
+        nfo_network = get_channel_name(media_site=json_site, media_id=json_id)
+        if nfo_network == None:
             return False
 
-        with io.open(path_json, 'r', encoding='utf-8-sig') as json_txt:
-            try:
-                json_obj = json.load(json_txt)
-
-                json_id = json_obj['id']
-
-                json_title = json_obj['title']
-                json_fulltitle = json_obj['fulltitle']
-                nfo_title = json_title
-
-                try:
-                    json_description = json_obj['description']
-                    nfo_description = r'<![CDATA[' + json_description + r']]>'
-                except KeyboardInterrupt:
-                    sys.exit()
-                except Exception as exception:
-                    print(f'NO DESCRIPTION, continue?! {exception}')
-                    json_description = ''
-                    nfo_description = ''
-
-                json_upload_date = json_obj['upload_date']
-                json_upload_date = datetime.strptime(json_upload_date, '%Y%m%d')
-                nfo_upload_date = json_upload_date.strftime('%Y-%m-%d')
-
-                nfo_year = json_upload_date.strftime('%Y')
-
-                # TODO: is will always get the media uploader name, which is fine for media, but should NOT be used for season and/or shows without first confirming they are the same as playlist owner!
-                json_site = json_obj['extractor']
-                json_channel = json_obj['channel_id']
-                nfo_network = get_channel_name(media_site=json_site, media_id=json_id)
-                if nfo_network == None:
-                    return False
-
-            except KeyboardInterrupt:
-                sys.exit()
-            except Exception as exception:
-                print(
-                    f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} reading JSON "{base_path_json}": {exception}')
-                return False
-
-        if not os.path.exists(path_nfo) or replace_existing:
+        if not os.path.exists(filepath) or replace_existing:
             # Make own NFO!
             if create_nfo_files:
                 E = lxml.builder.ElementMaker()
@@ -3303,7 +3302,7 @@ def fix_nfo_file(nfo_file):
 
                 nfo_txt = xml_tree
 
-                write_nfo_result = write_nfo(path=path_nfo, content=nfo_txt)
+                write_nfo_result = write_nfo(path=filepath, content=nfo_txt)
 
                 # print(f'{datetime.now()} {Fore.GREEN}CREATED{Style.RESET_ALL} new NFO {base_path_nfo}')
 
@@ -3318,62 +3317,6 @@ def fix_nfo_file(nfo_file):
             else:
                 print(f'{datetime.now()} {Fore.RED}EXISTING NFO{Style.RESET_ALL} {base_path_nfo}', end='\n')
                 return False
-
-
-def fix_nfo_files(files_to_process):
-    """
-    Fixes NFO files
-
-    files_to_process:  maximum file count to process
-    """
-    total_counter = 0
-    total_files_to_fix = len(files_to_process)
-
-    while total_counter < total_files_to_fix:
-        if sleep_time_fix_nfo > 0:
-            print(f'{datetime.now()} {Fore.CYAN}WAITING{Style.RESET_ALL} {sleep_time_fix_nfo}s for NFO files...')
-            time.sleep(sleep_time_fix_nfo)
-        for filename in files_to_process:
-            fix_nfo_result = fix_nfo_file(nfo_file=filename)
-            if fix_nfo_result:
-                total_counter += 1
-                print(
-                    f'{Fore.GREEN}CREATED{Style.RESET_ALL} {total_counter}/{total_files_to_fix} NFO files {os.path.basename(filename)}',
-                    end='\n')
-
-        if total_files_to_fix > 1:
-            print(
-                f'{datetime.now()} {Fore.GREEN}MODIFIED{Style.RESET_ALL} {total_counter}/{total_files_to_fix} NFO files')
-
-    return total_counter
-
-
-def fix_all_nfo_files():
-    """
-    Fixes all NFO files
-    """
-    print(f'{datetime.now()} Collecting NFO files in {directory_final}')
-
-    nfo_file_list = []
-
-    for directory, folders, files in os.walk(directory_final):
-        folders.sort(reverse=True, key=lambda x: os.path.getmtime(os.path.join(directory, x)))
-        files.sort(reverse=True, key=lambda x: os.path.getctime(os.path.join(directory, x)))
-
-        for filename in files:
-            if create_nfo_files:
-                # If we need to create all NFO files, it is no use to only append existing NFOs!
-                if regex_mp4.search(filename):
-                    nfo_file_list.append(regex_mp4.sub('.nfo', os.path.join(directory, filename)))
-
-            else:
-                # Only append existing NFO files to save time
-                if regex_nfo.search(filename) and not regex_show_nfo.search(filename) and not regex_season_nfo.search(
-                        filename):
-                    nfo_file_list.append(os.path.join(directory, filename))
-
-    added_dates = fix_nfo_files(nfo_file_list)
-    return added_dates
 
 
 def verify_fresh_media(status=STATUS['fresh'], regex_media_url=fr'^[a-z0-9\-\_]'):
@@ -3691,6 +3634,163 @@ def verify_fresh_media(status=STATUS['fresh'], regex_media_url=fr'^[a-z0-9\-\_]'
     return
 
 
+def enrich_database_with_media_information(database,
+                                           media_site,
+                                           media_id,
+                                           media_filesize,
+                                           media_height,
+                                           media_width,
+                                           media_vcodec):
+    mysql_cursor = database.cursor()
+    sql = ("UPDATE videos set res_height = %s, res_width = %s, codec = %s, filesize = %s "
+           "WHERE site = %s "
+           "AND url = %s;")
+    val = (media_height, media_width, media_vcodec, media_filesize, media_site, media_id)
+    mysql_cursor.execute(sql, val)
+    database.commit()
+
+
+def migrate_to_media_information(media_to_migrate, database, dry_run=True):
+    """
+        Adds the resolution, codec and file size to the database (after scheme has already been migrated manually!)
+    """
+    # Check current time for calculating time it took
+    timestamp_start = datetime.now()
+    count_media_to_migrate = len(media_to_migrate)
+    # Check dry run
+    if dry_run:
+        type_of_run = 'DRY RUN'
+        print(f'{datetime.now()} {Fore.YELLOW}{type_of_run}{Style.RESET_ALL} for {count_media_to_migrate} media...')
+    else:
+        type_of_run = 'MIGRATION'
+        print(f'{datetime.now()} {Fore.CYAN}{type_of_run}{Style.RESET_ALL} for {count_media_to_migrate} media...')
+    # Reset error and counter
+    errors = 0
+    counter = 0
+    # Start migration/dry run
+    for current_media in media_to_migrate:
+        counter += 1
+        media_site = current_media[0]
+        media_id = current_media[1]
+        media_available_date = current_media[2]
+        media_status = current_media[3]
+        media_save_path = os.path.join(directory_final, current_media[4])
+        '''MP4 Information'''
+        # Get MP4
+        path_mp4 = media_save_path
+        # Check MP4 exists
+        if not os.path.exists(path_mp4):
+            print(f'{datetime.now()} {Fore.RED}MISSING MP4{Style.RESET_ALL} {os.path.basename(path_mp4)}')
+            errors += 1
+            continue
+        # Read MP4 details
+        try:
+            mp4_filesize = os.path.getsize(path_mp4)
+        except KeyboardInterrupt:
+            sys.exit()
+        except Exception as exception:
+            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} getting file size for '
+                  f'"{os.path.basename(path_mp4)}": {exception}')
+            errors += 1
+            continue
+        '''JSON Information'''
+        # Get JSON
+        path_json = media_save_path
+        try:
+            path_json = re.sub(regex_mp4, '.info.json', path_json)
+        except KeyboardInterrupt:
+            sys.exit()
+        except Exception as exception:
+            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} forming path for JSON '
+                  f'"{os.path.basename(path_json)}": {exception}')
+            errors += 1
+            continue
+        # Check JSON exists
+        if not os.path.exists(path_json):
+            print(f'{datetime.now()} {Fore.RED}MISSING JSON{Style.RESET_ALL} {os.path.basename(path_json)}')
+            errors += 1
+            continue
+        # Open JSON
+        with io.open(path_json, 'r', encoding='utf-8-sig') as json_txt:
+            try:
+                json_obj = json.load(json_txt)
+                json_site = json_obj['extractor']
+                json_id = json_obj['id']
+            except KeyboardInterrupt:
+                sys.exit()
+            except Exception as exception:
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} reading site/id in JSON '
+                      f'"{os.path.basename(path_json)}": {exception}')
+                errors += 1
+                continue
+            # Check if JSON contains same ID as Database.
+            if json_id != media_id:
+                print(f'{datetime.now()} {Fore.RED}ID MISMATCH{Style.RESET_ALL} {json_id} =|= {media_id} in JSON file '
+                      f'"{os.path.basename(path_json)}"')
+                errors += 1
+                continue
+            # Read resolution, codec, size from JSON
+            try:
+                json_height = json_obj['height']
+                json_width = json_obj['width']
+                json_vcodec = json_obj['vcodec']
+            except KeyboardInterrupt:
+                sys.exit()
+            except Exception as exception:
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} reading details in JSON '
+                      f'"{os.path.basename(path_json)}": {exception}')
+                errors += 1
+                continue
+            # TODO: Do we need the JSON file size at all? I'd say MP4 filesize is the perfect measure for existing files
+            #  JSON should only be relevant for files NOT yet downloaded (to preview size on Disk etc.)
+            # '''Compare JSON and MP4 information'''
+            # try:
+            #     json_filesize = json_obj['filesize_approx']
+            # except Exception as exception:
+            #     print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} reading details in JSON '
+            #           f'"{os.path.basename(path_json)}": {exception}')
+            # if json_filesize != mp4_filesize:
+            #    print(f'{datetime.now()} {Fore.RED}SIZE MISMATCH{Style.RESET_ALL} {json_filesize} =|= {mp4_filesize}')
+            #    errors += 1
+            #    continue
+            print(f'{datetime.now()} {Fore.CYAN}MEDIA{Style.RESET_ALL} ({counter}/{count_media_to_migrate}) '
+                  f'"{json_site} {json_id}" with details {json_height}x{json_width}@{json_vcodec} '
+                  f'file size {mp4_filesize} ',
+                  end='\r')
+            '''Write information to Database'''
+            if not dry_run:
+                try:
+                    enrich_database_with_media_information(database=database,
+                                                           media_site=json_site,
+                                                           media_width=json_width,
+                                                           media_height=json_height,
+                                                           media_vcodec=json_vcodec,
+                                                           media_id=media_id,
+                                                           media_filesize=mp4_filesize,
+                                                           )
+                except KeyboardInterrupt:
+                    sys.exit()
+                except Exception as exception:
+                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} updating database for media '
+                          f'"{json_site} {json_id}": {exception}')
+                    errors += 1
+                    continue
+    '''Final steps'''
+    # Calculate time it took
+    timestamp_end = datetime.now()
+    timestamp_distance = timestamp_end - timestamp_start
+    duration_minutes = timestamp_distance.seconds / 60
+    # Check for errors
+    if errors > 0:
+        color = Fore.RED
+    else:
+        color = Fore.GREEN
+    # Print final message
+    print(f'{datetime.now()} {color}FINISHED {type_of_run}{Style.RESET_ALL} '
+          f'with {color}{errors} ERRORS{Style.RESET_ALL} '
+          f'took {duration_minutes} minutes to process {count_media_to_migrate - errors}/{count_media_to_migrate} media items.')
+
+
 def migrate_to_status_done(dry_run=True):
     # Check current time for calculating time it took
     timestamp_start = datetime.now()
@@ -3835,157 +3935,6 @@ def migrate_to_status_done(dry_run=True):
           f'took {duration_minutes} minutes to process {count_media_to_migrate - errors}/{count_media_to_migrate} media items.')
 
 
-def enrich_database_with_media_information(dry_run=True):
-    """
-        Adds the resolution, codec and file size to the database (after scheme has already been migrated manually!)
-    """
-    # Check current time for calculating time it took
-    timestamp_start = datetime.now()
-    # Connect Database
-    database = connect_database()
-    media_to_migrate = get_media_from_db(
-        database=database,
-        status=STATUS['done'],
-    )
-    count_media_to_migrate = len(media_to_migrate)
-    # Check dry run
-    if dry_run:
-        type_of_run = 'DRY RUN'
-        print(f'{datetime.now()} {Fore.YELLOW}{type_of_run}{Style.RESET_ALL} for {count_media_to_migrate} media...')
-    else:
-        type_of_run = 'MIGRATION'
-        print(f'{datetime.now()} {Fore.CYAN}{type_of_run}{Style.RESET_ALL} for {count_media_to_migrate} media...')
-    # Reset error and counter
-    errors = 0
-    counter = 0
-    # Start migration/dry run
-    for current_media in media_to_migrate:
-        counter += 1
-        media_site = current_media[0]
-        media_id = current_media[1]
-        media_available_date = current_media[2]
-        media_status = current_media[3]
-        media_save_path = os.path.join(directory_final, current_media[4])
-        channel_name = current_media[5]
-        channel_id = current_media[6]
-        playlist_name = current_media[7]
-        playlist_id = current_media[8]
-        '''MP4 Information'''
-        # Get MP4
-        path_mp4 = media_save_path
-        # Check MP4 exists
-        if not os.path.exists(path_mp4):
-            print(f'{datetime.now()} {Fore.RED}MISSING MP4{Style.RESET_ALL} {os.path.basename(path_mp4)}')
-            errors += 1
-            continue
-        # Read MP4 details
-        try:
-            mp4_filesize = os.path.getsize(path_mp4)
-        except KeyboardInterrupt:
-            sys.exit()
-        except Exception as exception:
-            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} getting file size for '
-                  f'"{os.path.basename(path_mp4)}": {exception}')
-            errors += 1
-            continue
-        '''JSON Information'''
-        # Get JSON
-        path_json = media_save_path
-        try:
-            path_json = re.sub(regex_mp4, '.info.json', path_json)
-        except KeyboardInterrupt:
-            sys.exit()
-        except Exception as exception:
-            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} forming path for JSON '
-                  f'"{os.path.basename(path_json)}": {exception}')
-            errors += 1
-            continue
-        # Check JSON exists
-        if not os.path.exists(path_json):
-            print(f'{datetime.now()} {Fore.RED}MISSING JSON{Style.RESET_ALL} {os.path.basename(path_json)}')
-            errors += 1
-            continue
-        # Open JSON
-        with io.open(path_json, 'r', encoding='utf-8-sig') as json_txt:
-            try:
-                json_obj = json.load(json_txt)
-                json_site = json_obj['extractor']
-                json_id = json_obj['id']
-            except KeyboardInterrupt:
-                sys.exit()
-            except Exception as exception:
-                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} reading site/id in JSON '
-                      f'"{os.path.basename(path_json)}": {exception}')
-                errors += 1
-                continue
-            # Check if JSON contains same ID as Database.
-            if json_id != media_id:
-                print(f'{datetime.now()} {Fore.RED}ID MISMATCH{Style.RESET_ALL} {json_id} =|= {media_id} in JSON file '
-                      f'"{os.path.basename(path_json)}"')
-                errors += 1
-                continue
-            # Read resolution, codec, size from JSON
-            try:
-                json_height = json_obj['height']
-                json_width = json_obj['width']
-                json_vcodec = json_obj['vcodec']
-            except KeyboardInterrupt:
-                sys.exit()
-            except Exception as exception:
-                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} reading details in JSON '
-                      f'"{os.path.basename(path_json)}": {exception}')
-                errors += 1
-                continue
-            # TODO: Do we need the JSON file size at all? I'd say MP4 filesize is the perfect measure for existing files
-            #  JSON should only be relevant for files NOT yet downloaded (to preview size on Disk etc.)
-            # '''Compare JSON and MP4 information'''
-            # try:
-            #     json_filesize = json_obj['filesize_approx']
-            # except Exception as exception:
-            #     print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} reading details in JSON '
-            #           f'"{os.path.basename(path_json)}": {exception}')
-            # if json_filesize != mp4_filesize:
-            #    print(f'{datetime.now()} {Fore.RED}SIZE MISMATCH{Style.RESET_ALL} {json_filesize} =|= {mp4_filesize}')
-            #    errors += 1
-            #    continue
-            print(f'{datetime.now()} {Fore.CYAN}MEDIA{Style.RESET_ALL} ({counter}/{count_media_to_migrate}) '
-                  f'"{json_site} {json_id}" with details {json_height}x{json_width}@{json_vcodec} '
-                  f'file size {mp4_filesize} ',
-                  end='\r')
-            '''Write information to Database'''
-            if not dry_run:
-                try:
-                    # TODO: Change DB scheme and check everything works etc.
-                    mysql_cursor = database.cursor()
-                    sql = ("UPDATE videos set res_height = %s, res_width = %s, codec = %s, filesize = %s "
-                           "WHERE site = %s "
-                           "AND url = %s;")
-                    val = (json_height, json_width, json_vcodec, mp4_filesize, media_site, media_id)
-                    mysql_cursor.execute(sql, val)
-                    database.commit()
-                except KeyboardInterrupt:
-                    sys.exit()
-                except Exception as exception:
-                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} updating database for media '
-                          f'"{json_site} {json_id}": {exception}')
-                    errors += 1
-                    continue
-    '''Final steps'''
-    # Calculate time it took
-    timestamp_end = datetime.now()
-    timestamp_distance = timestamp_end - timestamp_start
-    duration_minutes = timestamp_distance.seconds / 60
-    # Check for errors
-    if errors > 0:
-        color = Fore.RED
-    else:
-        color = Fore.GREEN
-    # Print final message
-    print(f'{datetime.now()} {color}FINISHED {type_of_run}{Style.RESET_ALL} '
-          f'with {color}{errors} ERRORS{Style.RESET_ALL} '
-          f'took {duration_minutes} minutes to process {count_media_to_migrate - errors}/{count_media_to_migrate} media items.')
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Zahhak")
 
@@ -4084,7 +4033,6 @@ if __name__ == "__main__":
             download_all_media(status_values=status_values, regex_media_url=regex_filter_media)
             verify_fresh_media(regex_media_url=regex_filter_media)
             juggle_verified_media()
-
     elif len(args.mode) == 1:
         INPUT_POSSIBLE = False
         if args.mode == 'A':
@@ -4092,38 +4040,44 @@ if __name__ == "__main__":
                   f'Add Subscriptions')
             while True:
                 add_subscriptions()
-
         elif args.mode == 'M':
             print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
                   f'Monitor Subscriptions')
             while True:
                 update_subscriptions(regex_channel_url=regex_filter_channel)
-
         elif args.mode == 'D':
             print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
                   f'Download Media')
             while True:
                 download_all_media(status_values=status_values, regex_media_url=regex_filter_media)
-
         elif args.mode == 'V':
             print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
                   f'Verify Files')
 
             while True:
                 verify_fresh_media(regex_media_url=regex_filter_media)
-
         elif args.mode == 'J':
             print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
                   f'Juggle Files')
             while True:
                 juggle_verified_media()
-
         elif args.mode == 'X':
             print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
                   f'Experimental')
-            migrate_to_status_done()
-            enrich_database_with_media_information()
-
+            migrate_to_status_done(dry_run=False)
+            database = connect_database()
+            mysql_cursor = database.cursor()
+            sql = (
+                "SELECT videos.site, videos.url, videos.original_date, videos.status, videos.save_path "
+                "FROM videos "
+                "WHERE (videos.status = %s) "
+                "AND (videos.height IS NULL OR videos.width IS NULL OR videos.vcodec IS NULL OR videos.filesize IS NULL;")
+            val = (STATUS['DONE'],)
+            mysql_cursor.execute(sql, val)
+            media = mysql_cursor.fetchall()
+            migrate_to_media_information(database=database,
+                                         media_to_migrate=media,
+                                         dry_run=False)
         else:
             print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: '
                   f'No mode "{args.mode}" exists')
