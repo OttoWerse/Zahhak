@@ -3755,7 +3755,7 @@ def migrate_to_media_information(media_to_migrate, database, dry_run=True):
             #    continue
             print(f'{datetime.now()} {Fore.CYAN}MEDIA{Style.RESET_ALL} ({counter}/{count_media_to_migrate}) '
                   f'"{json_site} {json_id}" with details {json_height}x{json_width}@{json_vcodec} '
-                  f'file size {mp4_filesize} ',
+                  f'file size {mp4_filesize}                                                      ',
                   end='\r')
             '''Write information to Database'''
             if not dry_run:
@@ -4053,7 +4053,6 @@ if __name__ == "__main__":
         elif args.mode == 'V':
             print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
                   f'Verify Files')
-
             while True:
                 verify_fresh_media(regex_media_url=regex_filter_media)
         elif args.mode == 'J':
@@ -4071,7 +4070,7 @@ if __name__ == "__main__":
                 "SELECT videos.site, videos.url, videos.original_date, videos.status, videos.save_path "
                 "FROM videos "
                 "WHERE (videos.status = %s) "
-                "AND (videos.height IS NULL OR videos.width IS NULL OR videos.vcodec IS NULL OR videos.filesize IS NULL;")
+                "AND (videos.height IS NULL OR videos.width IS NULL OR videos.codec IS NULL OR videos.filesize IS NULL;")
             val = (STATUS['DONE'],)
             mysql_cursor.execute(sql, val)
             media = mysql_cursor.fetchall()
