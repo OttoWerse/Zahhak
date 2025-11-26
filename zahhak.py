@@ -383,7 +383,6 @@ DEBUG_force_date = False
 DEBUG_log_date_fields_missing = False
 DEBUG_unavailable = False
 DEBUG_update_channel = False
-DEBUG_update_playlist = False
 DEBUG_json_channel = False
 DEBUG_json_check_channel = False
 DEBUG_json_playlist = False
@@ -505,38 +504,35 @@ def update_channel(date, channel, database):
 
 def update_playlist(date, playlist, database):
     """Updates last checked date for playlist"""
-
+    # Get Playlist details
     playlist_site = playlist[0]
     playlist_id = playlist[1]
     playlist_name = playlist[2]
-
+    # Log start of procedure
     print(f'{datetime.now()} {Fore.CYAN}MARKING{Style.RESET_ALL} playlist '
           f'"{playlist_name}" ({playlist_site} {playlist_id}) as checked', end='\r')
-
     # Update DB
     try:
         mysql_cursor = database.cursor()
-
         sql = "UPDATE playlists SET date_checked = %s WHERE site = %s AND url = %s;"
         val = (date, playlist_site, playlist_id)
-
-        if DEBUG_update_playlist:
-            input(val)
-
         mysql_cursor.execute(sql, val)
         database.commit()
-
         print(f'{datetime.now()} {Fore.CYAN}MARKED{Style.RESET_ALL} playlist '
               f'"{playlist_name}" ({playlist_site} {playlist_id}) as checked ', end='\n')
         return True
-
     except KeyboardInterrupt:
         sys.exit()
-
     except Exception as exception_update_playlist:
-        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while marking playlist '
-              f'"{playlist_site} {playlist_id}": {exception_update_playlist}')
-        return False
+        # Handle Database connection timed out
+        if regex_sql_unavailable.search(str(exception_update_playlist)):
+            print(f'{datetime.now()} {Fore.RED}UNAVAILABLE{Style.RESET_ALL} database, reconnecting...', end='\r')
+            return None
+        # Handle any other exceptions
+        else:
+            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while marking playlist '
+                  f'"{playlist_site} {playlist_id}": {exception_update_playlist}')
+            return False
 
 
 def check_channel_availability(channel):
@@ -2664,7 +2660,7 @@ def update_subscriptions(regex_channel_url=fr'^UC[a-z0-9\-\_]'):
                                 date=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                                 playlist=current_playlist,
                                 database=database)
-                            if not playlist_updated:
+                            if playlist_updated is None:
                                 database = connect_database()
                     else:
                         print(f'{datetime.now()} {Fore.RED}INCOMPLETE CHECK{Style.RESET_ALL} on playlist '
