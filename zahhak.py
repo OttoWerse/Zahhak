@@ -31,6 +31,7 @@ mysql_user = os.getenv('ZAHHAK_MYSQL_USERNAME', 'admin')
 mysql_password = os.getenv('ZAHHAK_MYSQL_PASSWORD', 'admin')
 
 '''Variables'''
+MEDIA_FORMAT = "bestvideo*[ext=mp4][height<=1080][vcodec~='^(av01|vp9|h265|hevc)']+bestaudio[ext=m4a]"
 # Frequency to reconnect VPN (in seconds)
 sleep_time_vpn = 10
 # How often to retry connecting to a VPN country before giving up
@@ -1959,7 +1960,7 @@ def download_media(media):
             'writeinfojson': True,
             'allow_playlist_files': False,
             # 'check_formats': True,
-            'format': 'bestvideo*[ext=mp4][height<=1080]+bestaudio[ext=m4a]',
+            'format': MEDIA_FORMAT,
             'allow_multiple_audio_streams': True,
             'merge_output_format': 'mp4',
             'subtitleslangs': ['de-orig', 'en-orig'],
