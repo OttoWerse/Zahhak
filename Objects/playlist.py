@@ -14,3 +14,9 @@ class Playlist:
             if not self.url_id == other.url_id:
                 same = False
             return same
+
+    def process(self):
+        pass
+
+    def download(self):
+        pass
