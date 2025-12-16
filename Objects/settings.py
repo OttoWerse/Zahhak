@@ -240,14 +240,12 @@ filter_livestream_current = '& !is_live '
 filter_livestream_recording = '& !was_live '
 # Set ignore error options
 # False --> Getting full list of media ends when one will not load, is private, is age restricted, etc. we get NO list of media at all!
+# 'only_download' --> We do not always get a full list of media, but at least we get A list at all!
 # TODO: Look into what happens if you use False, catch an error like "Private Video" and then do nothing with it. e.g. will yt-dlp continue on
 # TODO: Maybe revert to ignoring errors on channel pages for faster runs? (channels will be checked frequently, and new media should always be on 1st page. Eventually we will get a full list, given enough reruns)
 # TODO: IDK if this can be made to work so private media etc. are filtered out using filter, we need to TEST this!
 DEFAULT_ignore_errors_channel = False
 DEFAULT_ignore_errors_playlist = False
-# 'only_download' --> We do not always get a full list of media, but at least we get A list at all!
-# DEFAULT_ignore_errors_channel           = 'only_download'
-# DEFAULT_ignore_errors_playlist          = 'only_download'
 '''Media Types'''
 download_shorts = False
 download_livestreams = False
