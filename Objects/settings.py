@@ -142,7 +142,7 @@ DEFAULT_vpn_countries = [
 # Timeout connecting VPN
 timeout_vpn = 15
 '''YT-DLP Settings'''
-MEDIA_FORMAT = "bestvideo*[ext=mp4][height>=900][height<=1100][vcodec~='^(av01|vp9|h265|hevc)']+bestaudio[ext=m4a]"
+MEDIA_FORMAT = "bestvideo*[ext=mp4][height<=1200][vcodec~='^(av01|vp9|h265|hevc)']+bestaudio[ext=m4a]"
 # Frequency to reconnect VPN (in seconds)
 sleep_time_vpn = 10
 # How often to retry connecting to a VPN country before giving up
