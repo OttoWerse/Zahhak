@@ -27,7 +27,7 @@ class Medium:
                 same = False
             return same
 
-    def enrich_from_db(self, json_data):
+    def enrich_from_db(self):
         """Enriches media details using local database"""
         pass  # TODO
 
