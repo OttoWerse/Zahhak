@@ -141,6 +141,9 @@ DEFAULT_vpn_countries = [
 ]
 # Timeout connecting VPN
 timeout_vpn = 15
+# VPN frequencies
+DEFAULT_vpn_frequency = 60  # TODO: recheck if can be reached continuously until timeout is reached instead of just waiting. Possibly split this into two values, one for the new and one for the old functionality. Plus also wait time before even trying to get media after trying to reconnect vpn!
+GEO_BLOCKED_vpn_frequency = 30
 '''YT-DLP Settings'''
 MEDIA_FORMAT = "bestvideo*[ext=mp4][height<=1200][vcodec~='^(av01|vp9|h265|hevc)']+bestaudio[ext=m4a]"
 # Frequency to reconnect VPN (in seconds)
@@ -248,6 +251,39 @@ DEFAULT_ignore_errors_playlist = False
 '''Media Types'''
 download_shorts = False
 download_livestreams = False
+'''DEBUG'''
+DEBUG_empty_media = False
+DEBUG_add_media = False
+DEBUG_force_date = False
+DEBUG_log_date_fields_missing = False
+DEBUG_unavailable = False
+DEBUG_update_channel = False
+DEBUG_json_channel = False
+DEBUG_json_check_channel = False
+DEBUG_json_playlist = False
+DEBUG_json_media_add = False
+DEBUG_json_media_details = False
+DEBUG_error_connection = False
+DEBUG_add_unmonitored = False
+DEBUG_channel_id = False
+DEBUG_channel_playlists = False
 '''STRINGS'''
 playlist_name_shorts = 'Shorts'
 playlist_name_livestreams = 'Livestreams'
+'''Status values'''
+STATUS = {'unwanted': 'unwanted',
+          'wanted': 'wanted',
+          'paid': 'paid',
+          'members-only': 'members-only',
+          'age-restricted': 'age-restricted',
+          'unavailable': 'unavailable',
+          'private': 'private',
+          'removed': 'removed',
+          'verified': 'verified',
+          'uncertain': 'uncertain',
+          'broken': 'broken',
+          'cursed': 'cursed',
+          'fresh': 'fresh',
+          'stuck': 'stuck',
+          'done': 'done',
+          }

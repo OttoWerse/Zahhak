@@ -192,11 +192,12 @@ DEFAULT_vpn_countries = [
     'Venezuela',
     'Vietnam',
 ]
-
 GEO_BLOCKED_vpn_countries = []
-
 # Timeout connecting VPN
 timeout_vpn = 15
+# VPN frequencies
+DEFAULT_vpn_frequency = 60  # TODO: recheck if can be reached continuously until timeout is reached instead of just waiting. Possibly split this into two values, one for the new and one for the old functionality. Plus also wait time before even trying to get media after trying to reconnect vpn!
+GEO_BLOCKED_vpn_frequency = 30
 
 # Timeout for channel home page extraction (in seconds)
 timeout_check_channel = 6
@@ -394,13 +395,11 @@ DEBUG_channel_id = False
 DEBUG_channel_playlists = False
 
 '''INIT'''
-# Path to use for download archive, best leave at default
+# Global media download archive
 global_archive_set = set()
-# VPN changer
+# VPN changer runtime variables
 vpn_counter = 0
 vpn_timestamp = datetime.now()
-DEFAULT_vpn_frequency = 60  # TODO: recheck if can be reached continuously until timeout is reached instead of just waiting. Possibly split this into two values, one for the new and one for the old functionality. Plus also wait time before even trying to get media after trying to reconnect vpn!
-GEO_BLOCKED_vpn_frequency = 30
 vpn_frequency = DEFAULT_vpn_frequency
 
 
