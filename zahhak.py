@@ -1263,18 +1263,26 @@ def add_media(media_site, media_id, channel, playlist, media_status, media_avail
     """Adds a media to given playlist & channel in database with the given status fields"""
     if not database:
         database = connect_database()
-
     global global_archive_set
-
+    text_color = get_text_color_for_media_status(media_status=media_status)
     mysql_cursor = database.cursor()
+    try:
+        mysql_cursor.execute("SELECT status FROM videos WHERE site = %s AND url = %s;", (media_site, media_id))
+        sql_status = mysql_cursor.fetchall()[0][0]
+        if sql_status == STATUS['done']:
+            print(f'{datetime.now()} {Fore.RED}DONE{Style.RESET_ALL} media "{media_site} {media_id}" '
+                  f'cannot be updated to status {text_color}"{media_status}"{Style.RESET_ALL}')
+    except KeyboardInterrupt:
+        sys.exit()
+    except Exception as exception:
+        pass
+
     sql = ("INSERT INTO videos(site, url, channel, playlist, status, original_date, download) "
            "VALUES(%s, %s, %s, %s, %s, %s, %s) "
            "ON DUPLICATE KEY UPDATE status = VALUES(status);")
     val = (media_site, media_id, channel, playlist, media_status, media_available_date, download)
     mysql_cursor.execute(sql, val)
     database.commit()
-
-    text_color = get_text_color_for_media_status(media_status=media_status)
 
     if f'{media_site} {media_id}' in global_archive_set:
         print(f'{datetime.now()} {Fore.GREEN}UPDATED{Style.RESET_ALL} media "{media_site} {media_id}" '
