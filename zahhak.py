@@ -2090,8 +2090,10 @@ def download_media(media):
             elif regex_media_format_unavailable.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}FORMAT UNAVAILABLE{Style.RESET_ALL} '
                       f'while downloading media "{media_id}"')
-                reconnect_vpn()
-                return False
+                # reconnect_vpn()
+                # return False
+                # TODO: This was changed to handle videos which legitimately do not exist in requested strict format
+                return True
 
             elif regex_json_write.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}JSON WRITE ERROR{Style.RESET_ALL} '
