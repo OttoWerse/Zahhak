@@ -49,7 +49,7 @@ else:
 # Mass create all NFO files in final directory - Should be False for normal runs!
 fix_all = False
 # Replace existing NFO files (for mass-updating format) - Should be False for normal runs!
-replace_existing = False
+replace_existing = True
 # This is a hotfix for "EXISTING NFO" piling up (IDK why the move after NFO creation fails so often)
 keep_existing = True
 # Maximum total amount of missing frames to tolerate
