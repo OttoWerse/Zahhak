@@ -268,7 +268,7 @@ DEBUG_channel_playlists = False
 '''STRINGS'''
 playlist_name_shorts = 'Shorts'
 playlist_name_livestreams = 'Livestreams'
-'''Status values'''
+'''Status values'''  # TODO: Rework this to be a proper ENUM etc.
 STATUS = {'unwanted': 'unwanted',
           'wanted': 'wanted',
           'paid': 'paid',
