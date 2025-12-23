@@ -1890,7 +1890,7 @@ def download_all_media(status_values, regex_media_url=fr'^[a-z0-9\-\_]'):
                             continue
                     else:
                         print(f'{timestamp_now} {Fore.YELLOW}SKIPPING{Style.RESET_ALL} media "{media_site} {media_id}"!')
-                        continue # TODO: Rework this spaghetto code pls!
+                        break # TODO: Rework this spaghetto code pls!
 
             if break_for_loop:
                 break
