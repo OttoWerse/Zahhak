@@ -1919,7 +1919,10 @@ def download_media(media):
           f'media for "{media_site} - {media_id}" '
           f'status {text_color}"{media_status}"{Style.RESET_ALL}')
 
-    if media_site == 'youtube':
+    if media_site != 'youtube':
+        print(f'{datetime.now()} {Fore.RED}UNSUPPORTED{Style.RESET_ALL} media site "{media_site}"')
+        return False
+    else:
         # Set the full output path
         full_path = os.path.join(f'{channel_name} - {playlist_name}',
                                  f'Season %(release_date>%Y,upload_date>%Y)s [{channel_name}]',
