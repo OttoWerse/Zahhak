@@ -1878,7 +1878,7 @@ def download_all_media(status_values, regex_media_url=fr'^[a-z0-9\-\_]'):
                 media_downloaded = download_media(media=current_media)
                 if media_downloaded is None:
                     print(f'{timestamp_now} {Fore.RED}ERROR{Style.RESET_ALL}: download result is "None"!')
-                    continue
+                    return
                 elif media_downloaded:
                     continue
                 else:
@@ -1888,6 +1888,9 @@ def download_all_media(status_values, regex_media_url=fr'^[a-z0-9\-\_]'):
                         # To break endless loop
                         if vpn_counter_geo == 0:
                             continue
+                    else:
+                        print(f'{timestamp_now} {Fore.YELLOW}SKIPPING{Style.RESET_ALL} media "{media_site} {media_id}"!')
+                        continue # TODO: Rework this spaghetto code pls!
 
             if break_for_loop:
                 break
