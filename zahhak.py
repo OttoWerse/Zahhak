@@ -1859,14 +1859,12 @@ def download_all_media(status_values, regex_media_url=fr'^[a-z0-9\-\_]'):
                     if media_status == STATUS['wanted']:
                         new_media = []
                         database = connect_database()
-
                         for current_status in status_values:
                             # text_color = get_text_color_for_media_status(media_status=current_status)
                             media = get_media_from_db(database=database,
                                                       status=current_status,
                                                       regex_media_url=regex_media_url)
                             new_media.extend(media)
-
                         if len(new_media) > 0:
                             text_color = get_text_color_for_media_status(media_status=media_status)
                             print(f'{timestamp_now} {Fore.CYAN}REFRESHING{Style.RESET_ALL} '
@@ -1879,7 +1877,8 @@ def download_all_media(status_values, regex_media_url=fr'^[a-z0-9\-\_]'):
 
                 media_downloaded = download_media(media=current_media)
                 if media_downloaded is None:
-                    return
+                    print(f'{timestamp_now} {Fore.RED}ERROR{Style.RESET_ALL}: download result is "None"!')
+                    continue
                 elif media_downloaded:
                     continue
                 else:
