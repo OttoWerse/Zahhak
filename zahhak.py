@@ -1859,14 +1859,12 @@ def download_all_media(status_values, regex_media_url=fr'^[a-z0-9\-\_]'):
                     if media_status == STATUS['wanted']:
                         new_media = []
                         database = connect_database()
-
                         for current_status in status_values:
                             # text_color = get_text_color_for_media_status(media_status=current_status)
                             media = get_media_from_db(database=database,
                                                       status=current_status,
                                                       regex_media_url=regex_media_url)
                             new_media.extend(media)
-
                         if len(new_media) > 0:
                             text_color = get_text_color_for_media_status(media_status=media_status)
                             print(f'{timestamp_now} {Fore.CYAN}REFRESHING{Style.RESET_ALL} '
@@ -1879,6 +1877,7 @@ def download_all_media(status_values, regex_media_url=fr'^[a-z0-9\-\_]'):
 
                 media_downloaded = download_media(media=current_media)
                 if media_downloaded is None:
+                    print(f'{timestamp_now} {Fore.RED}ERROR{Style.RESET_ALL}: download result is "None"!')
                     return
                 elif media_downloaded:
                     continue
@@ -1889,6 +1888,9 @@ def download_all_media(status_values, regex_media_url=fr'^[a-z0-9\-\_]'):
                         # To break endless loop
                         if vpn_counter_geo == 0:
                             continue
+                    else:
+                        print(f'{timestamp_now} {Fore.YELLOW}SKIPPING{Style.RESET_ALL} media "{media_site} {media_id}"!')
+                        break # TODO: Rework this spaghetto code pls!
 
             if break_for_loop:
                 break
@@ -1920,7 +1922,10 @@ def download_media(media):
           f'media for "{media_site} - {media_id}" '
           f'status {text_color}"{media_status}"{Style.RESET_ALL}')
 
-    if media_site == 'youtube':
+    if media_site != 'youtube':
+        print(f'{datetime.now()} {Fore.RED}UNSUPPORTED{Style.RESET_ALL} media site "{media_site}"')
+        return False
+    else:
         # Set the full output path
         full_path = os.path.join(f'{channel_name} - {playlist_name}',
                                  f'Season %(release_date>%Y,upload_date>%Y)s [{channel_name}]',
