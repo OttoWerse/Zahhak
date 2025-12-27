@@ -2458,7 +2458,7 @@ def check_channel_complete(channel, database_playlists):
                                                               ignore_errors=DEFAULT_ignore_errors_playlist)
     if online_playlists is not None:
         if len(online_playlists) == 30:
-            if INPUT_POSSIBLE:
+            if input_possible:
                 try:
                     input('Press any key to continue processing channel')
                     return True
@@ -2482,7 +2482,7 @@ def check_channel_complete(channel, database_playlists):
         if unknown_playlists_exist:
             print(f'{datetime.now()} {Fore.RED}INCOMPLETE{Style.RESET_ALL} '
                   f'channel "{channel_name}" ({channel_site} {channel_id})')
-            if INPUT_POSSIBLE:
+            if input_possible:
                 process_channel(channel_url=f'https://www.youtube.com/channel/{channel_id}/videos')
             return False
         else:
@@ -4028,7 +4028,7 @@ if __name__ == "__main__":
 
     '''Parse mode'''
     if not args.mode:
-        INPUT_POSSIBLE = True
+        input_possible = True
         print(f'{datetime.now()} {Fore.YELLOW}WARNING{Style.RESET_ALL}: '
               f'no operating mode was set. Running in user interactive mode!')
         while True:
@@ -4038,55 +4038,58 @@ if __name__ == "__main__":
             verify_fresh_media(regex_media_url=regex_filter_media)
             juggle_verified_media()
     elif len(args.mode) == 1:
-        INPUT_POSSIBLE = False
-        if args.mode == 'A':
-            print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
-                  f'Add Subscriptions')
-            while True:
-                add_subscriptions()
-        elif args.mode == 'M':
-            print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
-                  f'Monitor Subscriptions')
-            while True:
-                update_subscriptions(regex_channel_url=regex_filter_channel)
-        elif args.mode == 'D':
-            print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
-                  f'Download Media')
-            while True:
-                download_all_media(status_values=status_values, regex_media_url=regex_filter_media)
-        elif args.mode == 'V':
-            print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
-                  f'Verify Files')
-            while True:
-                verify_fresh_media(regex_media_url=regex_filter_media)
-        elif args.mode == 'J':
-            print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
-                  f'Juggle Files')
-            while True:
-                juggle_verified_media()
-        elif args.mode == 'X':
-            print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
-                  f'Experimental')
-            migrate_to_status_done(dry_run=False)
-            database = connect_database()
-            mysql_cursor = database.cursor()
-            sql = (
-                "SELECT videos.site, videos.url, videos.original_date, videos.status, videos.save_path "
-                "FROM videos "
-                "WHERE (videos.status = 'done') "
-                "AND (videos.res_height IS NULL "
-                "OR videos.res_width IS NULL "
-                "OR videos.codec IS NULL "
-                "OR videos.filesize IS NULL);")
-            mysql_cursor.execute(sql)
-            media = mysql_cursor.fetchall()
-            migrate_to_media_information(database=database,
-                                         media_to_migrate=media,
-                                         dry_run=False)
-        else:
-            print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: '
-                  f'No mode "{args.mode}" exists')
-
+        input_possible = False
+        try:
+            if args.mode == 'A':
+                print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
+                      f'Add Subscriptions')
+                while True:
+                    add_subscriptions()
+            elif args.mode == 'M':
+                print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
+                      f'Monitor Subscriptions')
+                while True:
+                    update_subscriptions(regex_channel_url=regex_filter_channel)
+            elif args.mode == 'D':
+                print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
+                      f'Download Media')
+                while True:
+                    download_all_media(status_values=status_values, regex_media_url=regex_filter_media)
+            elif args.mode == 'V':
+                print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
+                      f'Verify Files')
+                while True:
+                    verify_fresh_media(regex_media_url=regex_filter_media)
+            elif args.mode == 'J':
+                print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
+                      f'Juggle Files')
+                while True:
+                    juggle_verified_media()
+            elif args.mode == 'X':
+                print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
+                      f'Experimental')
+                migrate_to_status_done(dry_run=False)
+                database = connect_database()
+                mysql_cursor = database.cursor()
+                sql = (
+                    "SELECT videos.site, videos.url, videos.original_date, videos.status, videos.save_path "
+                    "FROM videos "
+                    "WHERE (videos.status = 'done') "
+                    "AND (videos.res_height IS NULL "
+                    "OR videos.res_width IS NULL "
+                    "OR videos.codec IS NULL "
+                    "OR videos.filesize IS NULL);")
+                mysql_cursor.execute(sql)
+                media = mysql_cursor.fetchall()
+                migrate_to_media_information(database=database,
+                                             media_to_migrate=media,
+                                             dry_run=False)
+            else:
+                print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: '
+                      f'No mode "{args.mode}" exists')
+        except Exception as exception_main:
+            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} in main loop: {exception_main}')
+            input(f'Continue?')
     else:
         print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: '
               f'Malformed arguments found!')
