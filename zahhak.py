@@ -4057,10 +4057,10 @@ def fix_all_nfo_files(dry_run=True):
                                    json_description=json_description,
                                    )
         if not nfo_created:
-            print(f'{datetime.now()} {Fore.RED}UNKNOWN ERROR{Style.RESET_ALL} creating NFO!')
+            print(f'{datetime.now()} {Fore.RED}UNKNOWN ERROR{Style.RESET_ALL} creating NFO!', end='\n')
             errors += 1
         else:
-            print(f'{datetime.now()} {Fore.GREEN}UPDATED NFO{Style.RESET_ALL} {nfo_path}')
+            print(f'{datetime.now()} {Fore.GREEN}UPDATED NFO{Style.RESET_ALL} {nfo_path}', end='\r')
     '''Final steps'''
     # Calculate time it took
     timestamp_end = datetime.now()
