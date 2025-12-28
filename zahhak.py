@@ -46,8 +46,6 @@ if create_nfo_files:
     sleep_time_fix_nfo = 0
 else:
     sleep_time_fix_nfo = 90
-# Mass create all NFO files in final directory - Should be False for normal runs!
-fix_all = False
 # Replace existing NFO files (for mass-updating format) - Should be False for normal runs!
 replace_existing = True
 # This is a hotfix for "EXISTING NFO" piling up (IDK why the move after NFO creation fails so often)
@@ -393,6 +391,8 @@ DEBUG_error_connection = False
 DEBUG_add_unmonitored = False
 DEBUG_channel_id = False
 DEBUG_channel_playlists = False
+DEBUG_test_nfo_format = False
+DEBUG_check_NFO_path = False
 
 '''INIT'''
 # Global media download archive
@@ -1889,8 +1889,9 @@ def download_all_media(status_values, regex_media_url=fr'^[a-z0-9\-\_]'):
                         if vpn_counter_geo == 0:
                             continue
                     else:
-                        print(f'{timestamp_now} {Fore.YELLOW}SKIPPING{Style.RESET_ALL} media "{media_site} {media_id}"!')
-                        break # TODO: Rework this spaghetto code pls!
+                        print(
+                            f'{timestamp_now} {Fore.YELLOW}SKIPPING{Style.RESET_ALL} media "{media_site} {media_id}"!')
+                        break  # TODO: Rework this spaghetto code pls!
 
             if break_for_loop:
                 break
@@ -3283,6 +3284,8 @@ def fix_nfo_file(filepath, json_title, json_description, json_upload_date, json_
         nfo_upload_date = json_upload_date.strftime('%Y-%m-%d')
         nfo_year = json_upload_date.strftime('%Y')
         nfo_network = get_channel_name(media_site=json_site, media_id=json_id)
+        nfo_unique_id = json_id
+        nfo_unique_id_type = json_site
         if nfo_network == None:
             return False
 
@@ -3296,25 +3299,16 @@ def fix_nfo_file(filepath, json_title, json_description, json_upload_date, json_
                     E.title(f'{nfo_title}'),
                     E.year(f'{nfo_year}'),
                     E.studio(f'{nfo_network}'),
-                    E.aired(f'{nfo_upload_date}')
+                    E.aired(f'{nfo_upload_date}'),
+                    E.uniqueid({'type': f'{nfo_unique_id_type}'}, f'{nfo_unique_id}'),
                 )
                 xml_txt = lxml.etree.tostring(xml_data, encoding=str, pretty_print=True)
-
-                # xml_tree = BeautifulSoup(xml_txt, 'xml').prettify()
                 xml_tree = xml_txt
-
-                # FIX for '<' and '>' in BS4
-                # xml_tree = re.sub(r'&lt;', '<', xml_tree)
-                # xml_tree = re.sub(r'&gt;', '>', xml_tree)
-
-                # input(xml_tree)
-
+                if DEBUG_test_nfo_format:
+                    input(xml_tree)
                 nfo_txt = xml_tree
-
                 write_nfo_result = write_nfo(path=filepath, content=nfo_txt)
-
                 # print(f'{datetime.now()} {Fore.GREEN}CREATED{Style.RESET_ALL} new NFO {base_path_nfo}')
-
                 return write_nfo_result
 
             else:
@@ -3944,6 +3938,145 @@ def migrate_to_status_done(dry_run=True):
           f'took {duration_minutes} minutes to process {count_media_to_migrate - errors}/{count_media_to_migrate} media items.')
 
 
+def fix_all_nfo_files(dry_run=True):
+    # Check current time for calculating time it took
+    timestamp_start = datetime.now()
+    # Connect Database
+    database = connect_database()
+    media_to_migrate = get_media_from_db(
+        database=database,
+        status=STATUS['done'],
+    )
+    count_media_to_migrate = len(media_to_migrate)
+    # Check dry run
+    if dry_run:
+        type_of_run = 'DRY RUN'
+        print(f'{datetime.now()} {Fore.YELLOW}{type_of_run}{Style.RESET_ALL} for {count_media_to_migrate} media...')
+    else:
+        type_of_run = 'MIGRATION'
+        print(f'{datetime.now()} {Fore.CYAN}{type_of_run}{Style.RESET_ALL} for {count_media_to_migrate} media...')
+    # Reset error and counter
+    errors = 0
+    counter = 0
+    # Start migration/dry run
+    for current_media in media_to_migrate:
+        counter += 1
+        media_site = current_media[0]
+        media_id = current_media[1]
+        media_available_date = current_media[2]
+        media_status = current_media[3]
+        media_save_path = os.path.join(directory_final, current_media[4])
+        channel_name = current_media[5]
+        channel_id = current_media[6]
+        playlist_name = current_media[7]
+        playlist_id = current_media[8]
+        '''JSON Check'''
+        # Get JSON
+        path_json = media_save_path
+        try:
+            path_json = re.sub(regex_mp4, '.info.json', path_json)
+        except KeyboardInterrupt:
+            sys.exit()
+        except Exception as exception:
+            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} forming path for JSON '
+                  f'"{os.path.basename(path_json)}": {exception}')
+            errors += 1
+            continue
+        # Check JSON exists
+        if not os.path.exists(path_json):
+            print(f'{datetime.now()} {Fore.RED}MISSING JSON{Style.RESET_ALL} {os.path.basename(path_json)}')
+            errors += 1
+            continue
+        # Open JSON
+        with io.open(path_json, 'r', encoding='utf-8-sig') as json_txt:
+            try:
+                json_obj = json.load(json_txt)
+                # Get mandatory fields
+                try:
+                    json_site = json_obj['extractor']
+                    json_id = json_obj['id']
+                    json_title = json_obj['title']
+                    json_fulltitle = json_obj['fulltitle']
+                    json_channel = json_obj['channel_id']  # TODO: Uploader name NOT use for season/shows!
+                    json_height = json_obj['height']
+                    json_width = json_obj['width']
+                    json_vcodec = json_obj['vcodec']
+                except KeyboardInterrupt:
+                    sys.exit()
+                except Exception as exception:
+                    print(f'{datetime.now()} {Fore.RED}MISSING MANDATORY FIELD{Style.RESET_ALL} '
+                          f'{os.path.basename(path_json)}: {exception}')
+                    return False
+                # Get optional fields
+                try:
+                    json_description = json_obj['description']
+                except KeyboardInterrupt:
+                    sys.exit()
+                except Exception as exception:
+                    print(f'{datetime.now()} {Fore.YELLOW}MISSING OPTIONAL FIELD{Style.RESET_ALL} in '
+                          f'{os.path.basename(path_json)}: {exception}')
+                # Get date fields (there is two mutually exclusive ones!)
+                json_date = None
+                if json_date is None:
+                    try:
+                        json_date = datetime.strptime(json_obj['upload_date'], '%Y%m%d')
+                    except KeyboardInterrupt:
+                        sys.exit()
+                    except Exception as exception_add_media:
+                        print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: '
+                              f'No upload date in info JSON! ({exception_add_media})')
+                if json_date is None:
+                    try:
+                        json_date = datetime.strptime(json_obj['release_date'], '%Y%m%d')
+                    except KeyboardInterrupt:
+                        sys.exit()
+                    except Exception as exception_add_media:
+                        print(
+                            f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: No release date in info JSON! ({exception_add_media})')
+            except KeyboardInterrupt:
+                sys.exit()
+            except Exception as exception:
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} reading site/id in JSON '
+                      f'"{os.path.basename(path_json)}": {exception}')
+                errors += 1
+                continue
+            # Check if JSON contains same ID as Database.
+            if json_id != media_id:
+                print(f'{datetime.now()} {Fore.RED}ID MISMATCH{Style.RESET_ALL} {json_id} =|= {media_id} in JSON file '
+                      f'"{os.path.basename(path_json)}"')
+                errors += 1
+                continue
+        nfo_path = regex_mp4.sub('.nfo', media_save_path)
+        if DEBUG_check_NFO_path:
+            input(nfo_path)
+        nfo_created = fix_nfo_file(filepath=nfo_path,
+                                   json_id=json_id,
+                                   json_site=json_site,
+                                   json_title=json_title,
+                                   json_upload_date=json_date,
+                                   json_description=json_description,
+                                   )
+        if not nfo_created:
+            print(f'{datetime.now()} {Fore.RED}UNKNOWN ERROR{Style.RESET_ALL} creating NFO!')
+            errors += 1
+        else:
+            print(f'{datetime.now()} {Fore.GREEN}UPDATED NFO{Style.RESET_ALL} {nfo_path}')
+    '''Final steps'''
+    # Calculate time it took
+    timestamp_end = datetime.now()
+    timestamp_distance = timestamp_end - timestamp_start
+    duration_minutes = timestamp_distance.seconds / 60
+    # Check for errors
+    if errors > 0:
+        color = Fore.RED
+    else:
+        color = Fore.GREEN
+    # Print final message
+    print(f'{datetime.now()} {color}FINISHED {type_of_run}{Style.RESET_ALL} '
+          f'with {color}{errors} ERRORS{Style.RESET_ALL} '
+          f'took {duration_minutes} minutes to process {count_media_to_migrate - errors}/{count_media_to_migrate} media items.')
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Zahhak")
 
@@ -4089,6 +4222,7 @@ if __name__ == "__main__":
                 migrate_to_media_information(database=database,
                                              media_to_migrate=media,
                                              dry_run=False)
+                fix_all_nfo_files(dry_run=False)
             else:
                 print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: '
                       f'No mode "{args.mode}" exists')
