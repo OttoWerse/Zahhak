@@ -393,7 +393,7 @@ DEBUG_channel_id = False
 DEBUG_channel_playlists = False
 DEBUG_test_nfo_format = False
 DEBUG_check_NFO_path = False
-DEBUG_print_metadata_on_format_unavailable = True
+DEBUG_json_format_unavailable = False
 
 '''INIT'''
 # Global media download archive
@@ -2104,13 +2104,16 @@ def download_media(media):
             elif regex_media_format_unavailable.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}FORMAT UNAVAILABLE{Style.RESET_ALL} '
                       f'while downloading media "{media_id}"')
-                # Run YT-DLP
-                with yt_dlp.YoutubeDL() as ilus:
-                    # ilus.download(media_url)
-                    meta = ilus.extract_info(media_url, download=False)
-                    meta = ilus.sanitize_info(meta)
-                    if DEBUG_print_metadata_on_format_unavailable:
-                        print(f'{meta}')
+                if DEBUG_json_format_unavailable:
+                    # Run YT-DLP
+                    with yt_dlp.YoutubeDL() as ilus:
+                        # ilus.download(media_url)
+                        meta = ilus.extract_info(media_url, download=False)
+                        meta = ilus.sanitize_info(meta)
+                        with open('DEBUG_check_channel.json', 'w', encoding='utf-8') as json_file:
+                            # noinspection PyTypeChecker
+                            json.dump(meta, json_file, ensure_ascii=False, indent=4)
+                        input(f'Dumped JSON... Continue?')
                 # reconnect_vpn()
                 # return False
                 # TODO: This was changed to handle videos which legitimately do not exist in requested strict format
