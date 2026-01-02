@@ -640,7 +640,7 @@ def check_channel_availability(channel):
             return False
 
     if DEBUG_json_check_channel:
-        with open('DEBUG_check_channel.json', 'w', encoding='utf-8') as json_file:
+        with open('check_channel.json', 'w', encoding='utf-8') as json_file:
             # noinspection PyTypeChecker
             json.dump(info_json, json_file, ensure_ascii=False, indent=4)
         input(f'Dumped JSON... Continue?')
@@ -772,7 +772,7 @@ def get_new_channel_media_from_youtube(channel, ignore_errors, archive_set):
             return False
 
     if DEBUG_json_channel:
-        with open('debug.json', 'w', encoding='utf-8') as json_file:
+        with open('channel.json', 'w', encoding='utf-8') as json_file:
             # noinspection PyTypeChecker
             json.dump(info_json, json_file, ensure_ascii=False, indent=4)
         input(f'Dumped JSON... Continue?')
@@ -924,7 +924,7 @@ def get_new_playlist_media_from_youtube(playlist, ignore_errors, counter, archiv
             return False
 
     if DEBUG_json_playlist:
-        with open('debug.json', 'w', encoding='utf-8') as json_file:
+        with open('playlist.json', 'w', encoding='utf-8') as json_file:
             # noinspection PyTypeChecker
             json.dump(info_json, json_file, ensure_ascii=False, indent=4)
         input(f'Dumped JSON... Continue?')
@@ -1074,7 +1074,7 @@ def get_media_details_from_youtube(media_id, ignore_errors, archive_set):
                 info_json = ilus.sanitize_info(ilus.extract_info(media_url, process=True, download=False))
 
             if DEBUG_json_media_details:
-                with open('debug.json', 'w', encoding='utf-8') as json_file:
+                with open('media_details.json', 'w', encoding='utf-8') as json_file:
                     # noinspection PyTypeChecker
                     json.dump(info_json, json_file, ensure_ascii=False, indent=4)
                 input(f'Dumped JSON... Continue?')
@@ -1120,7 +1120,7 @@ def get_channel_details(channel_url, ignore_errors):
             info_json = ilus.sanitize_info(ilus.extract_info(channel_url, process=True, download=False))
 
         if DEBUG_channel_id:
-            with open('debug.json', 'w', encoding='utf-8') as f:
+            with open('channel_id.json', 'w', encoding='utf-8') as f:
                 # noinspection PyTypeChecker
                 json.dump(info_json, f, ensure_ascii=False, indent=4)
             input(f'Dumped JSON... Continue?')
@@ -1312,7 +1312,7 @@ def update_media_status(media_site, media_id, media_status, database=None):
 def process_media(media, channel_site, channel_id, playlist_id, download, archive_set, database):
     """Processes media and adds it to database depending on results and settings"""
     if DEBUG_json_media_add:
-        with open('debug.json', 'w', encoding='utf-8') as json_file:
+        with open('media_add.json', 'w', encoding='utf-8') as json_file:
             # noinspection PyTypeChecker
             json.dump(media, json_file, ensure_ascii=False, indent=4)
         input(f'Dumped JSON... Continue?')
@@ -2110,7 +2110,7 @@ def download_media(media):
                         # ilus.download(media_url)
                         meta = ilus.extract_info(media_url, download=False)
                         meta = ilus.sanitize_info(meta)
-                        with open('DEBUG_check_channel.json', 'w', encoding='utf-8') as json_file:
+                        with open('format_unavailable.json', 'w', encoding='utf-8') as json_file:
                             # noinspection PyTypeChecker
                             json.dump(meta, json_file, ensure_ascii=False, indent=4)
                         input(f'Dumped JSON... Continue?')
@@ -2407,7 +2407,7 @@ def get_all_channel_playlists_from_youtube(channel_id, ignore_errors):
                 info_json = ilus.sanitize_info(ilus.extract_info(channel_playlists_url, process=True, download=False))
 
             if DEBUG_channel_playlists:
-                with open('debug.json', 'w', encoding='utf-8') as json_file:
+                with open('channel_playlists.json', 'w', encoding='utf-8') as json_file:
                     # noinspection PyTypeChecker
                     json.dump(info_json, json_file, ensure_ascii=False, indent=4)
                 input(f'Dumped JSON... Continue?')
