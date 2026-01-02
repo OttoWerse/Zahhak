@@ -145,7 +145,7 @@ timeout_vpn = 15
 DEFAULT_vpn_frequency = 60  # TODO: recheck if can be reached continuously until timeout is reached instead of just waiting. Possibly split this into two values, one for the new and one for the old functionality. Plus also wait time before even trying to get media after trying to reconnect vpn!
 GEO_BLOCKED_vpn_frequency = 30
 '''YT-DLP Settings'''
-MEDIA_FORMAT = "bestvideo*[ext=mp4][height<=1200][vcodec~='^(av01|vp9|h265|hevc)']+bestaudio[ext=m4a]"
+MEDIA_FORMAT = "bestvideo*[width<=2000][vcodec~='^(av0?1|vp0?9|h265|hevc)']+bestaudio[ext=m4a]"
 # Frequency to reconnect VPN (in seconds)
 sleep_time_vpn = 10
 # How often to retry connecting to a VPN country before giving up
@@ -263,6 +263,9 @@ DEBUG_error_connection = False
 DEBUG_add_unmonitored = False
 DEBUG_channel_id = False
 DEBUG_channel_playlists = False
+DEBUG_test_nfo_format = False
+DEBUG_check_NFO_path = False
+DEBUG_json_format_unavailable = False
 '''STRINGS'''
 playlist_name_shorts = 'Shorts'
 playlist_name_livestreams = 'Livestreams'
