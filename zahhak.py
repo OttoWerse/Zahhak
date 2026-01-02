@@ -393,7 +393,7 @@ DEBUG_channel_id = False
 DEBUG_channel_playlists = False
 DEBUG_test_nfo_format = False
 DEBUG_check_NFO_path = False
-DEBUG_print_metadata_before_download = False
+DEBUG_print_metadata_on_format_unavailable = False
 
 '''INIT'''
 # Global media download archive
@@ -2030,8 +2030,6 @@ def download_media(media):
                 # ilus.download(media_url)
                 meta = ilus.extract_info(media_url, download=True)
                 meta = ilus.sanitize_info(meta)
-                if DEBUG_print_metadata_before_download:
-                    input(f'{meta}')
                 path = meta['requested_downloads'][0]['filepath']
                 # TODO: new format? path = path[len(directory_download_home)+len(os.sep):len(path)-len('.mp4')]
                 path = path[len(directory_download_home) + len(os.sep):len(path)]
@@ -2106,6 +2104,13 @@ def download_media(media):
             elif regex_media_format_unavailable.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}FORMAT UNAVAILABLE{Style.RESET_ALL} '
                       f'while downloading media "{media_id}"')
+                # Run YT-DLP
+                with yt_dlp.YoutubeDL() as ilus:
+                    # ilus.download(media_url)
+                    meta = ilus.extract_info(media_url, download=False)
+                    meta = ilus.sanitize_info(meta)
+                    if DEBUG_print_metadata_on_format_unavailable:
+                        input(f'{meta}')
                 # reconnect_vpn()
                 # return False
                 # TODO: This was changed to handle videos which legitimately do not exist in requested strict format
