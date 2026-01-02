@@ -393,7 +393,7 @@ DEBUG_channel_id = False
 DEBUG_channel_playlists = False
 DEBUG_test_nfo_format = False
 DEBUG_check_NFO_path = False
-DEBUG_print_metadata_on_format_unavailable = False
+DEBUG_print_metadata_on_format_unavailable = True
 
 '''INIT'''
 # Global media download archive
@@ -2110,7 +2110,7 @@ def download_media(media):
                     meta = ilus.extract_info(media_url, download=False)
                     meta = ilus.sanitize_info(meta)
                     if DEBUG_print_metadata_on_format_unavailable:
-                        input(f'{meta}')
+                        print(f'{meta}')
                 # reconnect_vpn()
                 # return False
                 # TODO: This was changed to handle videos which legitimately do not exist in requested strict format
