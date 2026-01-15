@@ -1821,80 +1821,76 @@ def download_all_media(status_values, regex_media_url=fr'^[a-z0-9\-\_]'):
                                   regex_media_url=regex_media_url)
         all_media.extend(media)
 
-    if len(all_media) == 0:
-        print(f'{datetime.now()} {Fore.CYAN}DONE{Style.RESET_ALL} waiting {sleep_time_download_done} seconds')
-        time.sleep(sleep_time_download_done)
+    old_media_status = ''
+    timestamp_old = datetime.now()
+    media_counter = 0
+    break_for_loop = False
 
-    else:
-        old_media_status = ''
-        timestamp_old = datetime.now()
-        media_counter = 0
-        break_for_loop = False
+    for current_media in all_media:
+        media_downloaded = False
+        while not media_downloaded:
+            timestamp_now = datetime.now()
+            timestamp_distance = timestamp_now - timestamp_old
+            media_counter += 1
 
-        for current_media in all_media:
-            media_downloaded = False
-            while not media_downloaded:
-                timestamp_now = datetime.now()
-                timestamp_distance = timestamp_now - timestamp_old
-                media_counter += 1
+            media_site = current_media[0]
+            media_id = current_media[1]
+            media_available_date = current_media[2]
+            media_status = current_media[3]
+            media_save_path = current_media[4]
+            channel_name = current_media[5]
+            channel_id = current_media[6]
+            playlist_name = current_media[7]
+            playlist_id = current_media[8]
 
-                media_site = current_media[0]
-                media_id = current_media[1]
-                media_available_date = current_media[2]
-                media_status = current_media[3]
-                media_save_path = current_media[4]
-                channel_name = current_media[5]
-                channel_id = current_media[6]
-                playlist_name = current_media[7]
-                playlist_id = current_media[8]
+            if old_media_status != media_status:
+                text_color = get_text_color_for_media_status(media_status=media_status)
+                print(f'{timestamp_now} {Fore.CYAN}SWITCHED{Style.RESET_ALL} '
+                      f'to downloading {text_color}"{media_status}"{Style.RESET_ALL} media!')
+            old_media_status = media_status
 
-                if old_media_status != media_status:
-                    text_color = get_text_color_for_media_status(media_status=media_status)
-                    print(f'{timestamp_now} {Fore.CYAN}SWITCHED{Style.RESET_ALL} '
-                          f'to downloading {text_color}"{media_status}"{Style.RESET_ALL} media!')
-                old_media_status = media_status
+            if timestamp_distance.seconds > select_newest_media_frequency:
+                timestamp_old = timestamp_now
+                if media_status == STATUS['wanted']:
+                    new_media = []
+                    database = connect_database()
+                    for current_status in status_values:
+                        # text_color = get_text_color_for_media_status(media_status=current_status)
+                        media = get_media_from_db(database=database,
+                                                  status=current_status,
+                                                  regex_media_url=regex_media_url)
+                        new_media.extend(media)
+                    if len(new_media) > 0:
+                        text_color = get_text_color_for_media_status(media_status=media_status)
+                        print(f'{timestamp_now} {Fore.CYAN}REFRESHING{Style.RESET_ALL} '
+                              f'{text_color}"{media_status}"{Style.RESET_ALL} media list!')
+                        break_for_loop = True
+                        break
 
-                if timestamp_distance.seconds > select_newest_media_frequency:
-                    timestamp_old = timestamp_now
-                    if media_status == STATUS['wanted']:
-                        new_media = []
-                        database = connect_database()
-                        for current_status in status_values:
-                            # text_color = get_text_color_for_media_status(media_status=current_status)
-                            media = get_media_from_db(database=database,
-                                                      status=current_status,
-                                                      regex_media_url=regex_media_url)
-                            new_media.extend(media)
-                        if len(new_media) > 0:
-                            text_color = get_text_color_for_media_status(media_status=media_status)
-                            print(f'{timestamp_now} {Fore.CYAN}REFRESHING{Style.RESET_ALL} '
-                                  f'{text_color}"{media_status}"{Style.RESET_ALL} media list!')
-                            break_for_loop = True
-                            break
+            vpn_counter_geo = 0
+            GEO_BLOCKED_vpn_countries = []
 
-                vpn_counter_geo = 0
-                GEO_BLOCKED_vpn_countries = []
-
-                media_downloaded = download_media(media=current_media)
-                if media_downloaded is None:
-                    print(f'{timestamp_now} {Fore.RED}ERROR{Style.RESET_ALL}: download result is "None"!')
-                    return
-                elif media_downloaded:
-                    continue
+            media_downloaded = download_media(media=current_media)
+            if media_downloaded is None:
+                print(f'{timestamp_now} {Fore.RED}ERROR{Style.RESET_ALL}: download result is "None"!')
+                return
+            elif media_downloaded:
+                continue
+            else:
+                if GEO_BLOCKED_vpn_countries:
+                    vpn_frequency = GEO_BLOCKED_vpn_frequency
+                    vpn_counter_geo = reconnect_vpn(vpn_counter_geo, GEO_BLOCKED_vpn_countries)
+                    # To break endless loop
+                    if vpn_counter_geo == 0:
+                        continue
                 else:
-                    if GEO_BLOCKED_vpn_countries:
-                        vpn_frequency = GEO_BLOCKED_vpn_frequency
-                        vpn_counter_geo = reconnect_vpn(vpn_counter_geo, GEO_BLOCKED_vpn_countries)
-                        # To break endless loop
-                        if vpn_counter_geo == 0:
-                            continue
-                    else:
-                        print(
-                            f'{timestamp_now} {Fore.YELLOW}SKIPPING{Style.RESET_ALL} media "{media_site} {media_id}"!')
-                        break  # TODO: Rework this spaghetto code pls!
-
-            if break_for_loop:
-                break
+                    print(
+                        f'{timestamp_now} {Fore.YELLOW}SKIPPING{Style.RESET_ALL} media "{media_site} {media_id}"!')
+                    break  # TODO: Rework this spaghetto code pls!
+        if break_for_loop:
+            break
+    print(f'{datetime.now()} {Fore.CYAN}DONE{Style.RESET_ALL} waiting {sleep_time_download_done} seconds')
+    time.sleep(sleep_time_download_done)
 
 
 def download_media(media):
