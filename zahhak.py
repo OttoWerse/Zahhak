@@ -31,7 +31,7 @@ mysql_user = os.getenv('ZAHHAK_MYSQL_USERNAME', 'admin')
 mysql_password = os.getenv('ZAHHAK_MYSQL_PASSWORD', 'admin')
 
 '''Variables'''
-MEDIA_FORMAT = "bestvideo*[width<=2000][vcodec~='^(av0?1|vp0?9|h265|hevc)']+bestaudio[ext=m4a]"
+MEDIA_FORMAT = "bestvideo*[vcodec~='^(av0?1|vp0?9)'][width<=2000][width>=1000]+bestaudio"
 # Frequency to reconnect VPN (in seconds)
 sleep_time_vpn = 10
 # How often to retry connecting to a VPN country before giving up
@@ -393,7 +393,6 @@ DEBUG_channel_id = False
 DEBUG_channel_playlists = False
 DEBUG_test_nfo_format = False
 DEBUG_check_NFO_path = False
-DEBUG_json_format_unavailable = False
 
 '''INIT'''
 # Global media download archive
@@ -640,7 +639,7 @@ def check_channel_availability(channel):
             return False
 
     if DEBUG_json_check_channel:
-        with open('check_channel.json', 'w', encoding='utf-8') as json_file:
+        with open('DEBUG_check_channel.json', 'w', encoding='utf-8') as json_file:
             # noinspection PyTypeChecker
             json.dump(info_json, json_file, ensure_ascii=False, indent=4)
         input(f'Dumped JSON... Continue?')
@@ -772,7 +771,7 @@ def get_new_channel_media_from_youtube(channel, ignore_errors, archive_set):
             return False
 
     if DEBUG_json_channel:
-        with open('channel.json', 'w', encoding='utf-8') as json_file:
+        with open('debug.json', 'w', encoding='utf-8') as json_file:
             # noinspection PyTypeChecker
             json.dump(info_json, json_file, ensure_ascii=False, indent=4)
         input(f'Dumped JSON... Continue?')
@@ -924,7 +923,7 @@ def get_new_playlist_media_from_youtube(playlist, ignore_errors, counter, archiv
             return False
 
     if DEBUG_json_playlist:
-        with open('playlist.json', 'w', encoding='utf-8') as json_file:
+        with open('debug.json', 'w', encoding='utf-8') as json_file:
             # noinspection PyTypeChecker
             json.dump(info_json, json_file, ensure_ascii=False, indent=4)
         input(f'Dumped JSON... Continue?')
@@ -1074,7 +1073,7 @@ def get_media_details_from_youtube(media_id, ignore_errors, archive_set):
                 info_json = ilus.sanitize_info(ilus.extract_info(media_url, process=True, download=False))
 
             if DEBUG_json_media_details:
-                with open('media_details.json', 'w', encoding='utf-8') as json_file:
+                with open('debug.json', 'w', encoding='utf-8') as json_file:
                     # noinspection PyTypeChecker
                     json.dump(info_json, json_file, ensure_ascii=False, indent=4)
                 input(f'Dumped JSON... Continue?')
@@ -1120,7 +1119,7 @@ def get_channel_details(channel_url, ignore_errors):
             info_json = ilus.sanitize_info(ilus.extract_info(channel_url, process=True, download=False))
 
         if DEBUG_channel_id:
-            with open('channel_id.json', 'w', encoding='utf-8') as f:
+            with open('debug.json', 'w', encoding='utf-8') as f:
                 # noinspection PyTypeChecker
                 json.dump(info_json, f, ensure_ascii=False, indent=4)
             input(f'Dumped JSON... Continue?')
@@ -1312,7 +1311,7 @@ def update_media_status(media_site, media_id, media_status, database=None):
 def process_media(media, channel_site, channel_id, playlist_id, download, archive_set, database):
     """Processes media and adds it to database depending on results and settings"""
     if DEBUG_json_media_add:
-        with open('media_add.json', 'w', encoding='utf-8') as json_file:
+        with open('debug.json', 'w', encoding='utf-8') as json_file:
             # noinspection PyTypeChecker
             json.dump(media, json_file, ensure_ascii=False, indent=4)
         input(f'Dumped JSON... Continue?')
@@ -1977,7 +1976,6 @@ def download_media(media):
             'format': MEDIA_FORMAT,
             'allow_multiple_audio_streams': True,
             'merge_output_format': 'mp4',
-            'final_ext': 'mp4',
             'subtitleslangs': ['de-orig', 'en-orig'],
             'outtmpl': full_path,
             'paths': {
@@ -2105,16 +2103,6 @@ def download_media(media):
             elif regex_media_format_unavailable.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}FORMAT UNAVAILABLE{Style.RESET_ALL} '
                       f'while downloading media "{media_id}"')
-                if DEBUG_json_format_unavailable:
-                    # Run YT-DLP
-                    with yt_dlp.YoutubeDL() as ilus:
-                        # ilus.download(media_url)
-                        meta = ilus.extract_info(media_url, download=False)
-                        meta = ilus.sanitize_info(meta)
-                        with open('format_unavailable.json', 'w', encoding='utf-8') as json_file:
-                            # noinspection PyTypeChecker
-                            json.dump(meta, json_file, ensure_ascii=False, indent=4)
-                        input(f'Dumped JSON... Continue?')
                 # reconnect_vpn()
                 # return False
                 # TODO: This was changed to handle videos which legitimately do not exist in requested strict format
@@ -2408,7 +2396,7 @@ def get_all_channel_playlists_from_youtube(channel_id, ignore_errors):
                 info_json = ilus.sanitize_info(ilus.extract_info(channel_playlists_url, process=True, download=False))
 
             if DEBUG_channel_playlists:
-                with open('channel_playlists.json', 'w', encoding='utf-8') as json_file:
+                with open('debug.json', 'w', encoding='utf-8') as json_file:
                     # noinspection PyTypeChecker
                     json.dump(info_json, json_file, ensure_ascii=False, indent=4)
                 input(f'Dumped JSON... Continue?')
