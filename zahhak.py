@@ -31,7 +31,8 @@ mysql_user = os.getenv('ZAHHAK_MYSQL_USERNAME', 'admin')
 mysql_password = os.getenv('ZAHHAK_MYSQL_PASSWORD', 'admin')
 
 '''Variables'''
-MEDIA_FORMAT = "bestvideo*[vcodec~='^(av0?1|vp0?9)'][width<=2000][width>=900]+bestaudio"
+MEDIA_FORMAT_2K = "bestvideo*[vcodec~='^(av0?1|vp0?9)'][width<=2000][width>=900]+bestaudio"
+MEDIA_FORMAT_ANY_RESOLUTION = "bestvideo*[vcodec~='^(av0?1|vp0?9)']+bestaudio"
 # Frequency to reconnect VPN (in seconds)
 sleep_time_vpn = 10
 # How often to retry connecting to a VPN country before giving up
@@ -65,130 +66,130 @@ sleep_time_verification = 150
 
 # Countries to connect to with NordVPN
 DEFAULT_vpn_countries = [
-    'Afghanistan',
+    #    'Afghanistan',
     'Albania',
-    'Algeria',
-    'Andorra',
-    'Angola',
-    'Argentina',
-    'Armenia',
-    'Australia',
+    #    'Algeria',
+    #    'Andorra',
+    #    'Angola',
+    #    'Argentina',
+    #    'Armenia',
+    #    'Australia',
     'Austria',
-    'Azerbaijan',
-    'Bahamas',
-    'Bahrain',
-    'Bangladesh',
+    #    'Azerbaijan',
+    #    'Bahamas',
+    #    'Bahrain',
+    #    'Bangladesh',
     'Belgium',
-    'Belize',
-    'Bermuda',
-    'Bhutan',
-    'Bolivia',
+    #    'Belize',
+    #    'Bermuda',
+    #    'Bhutan',
+    #    'Bolivia',
     'Bosnia and Herzegovina',
     'Brazil',
-    'Brunei Darussalam',
+    #    'Brunei Darussalam',
     'Bulgaria',
-    'Cambodia',
+    #    'Cambodia',
     'Canada',
-    'Cayman Islands',
-    'Chile',
-    'Colombia',
-    'Comoros',
-    'Costa Rica',
+    #    'Cayman Islands',
+    #    'Chile',
+    #    'Colombia',
+    #    'Comoros',
+    #    'Costa Rica',
     'Croatia',
     'Cyprus',
     'Czech Republic',
     'Denmark',
-    'Dominican Republic',
-    'Egypt',
-    'El Salvador',
-    'Ecuador',
+    #    'Dominican Republic',
+    #    'Egypt',
+    #    'El Salvador',
+    #    'Ecuador',
     'Estonia',
-    'Ethiopia',
+    #    'Ethiopia',
     'Finland',
     'France',
     'Georgia',
     'Germany',
-    'Ghana',
+    #    'Ghana',
     'Greece',
     'Greenland',
-    'Guam',
-    'Guatemala',
-    'Honduras',
-    'Hong Kong',
+    #    'Guam',
+    #    'Guatemala',
+    #    'Honduras',
+    #    'Hong Kong',
     'Hungary',
     'Iceland',
-    'India',
+    #    'India',
     'Ireland',
-    'Isle of Man',
-    'Israel',
+    #    'Isle of Man',
+    #    'Israel',
     'Italy',
-    'Jamaica',
-    'Japan',
-    'Jersey',
-    'Jordan',
-    'Kazakhstan',
-    'Kenya',
-    'Kuwait',
+    #    'Jamaica',
+    #    'Japan',
+    #    'Jersey',
+    #    'Jordan',
+    #    'Kazakhstan',
+    #    'Kenya',
+    #    'Kuwait',
     'Latvia',
-    'Lebanon',
-    'Libyan Arab Jamahiriya',
+    #    'Lebanon',
+    #    'Libyan Arab Jamahiriya',
     'Liechtenstein',
     'Lithuania',
     'Luxembourg',
-    'Malaysia',
+    #    'Malaysia',
     'Malta',
-    'Mauritania',
-    'Mexico',
-    'Moldova',
+    #    'Mauritania',
+    #    'Mexico',
+    #    'Moldova',
     'Monaco',
-    'Mongolia',
+    #    'Mongolia',
     'Montenegro',
-    'Morocco',
-    'Mozambique',
-    'Myanmar',
-    'Nepal',
+    #    'Morocco',
+    #    'Mozambique',
+    #    'Myanmar',
+    #    'Nepal',
     'Netherlands',
-    'New Zealand',
-    'Nigeria',
-    'North Macedonia',
+    #    'New Zealand',
+    #    'Nigeria',
+    #    'North Macedonia',
     'Norway',
-    'Pakistan',
-    'Panama',
-    'Papua New Guinea',
-    'Paraguay',
-    'Peru',
-    'Philippines',
+    #    'Pakistan',
+    #    'Panama',
+    #    'Papua New Guinea',
+    #    'Paraguay',
+    #    'Peru',
+    #    'Philippines',
     'Poland',
     'Portugal',
-    'Puerto Rico',
-    'Qatar',
+    #    'Puerto Rico',
+    #    'Qatar',
     'Romania',
-    'Rwanda',
-    'Senegal',
+    #    'Rwanda',
+    #    'Senegal',
     'Serbia',
-    'Singapore',
+    #    'Singapore',
     'Slovakia',
     'Slovenia',
-    'Somalia',
-    'South Africa',
-    'South Korea',
+    #    'Somalia',
+    #    'South Africa',
+    #    'South Korea',
     'Spain',
     'Sri Lanka',
     'Sweden',
     'Switzerland',
-    'Taiwan',
-    'Thailand',
-    'Trinidad and Tobago',
-    'Tunisia',
+    #    'Taiwan',
+    #    'Thailand',
+    #    'Trinidad and Tobago',
+    #    'Tunisia',
     'Turkey',
     'Ukraine',
-    'United Arab Emirates',
+    #    'United Arab Emirates',
     'United Kingdom',
-    'United States',
-    'Uruguay',
-    'Uzbekistan',
-    'Venezuela',
-    'Vietnam',
+    #    'United States',
+    #    'Uruguay',
+    #    'Uzbekistan',
+    #    'Venezuela',
+    #    'Vietnam',
 ]
 GEO_BLOCKED_vpn_countries = []
 # Timeout connecting VPN
@@ -358,22 +359,24 @@ regex_network_value = re.compile(r'(?<=<studio>)(.*)(?=<\/studio>)')
 regex_network_add_position = re.compile(r'(?<=<\/runtime>).*')
 
 '''Status values'''
-STATUS = {'unwanted': 'unwanted',
-          'wanted': 'wanted',
-          'paid': 'paid',
-          'members-only': 'members-only',
-          'age-restricted': 'age-restricted',
-          'unavailable': 'unavailable',
-          'private': 'private',
-          'removed': 'removed',
-          'verified': 'verified',
-          'uncertain': 'uncertain',
-          'broken': 'broken',
-          'cursed': 'cursed',
-          'fresh': 'fresh',
-          'stuck': 'stuck',
-          'done': 'done',
-          }
+class STATUS:
+    unwanted = 'unwanted'
+    wanted = 'wanted'
+    paid = 'paid'
+    members_only = 'members-only'
+    age_restricted = 'age-restricted'
+    unavailable = 'unavailable'
+    private = 'private'
+    removed = 'removed'
+    verified = 'verified'
+    uncertain = 'uncertain'
+    broken = 'broken'
+    cursed = 'cursed'
+    fresh = 'fresh'
+    stuck = 'stuck'
+    done = 'done'
+    migrate = 'migrate'
+
 
 '''DEBUG'''
 DEBUG_empty_media = False
@@ -1229,31 +1232,33 @@ def add_playlist(playlist_id, playlist_name, channel_id, download, monitor):
 def get_text_color_for_media_status(media_status):
     # Set text_color for media status
     text_color = Fore.WHITE
-    if media_status == STATUS['private']:
+    if media_status == STATUS.private:
         text_color = Fore.RED
-    elif media_status == STATUS['removed']:
+    elif media_status == STATUS.removed:
         text_color = Fore.RED
-    elif media_status == STATUS['age-restricted']:
+    elif media_status == STATUS.age_restricted:
         text_color = Fore.RED
-    elif media_status == STATUS['cursed']:
+    elif media_status == STATUS.cursed:
         text_color = Fore.RED
-    elif media_status == STATUS['unavailable']:
+    elif media_status == STATUS.unavailable:
         text_color = Fore.RED
-    elif media_status == STATUS['broken']:
+    elif media_status == STATUS.broken:
         text_color = Fore.YELLOW
-    elif media_status == STATUS['members-only']:
+    elif media_status == STATUS.members_only:
         text_color = Fore.YELLOW
-    elif media_status == STATUS['uncertain']:
+    elif media_status == STATUS.uncertain:
         text_color = Fore.YELLOW
-    elif media_status == STATUS['wanted']:
+    elif media_status == STATUS.migrate:
+        text_color = Fore.YELLOW
+    elif media_status == STATUS.wanted:
         text_color = Fore.CYAN
-    elif media_status == STATUS['unwanted']:
+    elif media_status == STATUS.unwanted:
         text_color = Fore.CYAN
-    elif media_status == STATUS['verified']:
+    elif media_status == STATUS.verified:
         text_color = Fore.GREEN
-    elif media_status == STATUS['done']:
+    elif media_status == STATUS.done:
         text_color = Fore.GREEN
-    elif media_status == STATUS['fresh']:
+    elif media_status == STATUS.fresh:
         text_color = Fore.GREEN
 
     return text_color
@@ -1269,7 +1274,7 @@ def add_media(media_site, media_id, channel, playlist, media_status, media_avail
     try:
         mysql_cursor.execute("SELECT status FROM videos WHERE site = %s AND url = %s;", (media_site, media_id))
         sql_status = mysql_cursor.fetchall()[0][0]
-        if sql_status == STATUS['done']:
+        if sql_status == STATUS.done:
             print(f'{datetime.now()} {Fore.RED}DONE{Style.RESET_ALL} media "{media_site} {media_id}" '
                   f'cannot be updated to status {text_color}"{media_status}"{Style.RESET_ALL}')
     except KeyboardInterrupt:
@@ -1365,7 +1370,7 @@ def process_media(media, channel_site, channel_id, playlist_id, download, archiv
                               media_id=media_id,
                               channel=channel_id,
                               playlist=playlist_id,
-                              media_status=STATUS['members-only'],
+                              media_status=STATUS.members_only,
                               media_available_date=original_date,
                               download=download,
                               database=database)
@@ -1385,7 +1390,7 @@ def process_media(media, channel_site, channel_id, playlist_id, download, archiv
                               media_id=media_id,
                               channel=channel_id,
                               playlist=playlist_id,
-                              media_status=STATUS['paid'],
+                              media_status=STATUS.paid,
                               media_available_date=original_date,
                               download=download,
                               database=database)
@@ -1405,7 +1410,7 @@ def process_media(media, channel_site, channel_id, playlist_id, download, archiv
                               media_id=media_id,
                               channel=channel_id,
                               playlist=playlist_id,
-                              media_status=STATUS['removed'],
+                              media_status=STATUS.removed,
                               media_available_date=original_date,
                               download=download,
                               database=database)
@@ -1426,7 +1431,7 @@ def process_media(media, channel_site, channel_id, playlist_id, download, archiv
                               media_id=media_id,
                               channel=channel_id,
                               playlist=playlist_id,
-                              media_status=STATUS['unavailable'],
+                              media_status=STATUS.unavailable,
                               media_available_date=original_date,
                               download=download,
                               database=database)
@@ -1451,7 +1456,7 @@ def process_media(media, channel_site, channel_id, playlist_id, download, archiv
                               media_id=media_id,
                               channel=channel_id,
                               playlist=playlist_id,
-                              media_status=STATUS['private'],
+                              media_status=STATUS.private,
                               media_available_date=original_date,
                               download=download,
                               database=database)
@@ -1471,7 +1476,7 @@ def process_media(media, channel_site, channel_id, playlist_id, download, archiv
                               media_id=media_id,
                               channel=channel_id,
                               playlist=playlist_id,
-                              media_status=STATUS['age-restricted'],
+                              media_status=STATUS.age_restricted,
                               media_available_date=original_date,
                               download=download,
                               database=database)
@@ -1495,7 +1500,7 @@ def process_media(media, channel_site, channel_id, playlist_id, download, archiv
                               media_id=media_id,
                               channel=channel_id,
                               playlist=playlist_id,
-                              media_status=STATUS['unavailable'],
+                              media_status=STATUS.unavailable,
                               media_available_date=original_date,
                               download=download,
                               database=database)
@@ -1595,11 +1600,11 @@ def process_media(media, channel_site, channel_id, playlist_id, download, archiv
 
     if original_date is not None:
         if final_download:
-            media_status = STATUS['wanted']
+            media_status = STATUS.wanted
             print(f'{datetime.now()} {Fore.CYAN}ADDING{Style.RESET_ALL} media {media_id} type "{media_type}"',
                   end='\r')
         else:
-            media_status = STATUS['unwanted']
+            media_status = STATUS.unwanted
             print(f'{datetime.now()} {Fore.CYAN}SKIPPING{Style.RESET_ALL} media "{media_id}" type "{media_type}"',
                   end='\r')
 
@@ -1750,7 +1755,7 @@ def reconnect_vpn(counter=None, vpn_countries=None):
         print(f'{datetime.now()} {Fore.CYAN}VPN DISABLED{Style.RESET_ALL}')
 
 
-def get_media_from_db(database, status=STATUS['wanted'], regex_media_url=fr'^[a-z0-9\-\_]'):
+def get_media_from_db(database, status=STATUS.wanted, regex_media_url=fr'^[a-z0-9\-\_]'):
     """
     Returns a list of all wanted YouTube media als list of lists
     Inner list field order is as follows:
@@ -1851,7 +1856,7 @@ def download_all_media(status_values, regex_media_url=fr'^[a-z0-9\-\_]'):
 
             if timestamp_distance.seconds > select_newest_media_frequency:
                 timestamp_old = timestamp_now
-                if media_status == STATUS['wanted']:
+                if media_status == STATUS.wanted:
                     new_media = []
                     database = connect_database()
                     for current_status in status_values:
@@ -1903,6 +1908,16 @@ def download_media(media):
     channel_id = media[6]
     playlist_name = media[7]
     playlist_id = media[8]
+
+    match media_status:
+        case STATUS.wanted:
+            media_format = MEDIA_FORMAT_ANY_RESOLUTION
+        case STATUS.broken:
+            media_format = MEDIA_FORMAT_ANY_RESOLUTION
+        case STATUS.migrate:
+            media_format = MEDIA_FORMAT_2K
+        case _:
+            media_format = MEDIA_FORMAT_2K
 
     if directory_download_temp is None:
         print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} download temp directory not set!')
@@ -1969,7 +1984,7 @@ def download_media(media):
             'writeinfojson': True,
             'allow_playlist_files': False,
             # 'check_formats': True,
-            'format': MEDIA_FORMAT,
+            'format': media_format,
             'allow_multiple_audio_streams': True,
             'merge_output_format': 'mp4',
             'subtitleslangs': ['de-orig', 'en-orig'],
@@ -2142,12 +2157,12 @@ def download_media(media):
                 # print(f'{datetime.now()} {Fore.RED}MEMBERS ONLY{Style.RESET_ALL} media "{media_id}"')
                 # Update DB
                 try:
-                    if media_status != STATUS['members-only']:
+                    if media_status != STATUS.members_only:
                         add_media(media_site=media_site,
                                   media_id=media_id,
                                   channel=channel_id,
                                   playlist=playlist_id,
-                                  media_status=STATUS['members-only'],
+                                  media_status=STATUS.members_only,
                                   media_available_date=media_available_date,
                                   download=True)  # Download can be assumed to be True for media that is being downloaded
                     return True
@@ -2162,12 +2177,12 @@ def download_media(media):
                 # print(f'{datetime.now()} {Fore.RED}PAID{Style.RESET_ALL} media "{media_id}"')
                 # Update DB
                 try:
-                    if media_status != STATUS['paid']:
+                    if media_status != STATUS.paid:
                         add_media(media_site=media_site,
                                   media_id=media_id,
                                   channel=channel_id,
                                   playlist=playlist_id,
-                                  media_status=STATUS['paid'],
+                                  media_status=STATUS.paid,
                                   media_available_date=media_available_date,
                                   download=True)  # Download can be assumed to be True for media that is being downloaded
                     return True
@@ -2182,12 +2197,12 @@ def download_media(media):
                 # print(f'{datetime.now()} {Fore.RED}REMOVED{Style.RESET_ALL} media "{media_id}"')
                 # Update DB
                 try:
-                    if media_status != STATUS['removed']:
+                    if media_status != STATUS.removed:
                         add_media(media_site=media_site,
                                   media_id=media_id,
                                   channel=channel_id,
                                   playlist=playlist_id,
-                                  media_status=STATUS['removed'],
+                                  media_status=STATUS.removed,
                                   media_available_date=media_available_date,
                                   download=True)  # Download can be assumed to be True for media that is being downloaded
                     return True
@@ -2203,12 +2218,12 @@ def download_media(media):
                 # print(f'{datetime.now()} {Fore.RED}UNAVAILABLE{Style.RESET_ALL} media "{media_id}"')
                 # Update DB
                 try:
-                    if media_status != STATUS['unavailable']:
+                    if media_status != STATUS.unavailable:
                         add_media(media_site=media_site,
                                   media_id=media_id,
                                   channel=channel_id,
                                   playlist=playlist_id,
-                                  media_status=STATUS['unavailable'],
+                                  media_status=STATUS.unavailable,
                                   media_available_date=media_available_date,
                                   download=True)  # Download can be assumed to be True for media that is being downloaded
                     return True
@@ -2241,12 +2256,12 @@ def download_media(media):
                 # print(f'{datetime.now()} {Fore.RED}PRIVATE{Style.RESET_ALL} media "{media_id}"')
                 # Update DB
                 try:
-                    if media_status != STATUS['private']:
+                    if media_status != STATUS.private:
                         add_media(media_site=media_site,
                                   media_id=media_id,
                                   channel=channel_id,
                                   playlist=playlist_id,
-                                  media_status=STATUS['private'],
+                                  media_status=STATUS.private,
                                   media_available_date=media_available_date,
                                   download=True)  # Download can be assumed to be True for media that is being downloaded
                     return True
@@ -2261,12 +2276,12 @@ def download_media(media):
                 # print(f'{datetime.now()} {Fore.RED}AGE RESTRICTED{Style.RESET_ALL} media "{media_id}"')
                 # Update DB
                 try:
-                    if media_status != STATUS['age-restricted']:
+                    if media_status != STATUS.age_restricted:
                         add_media(media_site=media_site,
                                   media_id=media_id,
                                   channel=channel_id,
                                   playlist=playlist_id,
-                                  media_status=STATUS['age-restricted'],
+                                  media_status=STATUS.age_restricted,
                                   media_available_date=media_available_date,
                                   download=True)  # Download can be assumed to be True for media that is being downloaded
                     return True
@@ -3062,11 +3077,11 @@ def juggle_verified_media():
                                     #  but could be re-added in the future for completeness sake.
                                     continue
 
-                            if sql_status == STATUS['wanted']:
+                            if sql_status == STATUS.wanted:
                                 print(f'{datetime.now()} {Fore.CYAN}DATABASE MISMATCH{Style.RESET_ALL} '
                                       f'{os.path.basename(path_move)}: Status "{sql_status}"')
                                 continue
-                            elif not (sql_status == STATUS['verified'] or sql_status == STATUS['uncertain']):
+                            elif not (sql_status == STATUS.verified or sql_status == STATUS.uncertain):
                                 print(f'{datetime.now()} {Fore.CYAN}SKIPPING{Style.RESET_ALL} '
                                       f'{os.path.basename(path_move)}: Status "{sql_status}"')
                                 continue
@@ -3169,13 +3184,15 @@ def juggle_verified_media():
                         # Update DB
                         update_media_status(media_site=json_site,
                                             media_id=json_id,
-                                            media_status=STATUS['stuck'],
+                                            media_status=STATUS.stuck,
                                             database=database)
                     else:
+                        # TODO: Set status to migrate (or introduce "upgrade") in case of Codec or resoltion mismatch
+                        #  (this will require some work)
                         # Update DB
                         update_media_status(media_site=json_site,
                                             media_id=json_id,
-                                            media_status=STATUS['done'],
+                                            media_status=STATUS.done,
                                             database=database)
                 except KeyboardInterrupt:
                     sys.exit()
@@ -3318,7 +3335,7 @@ def fix_nfo_file(filepath, json_title, json_description, json_upload_date, json_
                 return False
 
 
-def verify_fresh_media(status=STATUS['fresh'], regex_media_url=fr'^[a-z0-9\-\_]'):
+def verify_fresh_media(status=STATUS.fresh, regex_media_url=fr'^[a-z0-9\-\_]'):
     if directory_download_home is None:
         print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} download home directory not set!')
         sys.exit()
@@ -3448,7 +3465,7 @@ def verify_fresh_media(status=STATUS['fresh'], regex_media_url=fr'^[a-z0-9\-\_]'
                             # Update DB
                             update_media_status(media_site=site,
                                                 media_id=url,
-                                                media_status=STATUS['wanted'])
+                                                media_status=STATUS.wanted)
                             continue
 
                         except KeyboardInterrupt:
@@ -3465,7 +3482,7 @@ def verify_fresh_media(status=STATUS['fresh'], regex_media_url=fr'^[a-z0-9\-\_]'
                     try:
                         update_media_status(media_site=site,
                                             media_id=url,
-                                            media_status=STATUS['broken'])
+                                            media_status=STATUS.broken)
                     except KeyboardInterrupt:
                         sys.exit()
                     except Exception as exception_sql:
@@ -3518,7 +3535,7 @@ def verify_fresh_media(status=STATUS['fresh'], regex_media_url=fr'^[a-z0-9\-\_]'
                         try:
                             update_media_status(media_site=site,
                                                 media_id=url,
-                                                media_status=STATUS['broken'])
+                                                media_status=STATUS.broken)
                         except KeyboardInterrupt:
                             sys.exit()
                         except Exception as exception_frame_count:
@@ -3538,7 +3555,7 @@ def verify_fresh_media(status=STATUS['fresh'], regex_media_url=fr'^[a-z0-9\-\_]'
                                 end='\n')
                             update_media_status(media_site=site,
                                                 media_id=url,
-                                                media_status=STATUS['broken'])
+                                                media_status=STATUS.broken)
                     except KeyboardInterrupt:
                         sys.exit()
                     except Exception as exception_frame_count:
@@ -3576,7 +3593,7 @@ def verify_fresh_media(status=STATUS['fresh'], regex_media_url=fr'^[a-z0-9\-\_]'
                     try:
                         update_media_status(media_site=site,
                                             media_id=url,
-                                            media_status=STATUS['verified'])
+                                            media_status=STATUS.verified)
                     except KeyboardInterrupt:
                         sys.exit()
                     except Exception as exception_sql:
@@ -3589,7 +3606,7 @@ def verify_fresh_media(status=STATUS['fresh'], regex_media_url=fr'^[a-z0-9\-\_]'
                     try:
                         update_media_status(media_site=site,
                                             media_id=url,
-                                            media_status=STATUS['broken'])
+                                            media_status=STATUS.broken)
                     except KeyboardInterrupt:
                         sys.exit()
                     except Exception as exception_sql:
@@ -3602,7 +3619,7 @@ def verify_fresh_media(status=STATUS['fresh'], regex_media_url=fr'^[a-z0-9\-\_]'
                     try:
                         update_media_status(media_site=site,
                                             media_id=url,
-                                            media_status=STATUS['uncertain'])
+                                            media_status=STATUS.uncertain)
                     except KeyboardInterrupt:
                         sys.exit()
                     except Exception as exception_sql:
@@ -3797,7 +3814,7 @@ def migrate_to_status_done(dry_run=True):
     database = connect_database()
     media_to_migrate = get_media_from_db(
         database=database,
-        status=STATUS['verified'],
+        status=STATUS.verified,
     )
     count_media_to_migrate = len(media_to_migrate)
     # Check dry run
@@ -3909,7 +3926,7 @@ def migrate_to_status_done(dry_run=True):
             try:
                 update_media_status(media_site=json_site,
                                     media_id=json_id,
-                                    media_status=STATUS['done'],
+                                    media_status=STATUS.done,
                                     database=database)
             except KeyboardInterrupt:
                 sys.exit()
@@ -3941,7 +3958,7 @@ def fix_all_nfo_files(dry_run=True):
     database = connect_database()
     media_to_migrate = get_media_from_db(
         database=database,
-        status=STATUS['done'],
+        status=STATUS.done,
     )
     count_media_to_migrate = len(media_to_migrate)
     # Check dry run
@@ -4127,13 +4144,13 @@ if __name__ == "__main__":
     '''Parse status values for download'''
     if args.status:
         for status in args.status:
-            if status not in STATUS.values():
+            if not hasattr(STATUS, status.replace("-", "_")):
                 print(f'{datetime.now()} {Fore.RED}UNKNOWN STATUS VALUE{Style.RESET_ALL}: '
-                      f'{status} not in ({STATUS.values()}) aborting to avoid database errors!')
+                      f'{status}, aborting to avoid database errors!')
                 sys.exit()
         status_values = args.status
     else:
-        status_values = [STATUS['broken'], STATUS['wanted'], STATUS['private']]
+        status_values = [STATUS.broken, STATUS.wanted, STATUS.private]
 
     '''Parse URL regex for verification'''
     # TODO: This should probably be done with argparse error instead!
