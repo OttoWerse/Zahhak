@@ -31,10 +31,10 @@ mysql_user = os.getenv('ZAHHAK_MYSQL_USERNAME', 'admin')
 mysql_password = os.getenv('ZAHHAK_MYSQL_PASSWORD', 'admin')
 
 '''Variables'''
+# Media format
 MIN_WIDTH = "[width>=900]"
 MAX_WIDTH = "[width<=2000]"
 CODEC = "[vcodec~='^(av0?1|vp0?9)']"
-
 # Frequency to reconnect VPN (in seconds)
 sleep_time_vpn = 10
 # How often to retry connecting to a VPN country before giving up
