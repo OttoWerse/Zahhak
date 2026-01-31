@@ -31,8 +31,10 @@ mysql_user = os.getenv('ZAHHAK_MYSQL_USERNAME', 'admin')
 mysql_password = os.getenv('ZAHHAK_MYSQL_PASSWORD', 'admin')
 
 '''Variables'''
-MEDIA_FORMAT_2K = "bestvideo*[vcodec~='^(av0?1|vp0?9)'][width<=2000][width>=900]+bestaudio"
-MEDIA_FORMAT_ANY_RESOLUTION = "bestvideo*[vcodec~='^(av0?1|vp0?9)']+bestaudio"
+MIN_WIDTH = "[width>=900]"
+MAX_WIDTH = "[width<=2000]"
+CODEC = "[vcodec~='^(av0?1|vp0?9)']"
+
 # Frequency to reconnect VPN (in seconds)
 sleep_time_vpn = 10
 # How often to retry connecting to a VPN country before giving up
@@ -359,6 +361,8 @@ regex_network_value = re.compile(r'(?<=<studio>)(.*)(?=<\/studio>)')
 regex_network_add_position = re.compile(r'(?<=<\/runtime>).*')
 
 '''Status values'''
+
+
 class STATUS:
     unwanted = 'unwanted'
     wanted = 'wanted'
@@ -1911,13 +1915,23 @@ def download_media(media):
 
     match media_status:
         case STATUS.wanted:
-            media_format = MEDIA_FORMAT_ANY_RESOLUTION
+            # TODO: We should be more accepting to "bad" codecs here if we want to get all old videos too!
+            #  but first we need to add functionality to juggle media to set status to STATUS.upgrade
+            media_format = f"bestvideo*{CODEC}{MAX_WIDTH}{MIN_WIDTH}+bestaudio"
+        case STATUS.private:
+            # Accept anything for (previously) private videos, if we can get these at all we are lucky!
+            media_format = f"bestvideo+bestaudio"
         case STATUS.broken:
-            media_format = MEDIA_FORMAT_ANY_RESOLUTION
+            # TODO: We really should differentiate between different kinds of "broken" videos
+            #  low-res broken and missing frames broken really do not need to behave the same!
+            # For low-res broken, ignore codec, VP9 enforcement got us here in the first place!
+            media_format = f"bestvideo*{MAX_WIDTH}{MIN_WIDTH}+bestaudio"
         case STATUS.migrate:
-            media_format = MEDIA_FORMAT_2K
+            # Staying strict in video codec, min resolution and max resolution here is crucial!
+            media_format = f"bestvideo*{CODEC}{MAX_WIDTH}{MIN_WIDTH}+bestaudio"
         case _:
-            media_format = MEDIA_FORMAT_2K
+            # This case should not be used ever, but just in case, leave it either strict or the same as STATUS.wanted
+            media_format = f"bestvideo*{CODEC}{MAX_WIDTH}{MIN_WIDTH}+bestaudio"
 
     if directory_download_temp is None:
         print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} download temp directory not set!')
