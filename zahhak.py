@@ -408,6 +408,7 @@ global_archive_set = set()
 vpn_counter = 0
 vpn_timestamp = datetime.now()
 vpn_frequency = DEFAULT_vpn_frequency
+space_25 = '                         '
 
 
 # TODO: Look into using logger, progress_hooks, progress (https://github.com/yt-dlp/yt-dlp/issues/66) effectively!
@@ -1295,11 +1296,11 @@ def add_media(media_site, media_id, channel, playlist, media_status, media_avail
 
     if f'{media_site} {media_id}' in global_archive_set:
         print(f'{datetime.now()} {Fore.GREEN}UPDATED{Style.RESET_ALL} media "{media_site} {media_id}" '
-              f'to status {text_color}"{media_status}"{Style.RESET_ALL}')
+              f'to status {text_color}"{media_status}"{Style.RESET_ALL}{space_25}')
     else:
         global_archive_set.add(f'{media_site} {media_id}')
         print(f'{datetime.now()} {Fore.GREEN}ADDED{Style.RESET_ALL} media "{media_site} {media_id}" '
-              f'with status {text_color}"{media_status}"{Style.RESET_ALL}')
+              f'with status {text_color}"{media_status}"{Style.RESET_ALL}{space_25}')
 
 
 def update_media_status(media_site, media_id, media_status, database=None):
@@ -1314,7 +1315,7 @@ def update_media_status(media_site, media_id, media_status, database=None):
 
     text_color = get_text_color_for_media_status(media_status=media_status)
     print(f'{datetime.now()} {Fore.GREEN}UPDATED{Style.RESET_ALL} media "{media_site} {media_id}" '
-          f'to status {text_color}"{media_status}"{Style.RESET_ALL}')
+          f'to status {text_color}"{media_status}"{Style.RESET_ALL}{space_25}')
 
 
 def process_media(media, channel_site, channel_id, playlist_id, download, archive_set, database):
@@ -2098,7 +2099,7 @@ def download_media(media):
                 text_color = get_text_color_for_media_status(media_status=media_status)
 
                 print(f'{datetime.now()} {Fore.GREEN}UPDATED{Style.RESET_ALL} media "{media_id}" '
-                      f'to status {text_color}"{media_status}"{Style.RESET_ALL}')
+                      f'to status {text_color}"{media_status}"{Style.RESET_ALL}{space_25}')
                 return True
             except KeyboardInterrupt:
                 sys.exit()
@@ -2266,7 +2267,8 @@ def download_media(media):
                                   media_available_date=media_available_date,
                                   download=True)  # Download can be assumed to be True for media that is being downloaded
                     else:
-                        print(f'{datetime.now()} {Fore.RED}PRIVATE{Style.RESET_ALL} media "{media_id}" still private')
+                        print(f'{datetime.now()} {Fore.RED}PRIVATE{Style.RESET_ALL} media "{media_id}" still private'
+                              f'{space_25}')
                     return True
                 except KeyboardInterrupt:
                     sys.exit()
