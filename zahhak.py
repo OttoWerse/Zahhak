@@ -8,13 +8,12 @@ import re
 import shutil
 import sys
 import time
-from datetime import datetime
-from subprocess import STDOUT, check_output, Popen, PIPE
-
 import lxml.builder
 import lxml.etree
 import mysql.connector
 import yt_dlp
+from datetime import datetime
+from subprocess import STDOUT, check_output, Popen, PIPE
 from colorama import init, Fore, Style, just_fix_windows_console
 
 # TODO https://www.reddit.com/r/youtubedl/comments/1berg2g/is_repeatedly_downloading_api_json_necessary/
@@ -1946,7 +1945,7 @@ def download_media(media):
 
     print(f'{datetime.now()} {Fore.CYAN}DOWNLOADING{Style.RESET_ALL} '
           f'media for "{media_site} - {media_id}" '
-          f'status {text_color}"{media_status}"{Style.RESET_ALL}')
+          f'status {text_color}"{media_status}"{Style.RESET_ALL}', end='\r')
 
     if media_site != 'youtube':
         print(f'{datetime.now()} {Fore.RED}UNSUPPORTED{Style.RESET_ALL} media site "{media_site}"')
@@ -2113,18 +2112,15 @@ def download_media(media):
                 print(f'{datetime.now()} {Fore.RED}IP BANNED{Style.RESET_ALL} while downloading media "{media_id}"')
                 reconnect_vpn()
                 return False
-
             elif regex_bot.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}BOT DETECTED{Style.RESET_ALL} while downloading media "{media_id}"')
                 reconnect_vpn()
                 return False
-
             elif regex_error_get_addr_info.search(str(exception_download)):
-                print(
-                    f'{datetime.now()} {Fore.RED}GET ADDR INFO FAILED{Style.RESET_ALL} while downloading media "{media_id}"')
+                print(f'{datetime.now()} {Fore.RED}GET ADDR INFO FAILED{Style.RESET_ALL} while downloading media '
+                      f'"{media_id}"')
                 reconnect_vpn()
                 return False
-
             elif regex_media_format_unavailable.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}FORMAT UNAVAILABLE{Style.RESET_ALL} '
                       f'while downloading media "{media_id}"')
@@ -2132,13 +2128,11 @@ def download_media(media):
                 # return False
                 # TODO: This was changed to handle videos which legitimately do not exist in requested strict format
                 return True
-
             elif regex_json_write.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}JSON WRITE ERROR{Style.RESET_ALL} '
                       f'while downloading media "{media_id}"')
                 clear_temp_dir(media_status=media_status)
                 return False
-
             elif regex_error_win_5.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}WIN ERROR 5{Style.RESET_ALL} '
                       f'while downloading media "{media_id}"')
@@ -2147,7 +2141,6 @@ def download_media(media):
                 return False
                 # TODO: IDK if we can recover from this error, it seems like once it comes up, it stays until full program restart
                 # sys.exit()
-
             elif regex_error_win_32.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}WIN ERROR 32{Style.RESET_ALL} '
                       f'while downloading media "{media_id}"')
@@ -2156,7 +2149,6 @@ def download_media(media):
                 return False
                 # TODO: IDK if we can recover from this error, it seems like once it comes up, it stays until full program restart
                 # sys.exit()
-
             elif regex_error_win_10054.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}WIN ERROR 10054{Style.RESET_ALL} '
                       f'while downloading media "{media_id}"')
@@ -2165,7 +2157,6 @@ def download_media(media):
                 return False
                 # TODO: IDK if we can recover from this error, it seems like once it comes up, it stays until full program restart
                 # sys.exit()
-
             elif (regex_media_members_only.search(str(exception_download))
                   or regex_media_members_tier.search(str(exception_download))):
                 # print(f'{datetime.now()} {Fore.RED}MEMBERS ONLY{Style.RESET_ALL} media "{media_id}"')
@@ -2186,7 +2177,6 @@ def download_media(media):
                     print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
                           f'{exception_update_db}')
                     return False
-
             elif regex_media_paid.search(str(exception_download)):
                 # print(f'{datetime.now()} {Fore.RED}PAID{Style.RESET_ALL} media "{media_id}"')
                 # Update DB
@@ -2206,7 +2196,6 @@ def download_media(media):
                     print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
                           f'{exception_update_db}')
                     return False
-
             elif regex_media_removed.search(str(exception_download)):
                 # print(f'{datetime.now()} {Fore.RED}REMOVED{Style.RESET_ALL} media "{media_id}"')
                 # Update DB
@@ -2226,7 +2215,6 @@ def download_media(media):
                     print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
                           f'{exception_update_db}')
                     return False
-
             elif (regex_media_unavailable.search(str(exception_download))
                   or regex_media_unavailable_live.search(str(exception_download))):
                 # print(f'{datetime.now()} {Fore.RED}UNAVAILABLE{Style.RESET_ALL} media "{media_id}"')
@@ -2247,7 +2235,6 @@ def download_media(media):
                     print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
                           f'{exception_update_db}')
                     return False
-
             elif regex_media_unavailable_geo.search(str(exception_download)):
                 # print(f'{datetime.now()} {Fore.RED}GEO BLOCKED{Style.RESET_ALL} media "{media_id}"')
                 global GEO_BLOCKED_vpn_countries
@@ -2265,9 +2252,7 @@ def download_media(media):
                               f'{exception_regex_geo_blocked}')
                         # To prevent external endless loop
                         return True
-
             elif regex_media_private.search(str(exception_download)):
-                # print(f'{datetime.now()} {Fore.RED}PRIVATE{Style.RESET_ALL} media "{media_id}"')
                 # Update DB
                 try:
                     if media_status != STATUS.private:
@@ -2278,6 +2263,8 @@ def download_media(media):
                                   media_status=STATUS.private,
                                   media_available_date=media_available_date,
                                   download=True)  # Download can be assumed to be True for media that is being downloaded
+                    else:
+                        print(f'{datetime.now()} {Fore.RED}PRIVATE{Style.RESET_ALL} media "{media_id}" still private')
                     return True
                 except KeyboardInterrupt:
                     sys.exit()
@@ -2285,7 +2272,6 @@ def download_media(media):
                     print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
                           f'{exception_update_db}')
                     return False
-
             elif regex_media_age_restricted.search(str(exception_download)):
                 # print(f'{datetime.now()} {Fore.RED}AGE RESTRICTED{Style.RESET_ALL} media "{media_id}"')
                 # Update DB
@@ -2305,7 +2291,6 @@ def download_media(media):
                     print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
                           f'{exception_update_db}')
                     return False
-
             else:
                 print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} downloading media: {exception_download}')
                 return True
@@ -2333,7 +2318,7 @@ def clear_temp_dir(media_status):
             print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} {exception_clear_temp}')
         else:
             print(f'{datetime.now()} {Fore.CYAN}NO SUCH TEMP DIRECTORY{Style.RESET_ALL} {temp_dir_path} ',
-                  end='\n')
+                  end='\r')
 
 
 def get_monitored_playlists_from_db():

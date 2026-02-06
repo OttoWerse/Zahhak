@@ -28,7 +28,7 @@ class Site:
     def get_playlist_url(self, playlist_id):
         return self.playlist_url_format.substitute(unique_id=playlist_id)
 
-    def get_video_url(self, media_id):
+    def get_media_url(self, media_id):
         return self.medium_url_format.substitute(unique_id=media_id)
 
 
@@ -43,4 +43,4 @@ if __name__ == '__main__':
     print(youtube.get_channel_playlists_feed_url(channel_id="THIS_IS_A_TEST_CHANNEL_ID"))
     print(youtube.get_channel_media_feed_url(channel_id="THIS_IS_A_TEST_CHANNEL_ID"))
     print(youtube.get_playlist_url(playlist_id="THIS_IS_A_TEST_PLAYLIST_ID"))
-    print(youtube.get_video_url(media_id="THIS_IS_A_TEST_MEDIUM_ID"))
+    print(youtube.get_media_url(media_id="THIS_IS_A_TEST_MEDIUM_ID"))

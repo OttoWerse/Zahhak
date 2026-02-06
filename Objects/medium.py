@@ -2,6 +2,10 @@ from datetime import datetime
 from Objects import settings, regex
 from colorama import Fore, Style
 import yt_dlp
+import logging
+
+'''Logger'''
+logger = logging.getLogger(__name__)
 
 
 class Medium:
@@ -45,10 +49,7 @@ class Medium:
         info_json = None
         while info_json is None:
             try:
-                if self.site == 'youtube':
-                    media_url = f'https://www.youtube.com/watch?v={self.unique_id}'
-                else:
-                    exit()  # TODO: Handle errors more gracefully
+                media_url = self.site.get_media_url(self.unique_id)
                 # Set download options for YT-DLP
                 media_download_options = {
                     # TODO 'logger': VoidLogger(),
@@ -63,12 +64,9 @@ class Medium:
                     info_json = ilus.sanitize_info(ilus.extract_info(media_url, process=True, download=False))
             except Exception as e:
                 if regex.bot.search(str(e)):
-                    print(f'{datetime.now()} {Fore.RED}BOT DETECTED{Style.RESET_ALL}')
-                    # TODO: Build OOP VPN reconnect approach and use here
-                    #  vpn_frequency = DEFAULT_vpn_frequency
-                    #  local_vpn_counter = reconnect_vpn(counter=local_vpn_counter)
+                    logger.error(f'{datetime.now()} {Fore.RED}BOT DETECTED{Style.RESET_ALL}')
+                    # TODO: VPN reconnect
                 else:
-                    # print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while getting details for media "{media_id}": {e}')
                     raise
         return info_json
 
