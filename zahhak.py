@@ -2848,19 +2848,21 @@ def process_channel(channel_url, database_channels=None, database_playlists=None
 
     if online_playlists is not None:
         print(f'{datetime.now()} {Fore.GREEN}FOUND{Style.RESET_ALL} {len(online_playlists)} online playlist')
-        new_playlists = online_playlists.copy()
-        for online_playlist in online_playlists:
-            playlist_id = online_playlist['id']
+        new_playlists = []
+        for current_playlist in online_playlists:
+            playlist_id = current_playlist['id']
             if playlist_id in database_playlists:
-                new_playlists.remove(online_playlist)
                 playlist_name_sane = database_playlists[playlist_id]
                 if playlist_name_sane is not None:
                     print(f'{datetime.now()} {Fore.GREEN}KNOWN{Style.RESET_ALL} playlist "{playlist_name_sane}"')
                 else:
                     print(f'{datetime.now()} {Fore.YELLOW}IGNORED{Style.RESET_ALL} playlist {playlist_id}')
-        for online_playlist in new_playlists:
-            playlist_id = online_playlist['id']
-            playlist_name_online = online_playlist['title']
+            else:
+                new_playlists.append(current_playlist)
+        print(f'{datetime.now()} {Fore.GREEN}FOUND{Style.RESET_ALL} {len(new_playlists)} new playlist')
+        for current_playlist in new_playlists:
+            playlist_id = current_playlist['id']
+            playlist_name_online = current_playlist['title']
             playlist_name_sane = sanitize_name(name=playlist_name_online)
             skip_playlist = False
             while not skip_playlist:
