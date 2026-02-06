@@ -2864,7 +2864,7 @@ def process_channel(channel_url, database_channels=None, database_playlists=None
             skip_playlist = False
             while not skip_playlist:
                 add_playlist_input = input(
-                    f'What do you want to do with "{playlist_name_sane}" ({playlist_id})? '
+                    f'CHANNEL: "{channel_name_sane}" PLAYLIST: "{playlist_name_sane}" ({playlist_id}) - '
                     f'{Fore.GREEN}D{Style.RESET_ALL}ownload, '
                     f'{Fore.YELLOW}M{Style.RESET_ALL}onitor or '
                     f'{Fore.RED}I{Style.RESET_ALL}gnore: ')
@@ -2881,7 +2881,8 @@ def process_channel(channel_url, database_channels=None, database_playlists=None
                     continue
 
                 if monitor_playlist:
-                    playlist_name_input = input(f'ENTER to keep default or type to change PLAYLIST name: ')
+                    playlist_name_input = input(
+                        f'{Fore.CYAN}NAME{Style.RESET_ALL} or ENTER to keep "{playlist_name_sane}": ')
                     if playlist_name_input:
                         playlist_name_sane = sanitize_name(name=playlist_name_input, is_user=True)
                 else:
