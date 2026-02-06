@@ -2847,12 +2847,9 @@ def process_channel(channel_url, database_channels=None, database_playlists=None
                                                               ignore_errors=DEFAULT_ignore_errors_playlist)
 
     if online_playlists is not None:
+        new_playlists = online_playlists
         for online_playlist in online_playlists:
-            print()
-
             playlist_id = online_playlist['id']
-            playlist_name_online = online_playlist['title']
-
             if playlist_id in database_playlists:
                 playlist_name_sane = database_playlists[playlist_id]
                 if playlist_name_sane is not None:
@@ -2860,38 +2857,43 @@ def process_channel(channel_url, database_channels=None, database_playlists=None
                 else:
                     print(f'{datetime.now()} Playlist with ID "{playlist_id}" was ignored forever!')
             else:
-                playlist_name_sane = sanitize_name(name=playlist_name_online)
-                skip_playlist = False
-                while not skip_playlist:
-                    add_playlist_input = input(
-                        f'What do you want to do with "{playlist_name_sane}" ({playlist_id})? '
-                        f'{Fore.GREEN}D{Style.RESET_ALL}ownload immediately, '
-                        f'{Fore.YELLOW}M{Style.RESET_ALL}onitor only or '
-                        f'{Fore.RED}I{Style.RESET_ALL}gnore forever: ')
-                    if add_playlist_input.lower() == 'd':
-                        monitor_playlist = True
-                        download_playlist = True
-                    elif add_playlist_input.lower() == 'm':
-                        monitor_playlist = True
-                        download_playlist = False
-                    elif add_playlist_input.lower() == 'i':
-                        monitor_playlist = False
-                        download_playlist = None
-                    else:
-                        continue
+                online_playlists.remove(online_playlist)
+        for online_playlist in new_playlists:
+            playlist_id = online_playlist['id']
+            playlist_name_online = online_playlist['title']
+            playlist_name_sane = sanitize_name(name=playlist_name_online)
+            skip_playlist = False
+            while not skip_playlist:
+                add_playlist_input = input(
+                    f'What do you want to do with "{playlist_name_sane}" ({playlist_id})? '
+                    f'{Fore.GREEN}D{Style.RESET_ALL}ownload immediately, '
+                    f'{Fore.YELLOW}M{Style.RESET_ALL}onitor only or '
+                    f'{Fore.RED}I{Style.RESET_ALL}gnore forever: ')
+                if add_playlist_input.lower() == 'd':
+                    monitor_playlist = True
+                    download_playlist = True
+                elif add_playlist_input.lower() == 'm':
+                    monitor_playlist = True
+                    download_playlist = False
+                elif add_playlist_input.lower() == 'i':
+                    monitor_playlist = False
+                    download_playlist = None
+                else:
+                    continue
 
-                    if monitor_playlist:
-                        playlist_name_input = input(f'ENTER to keep default or type to change PLAYLIST name: ')
-                        if playlist_name_input:
-                            playlist_name_sane = sanitize_name(name=playlist_name_input, is_user=True)
-                    else:
-                        playlist_name_sane = None
+                if monitor_playlist:
+                    playlist_name_input = input(f'ENTER to keep default or type to change PLAYLIST name: ')
+                    if playlist_name_input:
+                        playlist_name_sane = sanitize_name(name=playlist_name_input, is_user=True)
+                else:
+                    playlist_name_sane = None
 
-                    add_playlist(playlist_id=playlist_id, playlist_name=playlist_name_sane, channel_id=channel_id,
-                                 download=download_playlist, monitor=monitor_playlist)
-                    skip_playlist = True
+                add_playlist(playlist_id=playlist_id, playlist_name=playlist_name_sane, channel_id=channel_id,
+                             download=download_playlist, monitor=monitor_playlist)
+                skip_playlist = True
 
     # Handle "Other" playlist (channel "uploads" playlist)
+    # TODO: Man, this needs reworking BAD!
     playlist_id = channel_id
     playlist_name_online = 'Other'
     print(f'{datetime.now()} {Fore.CYAN}ATTENTION{Style.RESET_ALL} '
