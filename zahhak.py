@@ -526,7 +526,7 @@ def update_playlist(date, playlist, database):
         mysql_cursor.execute(sql, val)
         database.commit()
         print(f'{datetime.now()} {Fore.CYAN}MARKED{Style.RESET_ALL} playlist '
-              f'"{playlist_name}" ({playlist_site} {playlist_id}) as checked ', end='\n')
+              f'"{playlist_name}" ({playlist_site} {playlist_id}) as checked ', end='\r')
         return True
     except KeyboardInterrupt:
         sys.exit()
