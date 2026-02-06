@@ -2899,23 +2899,19 @@ def process_channel(channel_url, database_channels=None, database_playlists=None
     # TODO: Man, this needs reworking BAD!
     playlist_id = channel_id
     playlist_name_online = 'Other'
-    print(f'{datetime.now()} {Fore.CYAN}ATTENTION{Style.RESET_ALL} '
-          f'"Other" Playlist should only be added for channels where most media is not on any playlists!')
 
     if playlist_id in database_playlists:
         playlist_name_sane = database_playlists[playlist_id]
-        if playlist_name_sane is not None:
-            print(f'{datetime.now()} Playlist known as "{playlist_name_sane}"')
-        else:
-            print(f'{datetime.now()} Playlist with ID "{playlist_id}" was ignored forever!')
+        if playlist_name_sane is None:
+            print(f'{datetime.now()} {Fore.YELLOW}IGNORED{Style.RESET_ALL} all other videos')
     else:
         playlist_name_sane = sanitize_name(name=playlist_name_online)
         skip_playlist = False
         while not skip_playlist:
-            add_playlist_input = input(f'What do you want to do with "{playlist_name_sane}" ({playlist_id})? '
-                                       f'{Fore.GREEN}D{Style.RESET_ALL}ownload immediately, '
-                                       f'{Fore.YELLOW}M{Style.RESET_ALL}onitor only or '
-                                       f'{Fore.RED}I{Style.RESET_ALL}gnore forever: ')
+            add_playlist_input = input(f'CHANNEL: {channel_name_sane} all other videos'
+                                       f'{Fore.GREEN}D{Style.RESET_ALL}ownload, '
+                                       f'{Fore.YELLOW}M{Style.RESET_ALL}onitor or '
+                                       f'{Fore.RED}I{Style.RESET_ALL}gnore: ')
             if add_playlist_input.lower() == 'd':
                 monitor_playlist = True
                 download_playlist = True
@@ -2929,7 +2925,8 @@ def process_channel(channel_url, database_channels=None, database_playlists=None
                 continue
 
             if monitor_playlist:
-                playlist_name_input = input(f'ENTER to keep default or type to change PLAYLIST name: ')
+                playlist_name_input = input(
+                    f'{Fore.CYAN}NAME{Style.RESET_ALL} or ENTER to keep "{playlist_name_sane}": ')
                 if playlist_name_input:
                     playlist_name_sane = sanitize_name(name=playlist_name_input, is_user=True)
             else:
