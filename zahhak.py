@@ -2847,6 +2847,7 @@ def process_channel(channel_url, database_channels=None, database_playlists=None
                                                               ignore_errors=DEFAULT_ignore_errors_playlist)
 
     if online_playlists is not None:
+        print(f'{datetime.now()} {Fore.GREEN}FOUND{Style.RESET_ALL} {len(online_playlists)} online playlist')
         new_playlists = online_playlists.copy()
         for online_playlist in online_playlists:
             playlist_id = online_playlist['id']
