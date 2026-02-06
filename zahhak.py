@@ -1218,9 +1218,8 @@ def add_playlist(playlist_id, playlist_name, channel_id, download, monitor):
         mysql_cursor.execute(sql, val)
         mydb.commit()
 
-        print(f'{datetime.now()} {Fore.GREEN}NEW PLAYLIST{Style.RESET_ALL}: '
-              f'"{playlist_name}" ({playlist_site} {playlist_id})')
-        print()
+        print(f'{datetime.now()} {Fore.GREEN}ADDED{Style.RESET_ALL}: '
+              f'playlist "{playlist_name}" ({playlist_site} {playlist_id})')
 
     except KeyboardInterrupt:
         sys.exit()
