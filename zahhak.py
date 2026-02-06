@@ -2314,7 +2314,7 @@ def clear_temp_dir(media_status):
               end='\r')
         shutil.rmtree(temp_dir_path)
         print(f'{datetime.now()} {Fore.CYAN}DELETED TEMP DIRECTORY{Style.RESET_ALL} {temp_dir_path} ',
-              end='\n')
+              end='\r')
     except KeyboardInterrupt:
         sys.exit()
     except Exception as exception_clear_temp:
