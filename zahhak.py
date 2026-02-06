@@ -1103,7 +1103,7 @@ def get_media_details_from_youtube(media_id, ignore_errors, archive_set):
 
 
 def get_channel_details(channel_url, ignore_errors):
-    print(f'{datetime.now()} Getting ID for channel "{channel_url}"')
+    print(f'{datetime.now()} Getting ID for channel "{channel_url}"', end='\r')
 
     # Set download options for YT-DLP
     channel_download_options = {'extract_flat': True,
