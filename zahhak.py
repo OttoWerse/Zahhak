@@ -320,6 +320,7 @@ regex_error_timeout = re.compile(r'The read operation timed out')
 regex_error_get_addr_info = re.compile(r'getaddrinfo failed')
 regex_error_connection = re.compile(r'Remote end closed connection without response')
 regex_error_http_403 = re.compile(r'HTTP Error 403')
+regex_error_http_429 = re.compile(r'HTTP Error 429')
 # Storage
 regex_json_write = re.compile(r'Cannot write video metadata to JSON file')
 regex_error_win_2 = re.compile(r'WinError 2')
@@ -2108,7 +2109,8 @@ def download_media(media):
         except KeyboardInterrupt:
             sys.exit()
         except Exception as exception_download:
-            if regex_error_http_403.search(str(exception_download)):
+            if regex_error_http_403.search(str(exception_download)) \
+                    or regex_error_http_429.search(str(exception_download)):
                 print(f'{datetime.now()} {Fore.RED}IP BANNED{Style.RESET_ALL} while downloading media "{media_id}"')
                 reconnect_vpn()
                 return False

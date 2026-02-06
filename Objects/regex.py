@@ -28,6 +28,7 @@ error_timeout = re.compile(r'The read operation timed out')
 error_get_addr_info = re.compile(r'getaddrinfo failed')
 error_connection = re.compile(r'Remote end closed connection without response')
 error_http_403 = re.compile(r'HTTP Error 403')
+error_http_429 = re.compile(r'HTTP Error 429')
 # Storage
 json_write = re.compile(r'Cannot write video metadata to JSON file')
 error_win_2 = re.compile(r'WinError 2')
