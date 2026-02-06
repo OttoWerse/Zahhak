@@ -1922,6 +1922,9 @@ def download_media(media):
         case STATUS.private:
             # Accept anything for (previously) private videos, if we can get these at all we are lucky!
             media_format = f"bestvideo+bestaudio"
+        case STATUS.unavailable:
+            # Accept anything for (previously) unavailable videos, if we can get these at all we are lucky!
+            media_format = f"bestvideo+bestaudio"
         case STATUS.broken:
             # TODO: We really should differentiate between different kinds of "broken" videos
             #  low-res broken and missing frames broken really do not need to behave the same!
