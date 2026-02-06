@@ -654,7 +654,7 @@ def check_channel_availability(channel):
 
     if info_json is not None:
         print(f'{datetime.now()} {Fore.GREEN}AVAILABLE{Style.RESET_ALL} channel '
-              f'"{channel_name}" ({channel_site} {channel_id})')
+              f'"{channel_name}" ({channel_site} {channel_id})', end='\r')
         return True
     else:
         print(f'{datetime.now()} {Fore.RED}UNAVAILABLE{Style.RESET_ALL} channel '
@@ -2423,7 +2423,7 @@ def get_all_channel_playlists_from_youtube(channel_id, ignore_errors):
                 if playlists[0] is not None:
                     playlists_count = len(playlists)
                     print(f'{datetime.now()} {Fore.GREEN}FOUND{Style.RESET_ALL} {playlists_count} online playlists '
-                          f'for channel "{channel_id}"')
+                          f'for channel "{channel_id}"', end='\r')
                     return playlists
             except KeyboardInterrupt:
                 sys.exit()
@@ -2510,7 +2510,7 @@ def check_channel_complete(channel, database_playlists):
             return False
         else:
             print(f'{datetime.now()} {Fore.GREEN}COMPLETE{Style.RESET_ALL} '
-                  f'channel "{channel_name}" ({channel_site} {channel_id})')
+                  f'channel "{channel_name}" ({channel_site} {channel_id})', end='\r')
             return True
 
     else:
