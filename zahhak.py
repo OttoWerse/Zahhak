@@ -497,7 +497,7 @@ def update_channel(date, channel, database):
         mydb.commit()
 
         print(f'{datetime.now()} {Fore.CYAN}MARKED{Style.RESET_ALL} channel '
-              f'"{channel_site} {channel_id}" as checked ', end='\n')
+              f'"{channel_site} {channel_id}" as checked ', end='\r')
         return True
 
     except KeyboardInterrupt:
