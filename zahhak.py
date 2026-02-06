@@ -2847,17 +2847,16 @@ def process_channel(channel_url, database_channels=None, database_playlists=None
                                                               ignore_errors=DEFAULT_ignore_errors_playlist)
 
     if online_playlists is not None:
-        new_playlists = online_playlists
+        new_playlists = online_playlists.copy()
         for online_playlist in online_playlists:
             playlist_id = online_playlist['id']
             if playlist_id in database_playlists:
+                new_playlists.remove(online_playlist)
                 playlist_name_sane = database_playlists[playlist_id]
                 if playlist_name_sane is not None:
                     print(f'{datetime.now()} {Fore.GREEN}KNOWN{Style.RESET_ALL} playlist "{playlist_name_sane}"')
-                    new_playlists.remove(online_playlist)
                 else:
                     print(f'{datetime.now()} {Fore.YELLOW}IGNORED{Style.RESET_ALL} playlist {playlist_id}')
-                    new_playlists.remove(online_playlist)
         for online_playlist in new_playlists:
             playlist_id = online_playlist['id']
             playlist_name_online = online_playlist['title']
