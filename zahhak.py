@@ -12,7 +12,7 @@ import lxml.builder
 import lxml.etree
 import mysql.connector
 import yt_dlp
-from datetime import datetime
+from datetime import datetime, date
 from subprocess import STDOUT, check_output, Popen, PIPE
 from colorama import init, Fore, Style, just_fix_windows_console
 
@@ -1940,9 +1940,9 @@ def download_media(media):
     media_format = default_media_format
     match media_status:
         case STATUS.wanted | STATUS.broken:
-            if media_available_date < datetime(2010, 1, 1):  # 2000-2009
+            if media_available_date < date(2010, 1, 1):  # 2000-2009
                 media_format = f"bestvideo+bestaudio"
-            elif media_available_date < datetime(2020, 1, 1):  # 2010-2019
+            elif media_available_date < date(2020, 1, 1):  # 2010-2019
                 media_format = f"bestvideo*{MAX_WIDTH}{MIN_WIDTH}+bestaudio"
             else:
                 media_format = default_media_format  # 2020+
