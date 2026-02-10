@@ -380,6 +380,7 @@ class STATUS:
     stuck = 'stuck'
     done = 'done'
     migrate = 'migrate'
+    upgrade = 'upgrade'
 
 
 '''DEBUG'''
@@ -1896,13 +1897,25 @@ def download_all_media(status_values, regex_media_url=fr'^[a-z0-9\-\_]'):
                     print(
                         f'{timestamp_now} {Fore.YELLOW}SKIPPING{Style.RESET_ALL} media "{media_site} {media_id}"!')
                     break  # TODO: Rework this spaghetto code pls!
-        if break_for_loop:
+        if break_for_loop:  # To stop looping over other videos if there are new ones found in refresh
             break
-    print(f'{datetime.now()} {Fore.CYAN}DONE{Style.RESET_ALL} waiting {sleep_time_download_done} seconds')
-    time.sleep(sleep_time_download_done)
+    if not break_for_loop:  # So waiting does not occur when refreshing (obviously a waste of time)
+        print(f'{datetime.now()} {Fore.CYAN}DONE{Style.RESET_ALL} waiting {sleep_time_download_done} seconds')
+        time.sleep(sleep_time_download_done)
 
 
 def download_media(media):
+    """Downloads a given piece of media"""
+
+    '''Check basic requirements for running satisfied'''
+    if directory_download_temp is None:
+        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} download temp directory not set!')
+        sys.exit()
+    if directory_download_home is None:
+        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} download home directory not set!')
+        sys.exit()
+
+    '''Get media infos'''
     media_site = media[0]
     media_id = media[1]
     media_available_date = media[2]
@@ -1913,195 +1926,240 @@ def download_media(media):
     playlist_name = media[7]
     playlist_id = media[8]
 
-    match media_status:
-        case STATUS.wanted:
-            # TODO: We should be more accepting to "bad" codecs here if we want to get all old videos too!
-            #  but first we need to add functionality to juggle media to set status to STATUS.upgrade
-            media_format = f"bestvideo*{CODEC}{MAX_WIDTH}{MIN_WIDTH}+bestaudio"
-        case STATUS.private:
-            # Accept anything for (previously) private videos, if we can get these at all we are lucky!
-            media_format = f"bestvideo+bestaudio"
-        case STATUS.unavailable:
-            # Accept anything for (previously) unavailable videos, if we can get these at all we are lucky!
-            media_format = f"bestvideo+bestaudio"
-        case STATUS.broken:
-            # TODO: We really should differentiate between different kinds of "broken" videos
-            #  low-res broken and missing frames broken really do not need to behave the same!
-            # For low-res broken, ignore codec, VP9 enforcement got us here in the first place!
-            media_format = f"bestvideo*{MAX_WIDTH}{MIN_WIDTH}+bestaudio"
-        case STATUS.migrate:
-            # Staying strict in video codec, min resolution and max resolution here is crucial!
-            media_format = f"bestvideo*{CODEC}{MAX_WIDTH}{MIN_WIDTH}+bestaudio"
+    '''Create URL to be used for download based on site'''
+    match media_site:
+        case 'youtube':
+            media_url = f'https://www.youtube.com/watch?v={media_id}'
         case _:
-            # This case should not be used ever, but just in case, leave it either strict or the same as STATUS.wanted
-            media_format = f"bestvideo*{CODEC}{MAX_WIDTH}{MIN_WIDTH}+bestaudio"
+            print(f'{datetime.now()} {Fore.RED}UNSUPPORTED{Style.RESET_ALL} media site "{media_site}"')
+            return False
 
-    if directory_download_temp is None:
-        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} download temp directory not set!')
-        sys.exit()
-    if directory_download_home is None:
-        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} download home directory not set!')
-        sys.exit()
-
+    '''Set quality requirement for download'''
+    # TODO: is quality and timeline dependent on the site? Probably...
+    default_media_format = f"bestvideo*{CODEC}{MAX_WIDTH}{MIN_WIDTH}+bestaudio"  # NEVER CHANGE THIS!!!
+    media_format = default_media_format
+    match media_status:
+        case STATUS.wanted | STATUS.broken:
+            if media_available_date < datetime(2010, 1, 1):  # 2000-2009
+                media_format = f"bestvideo+bestaudio"
+            elif media_available_date < datetime(2020, 1, 1):  # 2010-2019
+                media_format = f"bestvideo*{MAX_WIDTH}{MIN_WIDTH}+bestaudio"
+            else:
+                media_format = default_media_format  # 2020+
+        case STATUS.private | STATUS.unavailable:
+            # Accept anything for (previously) private/unavailable videos, if we can get these at all we are lucky!
+            media_format = f"bestvideo+bestaudio"
+        case STATUS.migrate | STATUS.upgrade:
+            # Staying strict in video codec, min resolution and max resolution here is crucial!
+            media_format = default_media_format
+        case _:
+            # TODO: This should throw an error really, since downloading other/unknown status values does not make sense
+            pass
     clear_temp_dir(media_status=media_status)
-
     text_color = get_text_color_for_media_status(media_status=media_status)
 
     print(f'{datetime.now()} {Fore.CYAN}DOWNLOADING{Style.RESET_ALL} '
           f'media for "{media_site} - {media_id}" '
-          f'status {text_color}"{media_status}"{Style.RESET_ALL}', end='\r')
+          f'status {text_color}"{media_status}"{Style.RESET_ALL} in quality "{media_format}"', end='\r')
 
-    if media_site != 'youtube':
-        print(f'{datetime.now()} {Fore.RED}UNSUPPORTED{Style.RESET_ALL} media site "{media_site}"')
-        return False
+    # Set the full output path
+    full_path = os.path.join(f'{channel_name} - {playlist_name}',
+                             f'Season %(release_date>%Y,upload_date>%Y)s [{channel_name}]',
+                             f'{channel_name} - {playlist_name} - '
+                             f'S%(release_date>%Y,upload_date>%Y)sE%(release_date>%j,upload_date>%j)s - '
+                             f'%(title)s.%(ext)s')
+
+    # TODO: This code is duplicated and should be a method or just an attribute of the downloader (limit 1 status)
+    if letter_low == ' ' and letter_high == ' ':
+        temp_dir_path = os.path.join(directory_download_temp, f'{media_status}')
     else:
-        # Set the full output path
-        full_path = os.path.join(f'{channel_name} - {playlist_name}',
-                                 f'Season %(release_date>%Y,upload_date>%Y)s [{channel_name}]',
-                                 f'{channel_name} - {playlist_name} - '
-                                 f'S%(release_date>%Y,upload_date>%Y)sE%(release_date>%j,upload_date>%j)s - '
-                                 f'%(title)s.%(ext)s')
-        # print(f'Path for media "{media_site} {media_id}": {full_path}')
+        temp_dir_path = os.path.join(directory_download_temp, f'{media_status} {letter_low}-{letter_high}')
 
-        media_url = f'https://www.youtube.com/watch?v={media_id}'
-
-        # TODO: This code is duplicated and should be a method or just an attribute of the downloader (limit 1 status)
-        if letter_low == ' ' and letter_high == ' ':
-            temp_dir_path = os.path.join(directory_download_temp, f'{media_status}')
-        else:
-            temp_dir_path = os.path.join(directory_download_temp, f'{media_status} {letter_low}-{letter_high}')
-
-        # Set download options for YT-DLP
-        media_download_options = {
-            'logger': VoidLogger(),  # TODO: This suppresses all errors, we should still see them in exception handling
-            'quiet': quiet_download_info,
-            'no_warnings': quiet_download_warnings,
-            # 'verbose': True,
-            'download_archive': None,  # TODO: This is correct, yes?
-            'cachedir': False,
-            'skip_unavailable_fragments': False,  # To abort on missing mp4 parts (largely avoids re-downloading)
-            'ignoreerrors': False,
-            'ignore_no_formats_error': False,  # Keep "False" to get exception to handle in python!
-            'extractor_retries': retry_extraction_download,
-            'socket_timeout': timeout_download,
-            'source_address': external_ip,
-            'nocheckcertificate': True,
-            'restrictfilenames': True,
-            'windowsfilenames': True,
-            # 'trim_file_name': True,
-            # TODO: This leads to -o being igonred?
-            'throttledratelimit': 1000,
-            'retries': 0,
-            'concurrent_fragment_downloads': 20,
-            'overwrites': True,
-            'writethumbnail': True,
-            'embedthumbnail': True,
-            'writesubtitles': True,
-            'writeautomaticsub': True,
-            'writeinfojson': True,
-            'allow_playlist_files': False,
-            # 'check_formats': True,
-            'format': media_format,
-            'allow_multiple_audio_streams': True,
-            'merge_output_format': 'mp4',
-            'subtitleslangs': ['de-orig', 'en-orig'],
-            'outtmpl': full_path,
-            'paths': {
-                'temp': temp_dir_path,
-                'home': directory_download_home,
+    # Set download options for YT-DLP
+    media_download_options = {
+        'logger': VoidLogger(),  # TODO: This suppresses all errors, we should still see them in exception handling
+        'quiet': quiet_download_info,
+        'no_warnings': quiet_download_warnings,
+        # 'verbose': True,
+        'download_archive': None,  # TODO: This is correct, yes?
+        'cachedir': False,
+        'skip_unavailable_fragments': False,  # To abort on missing mp4 parts (largely avoids re-downloading)
+        'ignoreerrors': False,
+        'ignore_no_formats_error': False,  # Keep "False" to get exception to handle in python!
+        'extractor_retries': retry_extraction_download,
+        'socket_timeout': timeout_download,
+        'source_address': external_ip,
+        'nocheckcertificate': True,
+        'restrictfilenames': True,
+        'windowsfilenames': True,
+        # 'trim_file_name': True,
+        # TODO: This leads to -o being igonred?
+        'throttledratelimit': 1000,
+        'retries': 0,
+        'concurrent_fragment_downloads': 20,
+        'overwrites': True,
+        'writethumbnail': True,
+        'embedthumbnail': True,
+        'writesubtitles': True,
+        'writeautomaticsub': True,
+        'writeinfojson': True,
+        'allow_playlist_files': False,
+        # 'check_formats': True,
+        'format': media_format,
+        'allow_multiple_audio_streams': True,
+        'merge_output_format': 'mp4',
+        'subtitleslangs': ['de-orig', 'en-orig'],
+        'outtmpl': full_path,
+        'paths': {
+            'temp': temp_dir_path,
+            'home': directory_download_home,
+        },
+        'postprocessors': [
+            {
+                'key': 'FFmpegVideoConvertor',
+                'preferedformat': 'mp4',
             },
-            'postprocessors': [
-                {
-                    'key': 'FFmpegVideoConvertor',
-                    'preferedformat': 'mp4',
-                },
-                {
-                    'key': 'FFmpegMetadata',
-                    'add_metadata': True,
-                },
-                {
-                    'key': 'EmbedThumbnail',
-                    'already_have_thumbnail': True,
-                },
-                {
-                    'key': 'FFmpegThumbnailsConvertor',
-                    'format': 'png',
-                    'when': 'before_dl',
-                }
-            ],
-        }
+            {
+                'key': 'FFmpegMetadata',
+                'add_metadata': True,
+            },
+            {
+                'key': 'EmbedThumbnail',
+                'already_have_thumbnail': True,
+            },
+            {
+                'key': 'FFmpegThumbnailsConvertor',
+                'format': 'png',
+                'when': 'before_dl',
+            }
+        ],
+    }
 
-        r'''# leftover YT-DLP config
-    # Do not remove sponsored segments
-    --no-sponsorblock
+    # Try-Except Block to handle YT-DLP exceptions such as "playlist does not exist"
+    try:
+        # Run YT-DLP
+        with yt_dlp.YoutubeDL(media_download_options) as ilus:
+            # ilus.download(media_url)
+            meta = ilus.extract_info(media_url, download=True)
+            meta = ilus.sanitize_info(meta)
+            path = meta['requested_downloads'][0]['filepath']
+            # TODO: new format? path = path[len(directory_download_home)+len(os.sep):len(path)-len('.mp4')]
+            path = path[len(directory_download_home) + len(os.sep):len(path)]
 
-    --recode mp4
+            # Get date
+            if media_available_date is None:
+                try:
+                    media_available_date = datetime.strptime(meta['upload_date'], '%Y%m%d').strftime('%Y-%m-%d')
+                except KeyboardInterrupt:
+                    sys.exit()
+                except Exception as exception_date:
+                    if DEBUG_log_date_fields_missing:
+                        print(f'{datetime.now()} {Fore.YELLOW}MISSING{Style.RESET_ALL} JSON field {exception_date}')
+            if media_available_date is None:
+                try:
+                    media_available_date = datetime.strptime(meta['release_date'], '%Y%m%d').strftime('%Y-%m-%d')
+                except KeyboardInterrupt:
+                    sys.exit()
+                except Exception as exception_date:
+                    if DEBUG_log_date_fields_missing:
+                        print(f'{datetime.now()} {Fore.YELLOW}MISSING{Style.RESET_ALL} JSON field {exception_date}')
+            if media_available_date is None:
+                print(f'{datetime.now()} {Fore.RED}NO DATE{Style.RESET_ALL} aborting!')
+                return False
 
-    # Do not continue download started before (as this will lead to corruption if initial download was interrupted in any way, including brief internet outages or packet loss)
-    --no-continue
+        """
+        What happens in the weird edge-case that YT-DLP ends with reaching all retries?
+        It does not progress past this point, but also does not throw an exception. No IDK how/why.
+        """
 
-    # Set Retry Handling
-    --retry-sleep 1
-    --file-access-retries 1000
-    --fragment-retries 30
-    --extractor-retries 3
-
-    # Abort when redirected to "Video Not Available"-page, pieces of media are missing, or any other errors happen
-    --break-match-filters "title!*=Video Not Available"
-        '''
-
-        # Try-Except Block to handle YT-DLP exceptions such as "playlist does not exist"
+        # Update DB
         try:
-            # Run YT-DLP
-            with yt_dlp.YoutubeDL(media_download_options) as ilus:
-                # ilus.download(media_url)
-                meta = ilus.extract_info(media_url, download=True)
-                meta = ilus.sanitize_info(meta)
-                path = meta['requested_downloads'][0]['filepath']
-                # TODO: new format? path = path[len(directory_download_home)+len(os.sep):len(path)-len('.mp4')]
-                path = path[len(directory_download_home) + len(os.sep):len(path)]
+            # TODO: This needs to be worked together with the add_media method and update_media_status method
+            media_status = 'fresh'
+            mydb = connect_database()
+            mysql_cursor = mydb.cursor()
+            sql = "UPDATE videos SET status = %s, save_path = %s, original_date = %s WHERE site = %s AND url = %s;"
+            val = (media_status, path, media_available_date, media_site, media_id)
+            mysql_cursor.execute(sql, val)
+            mydb.commit()
 
-                # Get date
-                if media_available_date is None:
-                    try:
-                        media_available_date = datetime.strptime(meta['upload_date'], '%Y%m%d').strftime('%Y-%m-%d')
-                    except KeyboardInterrupt:
-                        sys.exit()
-                    except Exception as exception_date:
-                        if DEBUG_log_date_fields_missing:
-                            print(f'{datetime.now()} {Fore.YELLOW}MISSING{Style.RESET_ALL} JSON field {exception_date}')
-                if media_available_date is None:
-                    try:
-                        media_available_date = datetime.strptime(meta['release_date'], '%Y%m%d').strftime('%Y-%m-%d')
-                    except KeyboardInterrupt:
-                        sys.exit()
-                    except Exception as exception_date:
-                        if DEBUG_log_date_fields_missing:
-                            print(f'{datetime.now()} {Fore.YELLOW}MISSING{Style.RESET_ALL} JSON field {exception_date}')
-                if media_available_date is None:
-                    print(f'{datetime.now()} {Fore.RED}NO DATE{Style.RESET_ALL} aborting!')
-                    return False
+            text_color = get_text_color_for_media_status(media_status=media_status)
 
-            """
-            What happens in the weird edge-case that YT-DLP ends with reaching all retries?
-            It does not progress past this point, but also does not throw an exception. No IDK how/why.
-            """
-
+            print(f'{datetime.now()} {Fore.GREEN}UPDATED{Style.RESET_ALL} media "{media_id}" '
+                  f'to status {text_color}"{media_status}"{Style.RESET_ALL}{space_25}')
+            return True
+        except KeyboardInterrupt:
+            sys.exit()
+        except Exception as exception_update_db:
+            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
+                  f'{exception_update_db}')
+            return False
+    except KeyboardInterrupt:
+        sys.exit()
+    except Exception as exception_download:
+        if regex_error_http_403.search(str(exception_download)) \
+                or regex_error_http_429.search(str(exception_download)):
+            print(f'{datetime.now()} {Fore.RED}IP BANNED{Style.RESET_ALL} while downloading media "{media_id}"')
+            reconnect_vpn()
+            return False
+        elif regex_bot.search(str(exception_download)):
+            print(f'{datetime.now()} {Fore.RED}BOT DETECTED{Style.RESET_ALL} while downloading media "{media_id}"')
+            reconnect_vpn()
+            return False
+        elif regex_error_get_addr_info.search(str(exception_download)):
+            print(f'{datetime.now()} {Fore.RED}GET ADDR INFO FAILED{Style.RESET_ALL} while downloading media '
+                  f'"{media_id}"')
+            reconnect_vpn()
+            return False
+        elif regex_media_format_unavailable.search(str(exception_download)):
+            print(f'{datetime.now()} {Fore.RED}FORMAT UNAVAILABLE{Style.RESET_ALL} '
+                  f'while downloading media "{media_id}"')
+            # reconnect_vpn()
+            # return False
+            # TODO: This was changed to handle videos which legitimately do not exist in requested strict format
+            return True
+        elif regex_json_write.search(str(exception_download)):
+            print(f'{datetime.now()} {Fore.RED}JSON WRITE ERROR{Style.RESET_ALL} '
+                  f'while downloading media "{media_id}"')
+            clear_temp_dir(media_status=media_status)
+            return False
+        elif regex_error_win_5.search(str(exception_download)):
+            print(f'{datetime.now()} {Fore.RED}WIN ERROR 5{Style.RESET_ALL} '
+                  f'while downloading media "{media_id}"')
+            clear_temp_dir(media_status=media_status)
+            reconnect_vpn()
+            return False
+            # TODO: IDK if we can recover from this error, it seems like once it comes up, it stays until full program restart
+            # sys.exit()
+        elif regex_error_win_32.search(str(exception_download)):
+            print(f'{datetime.now()} {Fore.RED}WIN ERROR 32{Style.RESET_ALL} '
+                  f'while downloading media "{media_id}"')
+            clear_temp_dir(media_status=media_status)
+            reconnect_vpn()
+            return False
+            # TODO: IDK if we can recover from this error, it seems like once it comes up, it stays until full program restart
+            # sys.exit()
+        elif regex_error_win_10054.search(str(exception_download)):
+            print(f'{datetime.now()} {Fore.RED}WIN ERROR 10054{Style.RESET_ALL} '
+                  f'while downloading media "{media_id}"')
+            clear_temp_dir(media_status=media_status)
+            reconnect_vpn()
+            return False
+            # TODO: IDK if we can recover from this error, it seems like once it comes up, it stays until full program restart
+            # sys.exit()
+        elif (regex_media_members_only.search(str(exception_download))
+              or regex_media_members_tier.search(str(exception_download))):
+            # print(f'{datetime.now()} {Fore.RED}MEMBERS ONLY{Style.RESET_ALL} media "{media_id}"')
             # Update DB
             try:
-                # TODO: This needs to be worked together with the add_media method and update_media_status method
-                media_status = 'fresh'
-                mydb = connect_database()
-                mysql_cursor = mydb.cursor()
-                sql = "UPDATE videos SET status = %s, save_path = %s, original_date = %s WHERE site = %s AND url = %s;"
-                val = (media_status, path, media_available_date, media_site, media_id)
-                mysql_cursor.execute(sql, val)
-                mydb.commit()
-
-                text_color = get_text_color_for_media_status(media_status=media_status)
-
-                print(f'{datetime.now()} {Fore.GREEN}UPDATED{Style.RESET_ALL} media "{media_id}" '
-                      f'to status {text_color}"{media_status}"{Style.RESET_ALL}{space_25}')
+                if media_status != STATUS.members_only:
+                    add_media(media_site=media_site,
+                              media_id=media_id,
+                              channel=channel_id,
+                              playlist=playlist_id,
+                              media_status=STATUS.members_only,
+                              media_available_date=media_available_date,
+                              download=True)  # Download can be assumed to be True for media that is being downloaded
                 return True
             except KeyboardInterrupt:
                 sys.exit()
@@ -2109,197 +2167,124 @@ def download_media(media):
                 print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
                       f'{exception_update_db}')
                 return False
-        except KeyboardInterrupt:
-            sys.exit()
-        except Exception as exception_download:
-            if regex_error_http_403.search(str(exception_download)) \
-                    or regex_error_http_429.search(str(exception_download)):
-                print(f'{datetime.now()} {Fore.RED}IP BANNED{Style.RESET_ALL} while downloading media "{media_id}"')
-                reconnect_vpn()
-                return False
-            elif regex_bot.search(str(exception_download)):
-                print(f'{datetime.now()} {Fore.RED}BOT DETECTED{Style.RESET_ALL} while downloading media "{media_id}"')
-                reconnect_vpn()
-                return False
-            elif regex_error_get_addr_info.search(str(exception_download)):
-                print(f'{datetime.now()} {Fore.RED}GET ADDR INFO FAILED{Style.RESET_ALL} while downloading media '
-                      f'"{media_id}"')
-                reconnect_vpn()
-                return False
-            elif regex_media_format_unavailable.search(str(exception_download)):
-                print(f'{datetime.now()} {Fore.RED}FORMAT UNAVAILABLE{Style.RESET_ALL} '
-                      f'while downloading media "{media_id}"')
-                # reconnect_vpn()
-                # return False
-                # TODO: This was changed to handle videos which legitimately do not exist in requested strict format
+        elif regex_media_paid.search(str(exception_download)):
+            # print(f'{datetime.now()} {Fore.RED}PAID{Style.RESET_ALL} media "{media_id}"')
+            # Update DB
+            try:
+                if media_status != STATUS.paid:
+                    add_media(media_site=media_site,
+                              media_id=media_id,
+                              channel=channel_id,
+                              playlist=playlist_id,
+                              media_status=STATUS.paid,
+                              media_available_date=media_available_date,
+                              download=True)  # Download can be assumed to be True for media that is being downloaded
                 return True
-            elif regex_json_write.search(str(exception_download)):
-                print(f'{datetime.now()} {Fore.RED}JSON WRITE ERROR{Style.RESET_ALL} '
-                      f'while downloading media "{media_id}"')
-                clear_temp_dir(media_status=media_status)
+            except KeyboardInterrupt:
+                sys.exit()
+            except Exception as exception_update_db:
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
+                      f'{exception_update_db}')
                 return False
-            elif regex_error_win_5.search(str(exception_download)):
-                print(f'{datetime.now()} {Fore.RED}WIN ERROR 5{Style.RESET_ALL} '
-                      f'while downloading media "{media_id}"')
-                clear_temp_dir(media_status=media_status)
-                reconnect_vpn()
-                return False
-                # TODO: IDK if we can recover from this error, it seems like once it comes up, it stays until full program restart
-                # sys.exit()
-            elif regex_error_win_32.search(str(exception_download)):
-                print(f'{datetime.now()} {Fore.RED}WIN ERROR 32{Style.RESET_ALL} '
-                      f'while downloading media "{media_id}"')
-                clear_temp_dir(media_status=media_status)
-                reconnect_vpn()
-                return False
-                # TODO: IDK if we can recover from this error, it seems like once it comes up, it stays until full program restart
-                # sys.exit()
-            elif regex_error_win_10054.search(str(exception_download)):
-                print(f'{datetime.now()} {Fore.RED}WIN ERROR 10054{Style.RESET_ALL} '
-                      f'while downloading media "{media_id}"')
-                clear_temp_dir(media_status=media_status)
-                reconnect_vpn()
-                return False
-                # TODO: IDK if we can recover from this error, it seems like once it comes up, it stays until full program restart
-                # sys.exit()
-            elif (regex_media_members_only.search(str(exception_download))
-                  or regex_media_members_tier.search(str(exception_download))):
-                # print(f'{datetime.now()} {Fore.RED}MEMBERS ONLY{Style.RESET_ALL} media "{media_id}"')
-                # Update DB
-                try:
-                    if media_status != STATUS.members_only:
-                        add_media(media_site=media_site,
-                                  media_id=media_id,
-                                  channel=channel_id,
-                                  playlist=playlist_id,
-                                  media_status=STATUS.members_only,
-                                  media_available_date=media_available_date,
-                                  download=True)  # Download can be assumed to be True for media that is being downloaded
-                    return True
-                except KeyboardInterrupt:
-                    sys.exit()
-                except Exception as exception_update_db:
-                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
-                          f'{exception_update_db}')
-                    return False
-            elif regex_media_paid.search(str(exception_download)):
-                # print(f'{datetime.now()} {Fore.RED}PAID{Style.RESET_ALL} media "{media_id}"')
-                # Update DB
-                try:
-                    if media_status != STATUS.paid:
-                        add_media(media_site=media_site,
-                                  media_id=media_id,
-                                  channel=channel_id,
-                                  playlist=playlist_id,
-                                  media_status=STATUS.paid,
-                                  media_available_date=media_available_date,
-                                  download=True)  # Download can be assumed to be True for media that is being downloaded
-                    return True
-                except KeyboardInterrupt:
-                    sys.exit()
-                except Exception as exception_update_db:
-                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
-                          f'{exception_update_db}')
-                    return False
-            elif regex_media_removed.search(str(exception_download)):
-                # print(f'{datetime.now()} {Fore.RED}REMOVED{Style.RESET_ALL} media "{media_id}"')
-                # Update DB
-                try:
-                    if media_status != STATUS.removed:
-                        add_media(media_site=media_site,
-                                  media_id=media_id,
-                                  channel=channel_id,
-                                  playlist=playlist_id,
-                                  media_status=STATUS.removed,
-                                  media_available_date=media_available_date,
-                                  download=True)  # Download can be assumed to be True for media that is being downloaded
-                    return True
-                except KeyboardInterrupt:
-                    sys.exit()
-                except Exception as exception_update_db:
-                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
-                          f'{exception_update_db}')
-                    return False
-            elif (regex_media_unavailable.search(str(exception_download))
-                  or regex_media_unavailable_live.search(str(exception_download))):
-                # print(f'{datetime.now()} {Fore.RED}UNAVAILABLE{Style.RESET_ALL} media "{media_id}"')
-                # Update DB
-                try:
-                    if media_status != STATUS.unavailable:
-                        add_media(media_site=media_site,
-                                  media_id=media_id,
-                                  channel=channel_id,
-                                  playlist=playlist_id,
-                                  media_status=STATUS.unavailable,
-                                  media_available_date=media_available_date,
-                                  download=True)  # Download can be assumed to be True for media that is being downloaded
-                    return True
-                except KeyboardInterrupt:
-                    sys.exit()
-                except Exception as exception_update_db:
-                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
-                          f'{exception_update_db}')
-                    return False
-            elif regex_media_unavailable_geo.search(str(exception_download)):
-                # print(f'{datetime.now()} {Fore.RED}GEO BLOCKED{Style.RESET_ALL} media "{media_id}"')
-                global GEO_BLOCKED_vpn_countries
-                if not GEO_BLOCKED_vpn_countries:
-                    try:
-                        countries_results = regex_media_unavailable_geo_fix.search(str(exception_download))
-                        countries_str = countries_results.group(0)
-                        countries_list = countries_str.split(', ')
-                        GEO_BLOCKED_vpn_countries = countries_list
-                        return False
-                    except KeyboardInterrupt:
-                        sys.exit()
-                    except Exception as exception_regex_geo_blocked:
-                        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL}: '
-                              f'{exception_regex_geo_blocked}')
-                        # To prevent external endless loop
-                        return True
-            elif regex_media_private.search(str(exception_download)):
-                # Update DB
-                try:
-                    if media_status != STATUS.private:
-                        add_media(media_site=media_site,
-                                  media_id=media_id,
-                                  channel=channel_id,
-                                  playlist=playlist_id,
-                                  media_status=STATUS.private,
-                                  media_available_date=media_available_date,
-                                  download=True)  # Download can be assumed to be True for media that is being downloaded
-                    else:
-                        print(f'{datetime.now()} {Fore.RED}PRIVATE{Style.RESET_ALL} media "{media_id}" still private'
-                              f'{space_25}')
-                    return True
-                except KeyboardInterrupt:
-                    sys.exit()
-                except Exception as exception_update_db:
-                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
-                          f'{exception_update_db}')
-                    return False
-            elif regex_media_age_restricted.search(str(exception_download)):
-                # print(f'{datetime.now()} {Fore.RED}AGE RESTRICTED{Style.RESET_ALL} media "{media_id}"')
-                # Update DB
-                try:
-                    if media_status != STATUS.age_restricted:
-                        add_media(media_site=media_site,
-                                  media_id=media_id,
-                                  channel=channel_id,
-                                  playlist=playlist_id,
-                                  media_status=STATUS.age_restricted,
-                                  media_available_date=media_available_date,
-                                  download=True)  # Download can be assumed to be True for media that is being downloaded
-                    return True
-                except KeyboardInterrupt:
-                    sys.exit()
-                except Exception as exception_update_db:
-                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
-                          f'{exception_update_db}')
-                    return False
-            else:
-                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} downloading media: {exception_download}')
+        elif regex_media_removed.search(str(exception_download)):
+            # print(f'{datetime.now()} {Fore.RED}REMOVED{Style.RESET_ALL} media "{media_id}"')
+            # Update DB
+            try:
+                if media_status != STATUS.removed:
+                    add_media(media_site=media_site,
+                              media_id=media_id,
+                              channel=channel_id,
+                              playlist=playlist_id,
+                              media_status=STATUS.removed,
+                              media_available_date=media_available_date,
+                              download=True)  # Download can be assumed to be True for media that is being downloaded
                 return True
+            except KeyboardInterrupt:
+                sys.exit()
+            except Exception as exception_update_db:
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
+                      f'{exception_update_db}')
+                return False
+        elif (regex_media_unavailable.search(str(exception_download))
+              or regex_media_unavailable_live.search(str(exception_download))):
+            # print(f'{datetime.now()} {Fore.RED}UNAVAILABLE{Style.RESET_ALL} media "{media_id}"')
+            # Update DB
+            try:
+                if media_status != STATUS.unavailable:
+                    add_media(media_site=media_site,
+                              media_id=media_id,
+                              channel=channel_id,
+                              playlist=playlist_id,
+                              media_status=STATUS.unavailable,
+                              media_available_date=media_available_date,
+                              download=True)  # Download can be assumed to be True for media that is being downloaded
+                return True
+            except KeyboardInterrupt:
+                sys.exit()
+            except Exception as exception_update_db:
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
+                      f'{exception_update_db}')
+                return False
+        elif regex_media_unavailable_geo.search(str(exception_download)):
+            # print(f'{datetime.now()} {Fore.RED}GEO BLOCKED{Style.RESET_ALL} media "{media_id}"')
+            global GEO_BLOCKED_vpn_countries
+            if not GEO_BLOCKED_vpn_countries:
+                try:
+                    countries_results = regex_media_unavailable_geo_fix.search(str(exception_download))
+                    countries_str = countries_results.group(0)
+                    countries_list = countries_str.split(', ')
+                    GEO_BLOCKED_vpn_countries = countries_list
+                    return False
+                except KeyboardInterrupt:
+                    sys.exit()
+                except Exception as exception_regex_geo_blocked:
+                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL}: '
+                          f'{exception_regex_geo_blocked}')
+                    # To prevent external endless loop
+                    return True
+        elif regex_media_private.search(str(exception_download)):
+            # Update DB
+            try:
+                if media_status != STATUS.private:
+                    add_media(media_site=media_site,
+                              media_id=media_id,
+                              channel=channel_id,
+                              playlist=playlist_id,
+                              media_status=STATUS.private,
+                              media_available_date=media_available_date,
+                              download=True)  # Download can be assumed to be True for media that is being downloaded
+                else:
+                    print(f'{datetime.now()} {Fore.RED}PRIVATE{Style.RESET_ALL} media "{media_id}" still private'
+                          f'{space_25}')
+                return True
+            except KeyboardInterrupt:
+                sys.exit()
+            except Exception as exception_update_db:
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
+                      f'{exception_update_db}')
+                return False
+        elif regex_media_age_restricted.search(str(exception_download)):
+            # print(f'{datetime.now()} {Fore.RED}AGE RESTRICTED{Style.RESET_ALL} media "{media_id}"')
+            # Update DB
+            try:
+                if media_status != STATUS.age_restricted:
+                    add_media(media_site=media_site,
+                              media_id=media_id,
+                              channel=channel_id,
+                              playlist=playlist_id,
+                              media_status=STATUS.age_restricted,
+                              media_available_date=media_available_date,
+                              download=True)  # Download can be assumed to be True for media that is being downloaded
+                return True
+            except KeyboardInterrupt:
+                sys.exit()
+            except Exception as exception_update_db:
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
+                      f'{exception_update_db}')
+                return False
+        else:
+            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} downloading media: {exception_download}')
+            return True
 
 
 def clear_temp_dir(media_status):
