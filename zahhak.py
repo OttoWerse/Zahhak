@@ -1688,10 +1688,6 @@ def reconnect_vpn(counter=None, vpn_countries=None):
     """Reconnects NordVPN to a random country from list"""
     if enable_vpn:
         time_difference = (datetime.now() - vpn_timestamp).total_seconds()
-        if time_difference < vpn_frequency:
-            sleep_time = vpn_frequency - time_difference
-            print(f'{datetime.now()} {Fore.YELLOW}WAITING{Style.RESET_ALL} {sleep_time}s before reconnecting', end='\n')
-            time.sleep(sleep_time)
 
         if vpn_countries is None:
             vpn_countries = DEFAULT_vpn_countries
@@ -1728,8 +1724,14 @@ def reconnect_vpn(counter=None, vpn_countries=None):
             print(f'{datetime.now()} {Fore.CYAN}CONNECTED{Style.RESET_ALL} to {vpn_country} ({counter})          ',
                   end='\n')
 
-            time.sleep(sleep_time_vpn)
-
+            if time_difference < vpn_frequency:
+                sleep_time = vpn_frequency - time_difference
+                print(f'{datetime.now()} {Fore.YELLOW}WAITING{Style.RESET_ALL} {sleep_time}s after reconnecting',
+                      end='\n')
+                time.sleep(sleep_time)
+            else:
+                time.sleep(sleep_time_vpn)
+            # TODO: This needs to go outside of the loop, but then we need to know if NordVPN wokred!
             return counter
 
     else:
@@ -1917,9 +1919,9 @@ def download_media(media):
     media_format = default_media_format
     match media_status:
         case STATUS.wanted | STATUS.broken:
-            if media_available_date < date(2010, 1, 1):  # 2000-2009
-                media_format = f"bv+ba"
-            elif media_available_date < date(2020, 1, 1):  # 2010-2019
+            if media_available_date < date(2020, 1, 1):  # 2000-2019
+                media_format = f"bv*{MAX_WIDTH}+ba"
+            elif media_available_date < date(2025, 1, 1):  # 2020-2024
                 media_format = f"bv*{MAX_WIDTH}{MIN_WIDTH}+ba"
             else:
                 media_format = default_media_format  # 2020+
