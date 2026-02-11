@@ -1734,7 +1734,7 @@ def reconnect_vpn(counter_country=None, vpn_countries=None):
                   f'{exception_reconnect_vpn}',
                   end='\n')
             counter_retry_vpn += 1
-            if counter_retry_vpn < retry_reconnect_new_vpn_node:
+            if counter_retry_vpn >= retry_reconnect_new_vpn_node:
                 retry_vpn = False
     return None
 
