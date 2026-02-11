@@ -1295,12 +1295,12 @@ def add_media(media_site, media_id, channel, playlist, media_status, media_avail
     database.commit()
 
     if f'{media_site} {media_id}' in global_archive_set:
-        print(f'{datetime.now()} {Fore.GREEN}UPDATED{Style.RESET_ALL} media "{media_site} {media_id}" '
-              f'to status {text_color}"{media_status}"{Style.RESET_ALL}{space_25}')
+        print(f'{datetime.now()} {Fore.GREEN}UPDATED{Style.RESET_ALL} {text_color}{media_status}{Style.RESET_ALL} '
+              f'media {media_site} {media_id}{space_25}')
     else:
         global_archive_set.add(f'{media_site} {media_id}')
-        print(f'{datetime.now()} {Fore.GREEN}ADDED{Style.RESET_ALL} media "{media_site} {media_id}" '
-              f'with status {text_color}"{media_status}"{Style.RESET_ALL}{space_25}')
+        print(f'{datetime.now()} {Fore.GREEN}ADDED{Style.RESET_ALL} {text_color}{media_status}{Style.RESET_ALL} '
+              f'media {media_site} {media_id}{space_25}')
 
 
 def update_media_status(media_site, media_id, media_status, database=None):
