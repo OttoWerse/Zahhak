@@ -1936,7 +1936,7 @@ def download_media(media):
     text_color = get_text_color_for_media_status(media_status=media_status)
 
     print(f'{datetime.now()} {Fore.CYAN}DOWNLOADING{Style.RESET_ALL} '
-          f'{media_site} {media_id} status {text_color}"{media_status}"{Style.RESET_ALL} in {media_format}',
+          f'{text_color}{media_status}{Style.RESET_ALL} media {media_site} {media_id} in {media_format}',
           end='\r')
 
     # Set the full output path
