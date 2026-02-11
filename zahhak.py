@@ -1096,7 +1096,7 @@ def get_media_details_from_youtube(media_id, ignore_errors, archive_set):
             if regex_bot.search(str(e)):
                 print(f'{datetime.now()} {Fore.RED}BOT DETECTED{Style.RESET_ALL}')
                 vpn_frequency = DEFAULT_vpn_frequency
-                local_vpn_counter = reconnect_vpn(counter=local_vpn_counter)
+                local_vpn_counter = reconnect_vpn(counter_country=local_vpn_counter)
 
             else:
                 # print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while getting details for media "{media_id}": {e}')
@@ -1684,58 +1684,59 @@ def sanitize_name(name, is_user=False):
     return name_sane
 
 
-def reconnect_vpn(counter=None, vpn_countries=None):
+def reconnect_vpn(counter_country=None, vpn_countries=None):
     """Reconnects NordVPN to a random country from list"""
-    if enable_vpn:
-        time_difference = (datetime.now() - vpn_timestamp).total_seconds()
+    if not enable_vpn:
+        print(f'{datetime.now()} {Fore.CYAN}VPN DISABLED{Style.RESET_ALL}')
+        return None
 
-        if vpn_countries is None:
-            vpn_countries = DEFAULT_vpn_countries
-            # ONLY shuffle VPN countries when there is no given list. IDK if this really makes sense, logic here needs to be way more advanced to really cope with Google...
-            random.shuffle(vpn_countries)
+    if vpn_countries is None:
+        vpn_countries = DEFAULT_vpn_countries
+        # ONLY shuffle VPN countries when there is no given list. IDK if this really makes sense, logic here needs to be way more advanced to really cope with Google...
+        random.shuffle(vpn_countries)
 
-        if counter is None:
-            counter = 0
-        elif counter >= len(vpn_countries):
-            counter = 0
+    if counter_country is None:
+        counter_country = 0
+    elif counter_country >= len(vpn_countries):
+        counter_country = 0
 
-        # vpn_country = random.choice(vpn_countries)
-        vpn_country = vpn_countries[counter]
+    # vpn_country = random.choice(vpn_countries)
+    vpn_country = vpn_countries[counter_country]
 
-        # Increment to use next country next time
-        counter += 1
+    # Increment to use next country next time
+    counter_country += 1
 
-        counter_retry_vpn = 0
-        while counter_retry_vpn < retry_reconnect_new_vpn_node:
-            print(f'{datetime.now()} {Fore.CYAN}RECONNECTING{Style.RESET_ALL} to {vpn_country} ({counter})...',
-                  end='\r')
-            vpn_command = ['C:\\Program Files\\NordVPN\\NordVPN.exe', '-c', '-g', vpn_country]
+    retry_vpn = True
+    counter_retry_vpn = 0
+    while retry_vpn:
+        print(f'{datetime.now()} {Fore.CYAN}RECONNECTING{Style.RESET_ALL} to {vpn_country} ({counter_country})...',
+              end='\r')
+        vpn_command = ['C:\\Program Files\\NordVPN\\NordVPN.exe', '-c', '-g', vpn_country]
 
-            try:
-                check_output(vpn_command, stderr=STDOUT, timeout=timeout_vpn)
-            except KeyboardInterrupt:
-                sys.exit()
-            except Exception as exception_reconnect_vpn:
-                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} connecting VPN: '
-                      f'{exception_reconnect_vpn}',
-                      end='\n')
-                counter_retry_vpn += 1
-
-            print(f'{datetime.now()} {Fore.CYAN}CONNECTED{Style.RESET_ALL} to {vpn_country} ({counter})          ',
-                  end='\n')
-
+        try:
+            check_output(vpn_command, stderr=STDOUT, timeout=timeout_vpn)
+            print(f'{datetime.now()} {Fore.CYAN}CONNECTED{Style.RESET_ALL} to {vpn_country} ({counter_country})'
+                  f'          ', end='\n')
+            time_difference = (datetime.now() - vpn_timestamp).total_seconds()
             if time_difference < vpn_frequency:
                 sleep_time = vpn_frequency - time_difference
-                print(f'{datetime.now()} {Fore.YELLOW}WAITING{Style.RESET_ALL} {sleep_time}s after reconnecting',
-                      end='\n')
-                time.sleep(sleep_time)
             else:
-                time.sleep(sleep_time_vpn)
-            # TODO: This needs to go outside of the loop, but then we need to know if NordVPN wokred!
-            return counter
-
-    else:
-        print(f'{datetime.now()} {Fore.CYAN}VPN DISABLED{Style.RESET_ALL}')
+                sleep_time = sleep_time_vpn
+            print(f'{datetime.now()} {Fore.YELLOW}WAITING{Style.RESET_ALL} {sleep_time}s after connecting to '
+                  f'{vpn_country} ({counter_country})',
+                  end='\n')
+            time.sleep(sleep_time)
+            return counter_country
+        except KeyboardInterrupt:
+            sys.exit()
+        except Exception as exception_reconnect_vpn:
+            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} connecting VPN: '
+                  f'{exception_reconnect_vpn}',
+                  end='\n')
+            counter_retry_vpn += 1
+            if counter_retry_vpn < retry_reconnect_new_vpn_node:
+                retry_vpn = False
+    return None
 
 
 def get_media_from_db(database, status=STATUS.wanted, regex_media_url=fr'^[a-z0-9\-\_]'):
@@ -2522,7 +2523,7 @@ def update_subscriptions(regex_channel_url=fr'^UC[a-z0-9\-\_]'):
 
             if missing_media_channel is None:
                 if counter_process_channel % retry_channel_before_reconnecting_vpn == 0:
-                    vpn_counter = reconnect_vpn(counter=vpn_counter)
+                    vpn_counter = reconnect_vpn(counter_country=vpn_counter)
                     vpn_timestamp = datetime.now()
                 if counter_process_channel > retry_channel_before_ignoring_errors:
                     ignore_errors_channel = True
@@ -2586,7 +2587,7 @@ def update_subscriptions(regex_channel_url=fr'^UC[a-z0-9\-\_]'):
 
                             if missing_media_playlist is None:
                                 if counter_process_playlist % retry_playlist_before_reconnecting_vpn == 0:
-                                    vpn_counter = reconnect_vpn(counter=vpn_counter)
+                                    vpn_counter = reconnect_vpn(counter_country=vpn_counter)
                                     vpn_timestamp = datetime.now()
                                 if counter_process_playlist > retry_playlist_before_ignoring_errors:
                                     ignore_errors_playlist = True
