@@ -1497,30 +1497,6 @@ def process_media(media, channel_site, channel_id, playlist_id, download, archiv
                               f'{Fore.RED}UNAVAILABLE{Style.RESET_ALL} media "{media_id}": {exception_add_media}')
                         return False
 
-            elif regex_offline.search(str(exception_add_media)):
-                print(f'{datetime.now()} {Fore.RED}OFFLINE{Style.RESET_ALL} ({exception_add_media})')
-                # Update DB
-                try:
-                    add_media(media_site=media_site,
-                              media_id=media_id,
-                              channel=channel_id,
-                              playlist=playlist_id,
-                              media_status=STATUS.unavailable,
-                              media_available_date=original_date,
-                              download=download,
-                              database=database)
-                    return True
-                except KeyboardInterrupt:
-                    sys.exit()
-                except Exception as exception_add_media:
-                    if regex_sql_duplicate.search(str(exception_add_media)):
-                        print(f'{datetime.now()} {Fore.RED}DUPLICATE{Style.RESET_ALL} media "{media_id}"')
-                        return True
-                    else:
-                        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding '
-                              f'{Fore.RED}UNAVAILABLE{Style.RESET_ALL} media "{media_id}": {exception_add_media}')
-                        return False
-
             elif regex_media_live_not_started.search(str(exception_add_media)):
                 print(f'{datetime.now()} {Fore.RED}PRE-LISTED{Style.RESET_ALL} livestream / premiere video')
                 # TODO: Is it wise to add these to database etc. for faster processing later? I think it doesn't matter too much.
@@ -1879,8 +1855,9 @@ def download_all_media(status_values, regex_media_url=fr'^[a-z0-9\-\_]'):
 
             vpn_counter_geo = 0
             GEO_BLOCKED_vpn_countries = []
-
             media_downloaded = download_media(media=current_media)
+
+            # TODO: Rework this spaghetto code pls!!!
             if media_downloaded is None:
                 print(f'{timestamp_now} {Fore.RED}ERROR{Style.RESET_ALL}: download result is "None"!')
                 return
@@ -1894,9 +1871,9 @@ def download_all_media(status_values, regex_media_url=fr'^[a-z0-9\-\_]'):
                     if vpn_counter_geo == 0:
                         continue
                 else:
-                    print(
-                        f'{timestamp_now} {Fore.YELLOW}SKIPPING{Style.RESET_ALL} media "{media_site} {media_id}"!')
-                    break  # TODO: Rework this spaghetto code pls!
+                    # TODO: This skips media immediately after unsuccessfully download as of 2026-02-11
+                    print(f'{timestamp_now} {Fore.YELLOW}SKIPPING{Style.RESET_ALL} media "{media_site} {media_id}"!')
+                    break
         if break_for_loop:  # To stop looping over other videos if there are new ones found in refresh
             break
     if not break_for_loop:  # So waiting does not occur when refreshing (obviously a waste of time)
@@ -1936,19 +1913,19 @@ def download_media(media):
 
     '''Set quality requirement for download'''
     # TODO: is quality and timeline dependent on the site? Probably...
-    default_media_format = f"bestvideo*{CODEC}{MAX_WIDTH}{MIN_WIDTH}+bestaudio"  # NEVER CHANGE THIS!!!
+    default_media_format = f"bv*{CODEC}{MAX_WIDTH}{MIN_WIDTH}+ba"  # NEVER CHANGE THIS!!!
     media_format = default_media_format
     match media_status:
         case STATUS.wanted | STATUS.broken:
             if media_available_date < date(2010, 1, 1):  # 2000-2009
-                media_format = f"bestvideo+bestaudio"
+                media_format = f"bv+ba"
             elif media_available_date < date(2020, 1, 1):  # 2010-2019
-                media_format = f"bestvideo*{MAX_WIDTH}{MIN_WIDTH}+bestaudio"
+                media_format = f"bv*{MAX_WIDTH}{MIN_WIDTH}+ba"
             else:
                 media_format = default_media_format  # 2020+
         case STATUS.private | STATUS.unavailable:
             # Accept anything for (previously) private/unavailable videos, if we can get these at all we are lucky!
-            media_format = f"bestvideo+bestaudio"
+            media_format = f"bv+ba"
         case STATUS.migrate | STATUS.upgrade:
             # Staying strict in video codec, min resolution and max resolution here is crucial!
             media_format = default_media_format
@@ -1959,8 +1936,8 @@ def download_media(media):
     text_color = get_text_color_for_media_status(media_status=media_status)
 
     print(f'{datetime.now()} {Fore.CYAN}DOWNLOADING{Style.RESET_ALL} '
-          f'media for "{media_site} - {media_id}" '
-          f'status {text_color}"{media_status}"{Style.RESET_ALL} in quality "{media_format}"', end='\r')
+          f'{media_site} {media_id} status {text_color}"{media_status}"{Style.RESET_ALL} in {media_format}',
+          end='\r')
 
     # Set the full output path
     full_path = os.path.join(f'{channel_name} - {playlist_name}',
@@ -2104,6 +2081,10 @@ def download_media(media):
             return False
         elif regex_bot.search(str(exception_download)):
             print(f'{datetime.now()} {Fore.RED}BOT DETECTED{Style.RESET_ALL} while downloading media "{media_id}"')
+            reconnect_vpn()
+            return False
+        elif regex_offline.search(str(exception_download)):
+            print(f'{datetime.now()} {Fore.RED}OFFLINE{Style.RESET_ALL} while downloading media "{media_id}"')
             reconnect_vpn()
             return False
         elif regex_error_get_addr_info.search(str(exception_download)):
@@ -2892,7 +2873,7 @@ def process_channel(channel_url, database_channels=None, database_playlists=None
         playlist_name_sane = sanitize_name(name=playlist_name_online)
         skip_playlist = False
         while not skip_playlist:
-            add_playlist_input = input(f'CHANNEL: {channel_name_sane} all other videos'
+            add_playlist_input = input(f'CHANNEL: {channel_name_sane} all other videos '
                                        f'{Fore.GREEN}D{Style.RESET_ALL}ownload, '
                                        f'{Fore.YELLOW}M{Style.RESET_ALL}onitor or '
                                        f'{Fore.RED}I{Style.RESET_ALL}gnore: ')
