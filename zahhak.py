@@ -1099,7 +1099,7 @@ def get_media_details_from_youtube(media_id, ignore_errors, archive_set):
                 local_vpn_counter = reconnect_vpn(counter_country=local_vpn_counter)
 
             else:
-                # print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while getting details for media "{media_id}": {e}')
+                # print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} getting details {media_site} {media_id}: {e}')
                 raise
 
 
@@ -1368,7 +1368,7 @@ def process_media(media, channel_site, channel_id, playlist_id, download, archiv
         except Exception as exception_add_media:
             if (regex_media_members_only.search(str(exception_add_media))
                     or regex_media_members_tier.search(str(exception_add_media))):
-                print(f'{datetime.now()} {Fore.RED}MEMBERS ONLY{Style.RESET_ALL} media "{media_id}"')
+                print(f'{datetime.now()} {Fore.RED}MEMBERS ONLY{Style.RESET_ALL} media {media_site} {media_id}')
                 # Update DB
                 try:
                     add_media(media_site=media_site,
@@ -1383,12 +1383,12 @@ def process_media(media, channel_site, channel_id, playlist_id, download, archiv
                 except KeyboardInterrupt:
                     sys.exit()
                 except Exception as exception_update_db:
-                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
+                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} updating {media_site} {media_id}: '
                           f'{exception_update_db}')
                     return False
 
             elif regex_media_paid.search(str(exception_add_media)):
-                print(f'{datetime.now()} {Fore.RED}PAID{Style.RESET_ALL} media "{media_id}"')
+                print(f'{datetime.now()} {Fore.RED}PAID{Style.RESET_ALL} media {media_site} {media_id}')
                 # Update DB
                 try:
                     add_media(media_site=media_site,
@@ -1403,12 +1403,12 @@ def process_media(media, channel_site, channel_id, playlist_id, download, archiv
                 except KeyboardInterrupt:
                     sys.exit()
                 except Exception as exception_update_db:
-                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
+                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} updating {media_site} {media_id}: '
                           f'{exception_update_db}')
                     return False
 
             elif regex_media_removed.search(str(exception_add_media)):
-                print(f'{datetime.now()} {Fore.RED}REMOVED{Style.RESET_ALL} media "{media_id}"')
+                print(f'{datetime.now()} {Fore.RED}REMOVED{Style.RESET_ALL} media {media_site} {media_id}')
                 # Update DB
                 try:
                     add_media(media_site=media_site,
@@ -1423,13 +1423,13 @@ def process_media(media, channel_site, channel_id, playlist_id, download, archiv
                 except KeyboardInterrupt:
                     sys.exit()
                 except Exception as exception_update_db:
-                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
+                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} updating {media_site} {media_id}: '
                           f'{exception_update_db}')
                     return False
 
             elif (regex_media_unavailable.search(str(exception_add_media))
                   or regex_media_unavailable_live.search(str(exception_add_media))):
-                print(f'{datetime.now()} {Fore.RED}UNAVAILABLE{Style.RESET_ALL} media "{media_id}"')
+                print(f'{datetime.now()} {Fore.RED}UNAVAILABLE{Style.RESET_ALL} media {media_site} {media_id}')
                 # Update DB
                 try:
                     add_media(media_site=media_site,
@@ -1444,17 +1444,17 @@ def process_media(media, channel_site, channel_id, playlist_id, download, archiv
                 except KeyboardInterrupt:
                     sys.exit()
                 except Exception as exception_update_db:
-                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
+                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} updating {media_site} {media_id}: '
                           f'{exception_update_db}')
                     return False
 
             elif regex_media_unavailable_geo.search(str(exception_add_media)):
-                print(f'{datetime.now()} {Fore.RED}GEO BLOCKED{Style.RESET_ALL} media "{media_id}"')
+                print(f'{datetime.now()} {Fore.RED}GEO BLOCKED{Style.RESET_ALL} media {media_site} {media_id}')
                 # TODO: Handle geo location change?
                 return False
 
             elif regex_media_private.search(str(exception_add_media)):
-                print(f'{datetime.now()} {Fore.RED}PRIVATE{Style.RESET_ALL} media "{media_id}"')
+                print(f'{datetime.now()} {Fore.RED}PRIVATE{Style.RESET_ALL} media {media_site} {media_id}')
                 # Update DB
                 try:
                     add_media(media_site=media_site,
@@ -1469,12 +1469,12 @@ def process_media(media, channel_site, channel_id, playlist_id, download, archiv
                 except KeyboardInterrupt:
                     sys.exit()
                 except Exception as exception_update_db:
-                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
+                    print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} updating {media_site} {media_id}: '
                           f'{exception_update_db}')
                     return False
 
             elif regex_media_age_restricted.search(str(exception_add_media)):
-                print(f'{datetime.now()} {Fore.RED}AGE RESTRICTED{Style.RESET_ALL} media "{media_id}"')
+                print(f'{datetime.now()} {Fore.RED}AGE RESTRICTED{Style.RESET_ALL} media {media_site} {media_id}')
                 # Update DB
                 try:
                     add_media(media_site=media_site,
@@ -1490,11 +1490,12 @@ def process_media(media, channel_site, channel_id, playlist_id, download, archiv
                     sys.exit()
                 except Exception as exception_add_media:
                     if regex_sql_duplicate.search(str(exception_add_media)):
-                        print(f'{datetime.now()} {Fore.RED}DUPLICATE{Style.RESET_ALL} media "{media_id}"')
+                        print(f'{datetime.now()} {Fore.RED}DUPLICATE{Style.RESET_ALL} media {media_site} {media_id}')
                         return True
                     else:
-                        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding '
-                              f'{Fore.RED}UNAVAILABLE{Style.RESET_ALL} media "{media_id}": {exception_add_media}')
+                        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} adding '
+                              f'{Fore.RED}UNAVAILABLE{Style.RESET_ALL} media {media_site} {media_id}: '
+                              f'{exception_add_media}')
                         return False
 
             elif regex_media_live_not_started.search(str(exception_add_media)):
@@ -1560,7 +1561,7 @@ def process_media(media, channel_site, channel_id, playlist_id, download, archiv
     #  The "media_type" field is NOT reliable for media which isn't available yet!
     try:
         if media['availability'] is None:
-            print(f'{datetime.now()} {Fore.RED}PSEUDO-PRIVATE{Style.RESET_ALL} media "{media_id}"')
+            print(f'{datetime.now()} {Fore.RED}PSEUDO-PRIVATE{Style.RESET_ALL} media {media_site} {media_id}')
             # Update DB
             try:
                 # TODO: We used to add media as "unavailable" here, but this seemed to lead to issues with premieres.
@@ -1569,7 +1570,7 @@ def process_media(media, channel_site, channel_id, playlist_id, download, archiv
             except KeyboardInterrupt:
                 sys.exit()
             except Exception as exception_update_db:
-                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} updating {media_site} {media_id}: '
                       f'{exception_update_db}')
                 return False
     except KeyboardInterrupt:
@@ -1582,11 +1583,11 @@ def process_media(media, channel_site, channel_id, playlist_id, download, archiv
     if original_date is not None:
         if final_download:
             media_status = STATUS.wanted
-            print(f'{datetime.now()} {Fore.CYAN}ADDING{Style.RESET_ALL} media {media_id} type "{media_type}"',
+            print(f'{datetime.now()} {Fore.CYAN}ADDING{Style.RESET_ALL} {media_site} {media_id} type "{media_type}"',
                   end='\r')
         else:
             media_status = STATUS.unwanted
-            print(f'{datetime.now()} {Fore.CYAN}SKIPPING{Style.RESET_ALL} media "{media_id}" type "{media_type}"',
+            print(f'{datetime.now()} {Fore.CYAN}SKIPPING{Style.RESET_ALL} {media_site} {media_id} type "{media_type}"',
                   end='\r')
 
         # Update DB
@@ -1603,26 +1604,26 @@ def process_media(media, channel_site, channel_id, playlist_id, download, archiv
             sys.exit()
         except Exception as exception_add_media:
             if regex_sql_duplicate.search(str(exception_add_media)):
-                print(f'{datetime.now()} {Fore.RED}DUPLICATE{Style.RESET_ALL} media "{media_id}"')
+                print(f'{datetime.now()} {Fore.RED}DUPLICATE{Style.RESET_ALL} media {media_site} {media_id}')
                 return True
             if regex_sql_unavailable.search(str(exception_add_media)):
                 print(f'{datetime.now()} {Fore.RED}UNAVAILABLE{Style.RESET_ALL} database, reconnecting...', end='\r')
                 return None
             else:
-                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding media "{media_id}": '
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} adding {media_site} {media_id}: '
                       f'{exception_add_media}')
                 return False
 
         if final_download:
-            print(f'{datetime.now()} {Fore.GREEN}ADDED{Style.RESET_ALL} media "{media_id}" type "{media_type}"'
+            print(f'{datetime.now()} {Fore.GREEN}ADDED{Style.RESET_ALL} {media_site} {media_id} type "{media_type}"'
                   f'        ', end='\n')
         else:
-            print(f'{datetime.now()} {Fore.YELLOW}SKIPPED{Style.RESET_ALL} media "{media_id}" type "{media_type}"'
+            print(f'{datetime.now()} {Fore.YELLOW}SKIPPED{Style.RESET_ALL} {media_site} {media_id} type "{media_type}"'
                   f'        ', end='\n')
         return True
 
     else:
-        print(f'{datetime.now()} {Fore.RED}INCOMPLETE{Style.RESET_ALL} media "{media_id}"')
+        print(f'{datetime.now()} {Fore.RED}INCOMPLETE{Style.RESET_ALL} media {media_site} {media_id}')
         return False
 
 
@@ -2065,13 +2066,13 @@ def download_media(media):
 
             text_color = get_text_color_for_media_status(media_status=media_status)
 
-            print(f'{datetime.now()} {Fore.GREEN}UPDATED{Style.RESET_ALL} media "{media_id}" '
+            print(f'{datetime.now()} {Fore.GREEN}UPDATED{Style.RESET_ALL} {media_site} {media_id} '
                   f'to status {text_color}"{media_status}"{Style.RESET_ALL}{space_25}')
             return True
         except KeyboardInterrupt:
             sys.exit()
         except Exception as exception_update_db:
-            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
+            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} updating {media_site} {media_id}updating {media_site} {media_id}: '
                   f'{exception_update_db}')
             return False
     except KeyboardInterrupt:
@@ -2079,37 +2080,40 @@ def download_media(media):
     except Exception as exception_download:
         if regex_error_http_403.search(str(exception_download)) \
                 or regex_error_http_429.search(str(exception_download)):
-            print(f'{datetime.now()} {Fore.RED}IP BANNED{Style.RESET_ALL} while downloading media "{media_id}"')
+            print(f'{datetime.now()} {Fore.RED}IP BANNED{Style.RESET_ALL} '
+                  f'downloading {media_site} {media_id}')
             reconnect_vpn()
             return False
         elif regex_bot.search(str(exception_download)):
-            print(f'{datetime.now()} {Fore.RED}BOT DETECTED{Style.RESET_ALL} while downloading media "{media_id}"')
+            print(f'{datetime.now()} {Fore.RED}BOT DETECTED{Style.RESET_ALL} '
+                  f'downloading {media_site} {media_id}')
             reconnect_vpn()
             return False
         elif regex_offline.search(str(exception_download)):
-            print(f'{datetime.now()} {Fore.RED}OFFLINE{Style.RESET_ALL} while downloading media "{media_id}"')
+            print(f'{datetime.now()} {Fore.RED}OFFLINE{Style.RESET_ALL} '
+                  f'downloading {media_site} {media_id}')
             reconnect_vpn()
             return False
         elif regex_error_get_addr_info.search(str(exception_download)):
-            print(f'{datetime.now()} {Fore.RED}GET ADDR INFO FAILED{Style.RESET_ALL} while downloading media '
-                  f'"{media_id}"')
+            print(f'{datetime.now()} {Fore.RED}GET ADDR INFO FAILED{Style.RESET_ALL} '
+                  f'downloading {media_site} {media_id}')
             reconnect_vpn()
             return False
         elif regex_media_format_unavailable.search(str(exception_download)):
-            print(f'{datetime.now()} {Fore.RED}FORMAT UNAVAILABLE{Style.RESET_ALL} '
-                  f'while downloading media "{media_id}"')
+            print(f'{datetime.now()} {Fore.RED}UNAVAILABLE FORMAT{Style.RESET_ALL} '
+                  f'{media_format} downloading {media_site} {media_id}')
             # reconnect_vpn()
             # return False
             # TODO: This was changed to handle videos which legitimately do not exist in requested strict format
             return True
         elif regex_json_write.search(str(exception_download)):
             print(f'{datetime.now()} {Fore.RED}JSON WRITE ERROR{Style.RESET_ALL} '
-                  f'while downloading media "{media_id}"')
+                  f'downloading {media_site} {media_id}')
             clear_temp_dir(media_status=media_status)
             return False
         elif regex_error_win_5.search(str(exception_download)):
             print(f'{datetime.now()} {Fore.RED}WIN ERROR 5{Style.RESET_ALL} '
-                  f'while downloading media "{media_id}"')
+                  f'downloading {media_site} {media_id}')
             clear_temp_dir(media_status=media_status)
             reconnect_vpn()
             return False
@@ -2117,7 +2121,7 @@ def download_media(media):
             # sys.exit()
         elif regex_error_win_32.search(str(exception_download)):
             print(f'{datetime.now()} {Fore.RED}WIN ERROR 32{Style.RESET_ALL} '
-                  f'while downloading media "{media_id}"')
+                  f'downloading {media_site} {media_id}')
             clear_temp_dir(media_status=media_status)
             reconnect_vpn()
             return False
@@ -2125,7 +2129,7 @@ def download_media(media):
             # sys.exit()
         elif regex_error_win_10054.search(str(exception_download)):
             print(f'{datetime.now()} {Fore.RED}WIN ERROR 10054{Style.RESET_ALL} '
-                  f'while downloading media "{media_id}"')
+                  f'downloading {media_site} {media_id}')
             clear_temp_dir(media_status=media_status)
             reconnect_vpn()
             return False
@@ -2133,7 +2137,7 @@ def download_media(media):
             # sys.exit()
         elif (regex_media_members_only.search(str(exception_download))
               or regex_media_members_tier.search(str(exception_download))):
-            # print(f'{datetime.now()} {Fore.RED}MEMBERS ONLY{Style.RESET_ALL} media "{media_id}"')
+            # print(f'{datetime.now()} {Fore.RED}MEMBERS ONLY{Style.RESET_ALL} media {media_site} {media_id}')
             # Update DB
             try:
                 if media_status != STATUS.members_only:
@@ -2148,11 +2152,11 @@ def download_media(media):
             except KeyboardInterrupt:
                 sys.exit()
             except Exception as exception_update_db:
-                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} updating {media_site} {media_id}: '
                       f'{exception_update_db}')
                 return False
         elif regex_media_paid.search(str(exception_download)):
-            # print(f'{datetime.now()} {Fore.RED}PAID{Style.RESET_ALL} media "{media_id}"')
+            # print(f'{datetime.now()} {Fore.RED}PAID{Style.RESET_ALL} media {media_site} {media_id}')
             # Update DB
             try:
                 if media_status != STATUS.paid:
@@ -2167,11 +2171,11 @@ def download_media(media):
             except KeyboardInterrupt:
                 sys.exit()
             except Exception as exception_update_db:
-                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} updating {media_site} {media_id}: '
                       f'{exception_update_db}')
                 return False
         elif regex_media_removed.search(str(exception_download)):
-            # print(f'{datetime.now()} {Fore.RED}REMOVED{Style.RESET_ALL} media "{media_id}"')
+            # print(f'{datetime.now()} {Fore.RED}REMOVED{Style.RESET_ALL} media {media_site} {media_id}')
             # Update DB
             try:
                 if media_status != STATUS.removed:
@@ -2186,12 +2190,12 @@ def download_media(media):
             except KeyboardInterrupt:
                 sys.exit()
             except Exception as exception_update_db:
-                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} updating {media_site} {media_id}: '
                       f'{exception_update_db}')
                 return False
         elif (regex_media_unavailable.search(str(exception_download))
               or regex_media_unavailable_live.search(str(exception_download))):
-            # print(f'{datetime.now()} {Fore.RED}UNAVAILABLE{Style.RESET_ALL} media "{media_id}"')
+            # print(f'{datetime.now()} {Fore.RED}UNAVAILABLE{Style.RESET_ALL} media {media_site} {media_id}')
             # Update DB
             try:
                 if media_status != STATUS.unavailable:
@@ -2206,11 +2210,11 @@ def download_media(media):
             except KeyboardInterrupt:
                 sys.exit()
             except Exception as exception_update_db:
-                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} updating {media_site} {media_id}: '
                       f'{exception_update_db}')
                 return False
         elif regex_media_unavailable_geo.search(str(exception_download)):
-            # print(f'{datetime.now()} {Fore.RED}GEO BLOCKED{Style.RESET_ALL} media "{media_id}"')
+            # print(f'{datetime.now()} {Fore.RED}GEO BLOCKED{Style.RESET_ALL} media {media_site} {media_id}')
             global GEO_BLOCKED_vpn_countries
             if not GEO_BLOCKED_vpn_countries:
                 try:
@@ -2238,17 +2242,19 @@ def download_media(media):
                               media_available_date=media_available_date,
                               download=True)  # Download can be assumed to be True for media that is being downloaded
                 else:
-                    print(f'{datetime.now()} {Fore.RED}PRIVATE{Style.RESET_ALL} media "{media_id}" still private'
+                    print(f'{datetime.now()} {Fore.RED}PRIVATE{Style.RESET_ALL} '
+                          f'media {media_site} {media_id} still private'
                           f'{space_25}')
                 return True
             except KeyboardInterrupt:
                 sys.exit()
             except Exception as exception_update_db:
-                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} '
+                      f'updating {media_site} {media_id}: '
                       f'{exception_update_db}')
                 return False
         elif regex_media_age_restricted.search(str(exception_download)):
-            # print(f'{datetime.now()} {Fore.RED}AGE RESTRICTED{Style.RESET_ALL} media "{media_id}"')
+            # print(f'{datetime.now()} {Fore.RED}AGE RESTRICTED{Style.RESET_ALL} media {media_site} {media_id}')
             # Update DB
             try:
                 if media_status != STATUS.age_restricted:
@@ -2263,7 +2269,8 @@ def download_media(media):
             except KeyboardInterrupt:
                 sys.exit()
             except Exception as exception_update_db:
-                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while updating media "{media_id}": '
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} '
+                      f'updating {media_site} {media_id}: '
                       f'{exception_update_db}')
                 return False
         else:
