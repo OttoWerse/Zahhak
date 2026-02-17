@@ -4223,7 +4223,10 @@ if __name__ == "__main__":
                 print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: '
                       f'No mode "{args.mode}" exists')
         except Exception as exception_main:
-            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} in main loop: {exception_main}')
+            exc_type, exc_obj, exc_tb = sys.exc_info()
+            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} in main loop: {exc_type} '
+                  f'affected file "{fname}" line {exc_tb.tb_lineno}')
             input(f'Continue?')
     else:
         print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: '
