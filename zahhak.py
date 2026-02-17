@@ -2973,7 +2973,10 @@ def juggle_verified_media():
                                                  dir_new=directory_final)
 
                 # Further work can only be done, if an Info JSON exists!
-                if os.path.exists(json_path_orig):
+                if not os.path.exists(json_path_orig):
+                    print(f'{datetime.now()} {Fore.RED}MISSING{Style.RESET_ALL} JSON file "{json_path_orig}"')
+                    continue
+                else:
                     with io.open(json_path_orig, encoding='utf-8-sig') as json_txt:
                         try:
                             try:
