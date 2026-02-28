@@ -4078,11 +4078,9 @@ def fix_all_nfo_files(dry_run=True):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser("Zahhak")
-
     parser.add_argument("--vpn",
                         help="Enable VPN reconnecting for this instance",
                         action=argparse.BooleanOptionalAction, )
-
     parser.add_argument("--mode",
                         choices=('A', 'M', 'D', 'V', 'J', 'X'),
                         help="'A' for Add Subscriptions, "
@@ -4094,143 +4092,142 @@ if __name__ == "__main__":
                              "EMPTY to run in serial mode. ",
                         type=str,
                         required=False, )
-
     parser.add_argument("--letter_low",
                         type=str,
                         help="Enter low starting letter for URL",
                         nargs='?',
                         default=' ',
                         const=0, )
-
     parser.add_argument("--letter_high",
                         type=str,
                         help="Enter high starting letter for URL",
                         nargs='?',
                         default=' ',
                         const=0, )
-
     parser.add_argument("--status",
                         help="Enter a list of status values to consider",
                         nargs='+', )
-
     args = parser.parse_args()
 
     init(convert=True)
     just_fix_windows_console()
 
-    # Skips ALL processing of known media to speed up skript
-    create_download_archive()
-
-    '''Parse enable VPN'''
-    if args.vpn:
-        enable_vpn = True
-    else:
-        enable_vpn = False
-
-    '''Parse status values for download'''
-    if args.status:
-        for status in args.status:
-            if not hasattr(STATUS, status.replace("-", "_")):
-                print(f'{datetime.now()} {Fore.RED}UNKNOWN STATUS VALUE{Style.RESET_ALL}: '
-                      f'{status}, aborting to avoid database errors!')
-                sys.exit()
-        status_values = args.status
-    else:
-        status_values = [STATUS.broken, STATUS.wanted, STATUS.private]
-
-    '''Parse URL regex for verification'''
-    # TODO: This should probably be done with argparse error instead!
-    letter_low = args.letter_low.lower()
-    if not letter_low:
-        # print(f'Missing parameter "--letter_low"!')
-        # sys.exit()
-        letter_low = ' '
-    letter_high = args.letter_high.lower()
-    if not letter_high:
-        # print(f'Missing parameter "--letter_high"!')
-        # sys.exit()
-        letter_high = ' '
-    if ord(letter_low) > ord(letter_high):
-        print(f'Invalid input, low letter {letter_low} is not preceding high letter {letter_high}!')
-        sys.exit()
-    if letter_low == ' ' and letter_high == ' ':
-        regex_filter_media = fr'^[a-z0-9\-\_]'
-        regex_filter_channel = fr'^UC[a-z0-9\-\_]'
-    elif letter_low == '0' and letter_high == '9':
-        regex_filter_media = fr'^[{letter_low}-{letter_high}\-\_]'
-        regex_filter_channel = fr'^UC[{letter_low}-{letter_high}\-\_]'
-    else:
-        regex_filter_media = fr'^[{letter_low}-{letter_high}]'
-        regex_filter_channel = fr'^UC[{letter_low}-{letter_high}]'
-
-    '''Parse mode'''
-    if not args.mode:
-        input_possible = True
-        print(f'{datetime.now()} {Fore.YELLOW}WARNING{Style.RESET_ALL}: '
-              f'no operating mode was set. Running in user interactive mode!')
-        while True:
-            add_subscriptions()
-            update_subscriptions(regex_channel_url=regex_filter_channel)
-            download_all_media(status_values=status_values, regex_media_url=regex_filter_media)
-            verify_fresh_media(regex_media_url=regex_filter_media)
-            juggle_verified_media()
-    elif len(args.mode) == 1:
-        input_possible = False
+    repeat = True
+    while repeat:
         try:
-            if args.mode == 'A':
-                print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
-                      f'Add Subscriptions')
-                while True:
+            # Skips ALL processing of known media to speed up skript
+            create_download_archive()
+
+            '''Parse enable VPN'''
+            if args.vpn:
+                enable_vpn = True
+            else:
+                enable_vpn = False
+
+            '''Parse status values for download'''
+            if args.status:
+                for status in args.status:
+                    if not hasattr(STATUS, status.replace("-", "_")):
+                        print(f'{datetime.now()} {Fore.RED}UNKNOWN STATUS VALUE{Style.RESET_ALL}: '
+                              f'{status}, aborting to avoid database errors!')
+                        sys.exit()
+                status_values = args.status
+            else:
+                status_values = [STATUS.broken, STATUS.wanted, STATUS.private]
+
+            '''Parse URL regex for verification'''
+            # TODO: This should probably be done with argparse error instead!
+            letter_low = args.letter_low.lower()
+            if not letter_low:
+                # print(f'Missing parameter "--letter_low"!')
+                # sys.exit()
+                letter_low = ' '
+            letter_high = args.letter_high.lower()
+            if not letter_high:
+                # print(f'Missing parameter "--letter_high"!')
+                # sys.exit()
+                letter_high = ' '
+            if ord(letter_low) > ord(letter_high):
+                print(f'Invalid input, low letter {letter_low} is not preceding high letter {letter_high}!')
+                sys.exit()
+            if letter_low == ' ' and letter_high == ' ':
+                regex_filter_media = fr'^[a-z0-9\-\_]'
+                regex_filter_channel = fr'^UC[a-z0-9\-\_]'
+            elif letter_low == '0' and letter_high == '9':
+                regex_filter_media = fr'^[{letter_low}-{letter_high}\-\_]'
+                regex_filter_channel = fr'^UC[{letter_low}-{letter_high}\-\_]'
+            else:
+                regex_filter_media = fr'^[{letter_low}-{letter_high}]'
+                regex_filter_channel = fr'^UC[{letter_low}-{letter_high}]'
+
+            '''Parse mode'''
+            if not args.mode:
+                input_possible = True
+                repeat = True
+                print(f'{datetime.now()} {Fore.YELLOW}WARNING{Style.RESET_ALL}: '
+                      f'no operating mode was set. Running in user interactive mode!')
+                add_subscriptions()
+                update_subscriptions(regex_channel_url=regex_filter_channel)
+                download_all_media(status_values=status_values, regex_media_url=regex_filter_media)
+                verify_fresh_media(regex_media_url=regex_filter_media)
+                juggle_verified_media()
+            elif len(args.mode) == 1:
+                if args.mode == 'A':
+                    input_possible = False
+                    repeat = True
+                    print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: Add Subscriptions')
                     add_subscriptions()
-            elif args.mode == 'M':
-                print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
-                      f'Monitor Subscriptions')
-                while True:
+                elif args.mode == 'M':
+                    input_possible = False
+                    repeat = True
+                    print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: Monitor Subscriptions')
                     update_subscriptions(regex_channel_url=regex_filter_channel)
-            elif args.mode == 'D':
-                print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
-                      f'Download Media')
-                while True:
+                elif args.mode == 'D':
+                    input_possible = False
+                    repeat = True
+                    print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: Download Media')
                     download_all_media(status_values=status_values, regex_media_url=regex_filter_media)
-            elif args.mode == 'V':
-                print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
-                      f'Verify Files')
-                while True:
+                elif args.mode == 'V':
+                    input_possible = False
+                    repeat = True
+                    print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: Verify Files')
                     verify_fresh_media(regex_media_url=regex_filter_media)
-            elif args.mode == 'J':
-                print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
-                      f'Juggle Files')
-                while True:
+                elif args.mode == 'J':
+                    input_possible = False
+                    repeat = True
+                    print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
+                          f'Juggle Files')
                     juggle_verified_media()
-            elif args.mode == 'X':
-                print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
-                      f'Experimental')
-                migrate_to_status_done(dry_run=False)
-                database = connect_database()
-                mysql_cursor = database.cursor()
-                sql = (
-                    "SELECT videos.site, videos.url, videos.original_date, videos.status, videos.save_path "
-                    "FROM videos "
-                    "WHERE (videos.status = 'done') "
-                    "AND (videos.res_height IS NULL "
-                    "OR videos.res_width IS NULL "
-                    "OR videos.codec IS NULL "
-                    "OR videos.filesize IS NULL);")
-                mysql_cursor.execute(sql)
-                media = mysql_cursor.fetchall()
-                migrate_to_media_information(database=database,
-                                             media_to_migrate=media,
-                                             dry_run=False)
-                fix_all_nfo_files(dry_run=False)
+                elif args.mode == 'X':
+                    input_possible = False
+                    repeat = False
+                    print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: Experimental Migration')
+                    migrate_to_status_done(dry_run=False)
+                    database = connect_database()
+                    mysql_cursor = database.cursor()
+                    sql = (
+                        "SELECT videos.site, videos.url, videos.original_date, videos.status, videos.save_path "
+                        "FROM videos "
+                        "WHERE (videos.status = 'done') "
+                        "AND (videos.res_height IS NULL "
+                        "OR videos.res_width IS NULL "
+                        "OR videos.codec IS NULL "
+                        "OR videos.filesize IS NULL);")
+                    mysql_cursor.execute(sql)
+                    media = mysql_cursor.fetchall()
+                    migrate_to_media_information(database=database,
+                                                 media_to_migrate=media,
+                                                 dry_run=False)
+                    fix_all_nfo_files(dry_run=False)
+                else:
+                    print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: '
+                          f'No mode "{args.mode}" exists')
             else:
                 print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: '
-                      f'No mode "{args.mode}" exists')
+                      f'Malformed arguments found!')
         except Exception as exception_main:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
             print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} in main loop: {exc_type} '
                   f'affected file "{fname}" line {exc_tb.tb_lineno}')
-            input(f'Continue?')
-    else:
-        print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: '
-              f'Malformed arguments found!')
+            # TODO: Write to log file
