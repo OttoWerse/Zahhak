@@ -1685,9 +1685,9 @@ def sanitize_name(name, is_user=False):
     return name_sane
 
 
-def reconnect_vpn(counter_country=None, vpn_countries=None):
+def reconnect_vpn(counter_country=None, vpn_countries=None, vpn_override=False):
     """Reconnects NordVPN to a random country from list"""
-    if not enable_vpn:
+    if not enable_vpn and not vpn_override:
         print(f'{datetime.now()} {Fore.CYAN}VPN DISABLED{Style.RESET_ALL}')
         return None
 
@@ -1870,7 +1870,9 @@ def download_all_media(status_values, regex_media_url=fr'^[a-z0-9\-\_]'):
             else:
                 if GEO_BLOCKED_vpn_countries:
                     vpn_frequency = GEO_BLOCKED_vpn_frequency
-                    vpn_counter_geo = reconnect_vpn(vpn_counter_geo, GEO_BLOCKED_vpn_countries)
+                    vpn_counter_geo = reconnect_vpn(vpn_counter_geo, GEO_BLOCKED_vpn_countries, vpn_override=True)
+                    # TODO: The Override solution is NOT a good one, no --vpn flag should disable VPN always!
+                    #  For now, this is the quick fix to avoid other issues, should not port this logic to OOP!
                     # To break endless loop
                     if vpn_counter_geo == 0:
                         continue
@@ -2214,7 +2216,7 @@ def download_media(media):
                       f'{exception_update_db}')
                 return False
         elif regex_media_unavailable_geo.search(str(exception_download)):
-            # print(f'{datetime.now()} {Fore.RED}GEO BLOCKED{Style.RESET_ALL} media {media_site} {media_id}')
+            print(f'{datetime.now()} {Fore.RED}GEO BLOCKED{Style.RESET_ALL} media {media_site} {media_id}')
             global GEO_BLOCKED_vpn_countries
             if not GEO_BLOCKED_vpn_countries:
                 try:
