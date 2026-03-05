@@ -2074,8 +2074,9 @@ def download_media(media):
         except KeyboardInterrupt:
             sys.exit()
         except Exception as exception_update_db:
-            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} updating {media_site} {media_id}updating {media_site} {media_id}: '
-                  f'{exception_update_db}')
+            print(
+                f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} updating {media_site} {media_id}updating {media_site} {media_id}: '
+                f'{exception_update_db}')
             return False
     except KeyboardInterrupt:
         sys.exit()
@@ -3833,6 +3834,8 @@ def migrate_to_status_done(dry_run=True):
         # Check MP4 exists
         if not os.path.exists(path_mp4):
             print(f'{datetime.now()} {Fore.RED}MISSING MP4{Style.RESET_ALL} {os.path.basename(path_mp4)}')
+            if not dry_run:
+                update_media_status(media_site=media_site, media_id=media_id, media_status=STATUS.broken)
             errors += 1
             continue
         '''JSON Check'''
@@ -3850,6 +3853,9 @@ def migrate_to_status_done(dry_run=True):
         # Check JSON exists
         if not os.path.exists(path_json):
             print(f'{datetime.now()} {Fore.RED}MISSING JSON{Style.RESET_ALL} {os.path.basename(path_json)}')
+            if not dry_run:
+                # TODO: wanted?
+                update_media_status(media_site=media_site, media_id=media_id, media_status=STATUS.broken)
             errors += 1
             continue
         # Open JSON
@@ -3903,6 +3909,9 @@ def migrate_to_status_done(dry_run=True):
         # Check PNG exists
         if not os.path.exists(path_png):
             print(f'{datetime.now()} {Fore.RED}MISSING PNG{Style.RESET_ALL} {os.path.basename(path_png)}')
+            if not dry_run:
+                # TODO: wanted?
+                update_media_status(media_site=media_site, media_id=media_id, media_status=STATUS.broken)
             errors += 1
             continue
         '''Log'''
