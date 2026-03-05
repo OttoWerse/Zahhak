@@ -4197,30 +4197,38 @@ if __name__ == "__main__":
                 elif args.mode == 'J':
                     input_possible = False
                     repeat = True
-                    print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
-                          f'Juggle Files')
+                    print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: Juggle Files')
                     juggle_verified_media()
                 elif args.mode == 'X':
-                    input_possible = False
+                    input_possible = True
                     repeat = False
                     print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: Experimental Migration')
-                    migrate_to_status_done(dry_run=False)
-                    database = connect_database()
-                    mysql_cursor = database.cursor()
-                    sql = (
-                        "SELECT videos.site, videos.url, videos.original_date, videos.status, videos.save_path "
-                        "FROM videos "
-                        "WHERE (videos.status = 'done') "
-                        "AND (videos.res_height IS NULL "
-                        "OR videos.res_width IS NULL "
-                        "OR videos.codec IS NULL "
-                        "OR videos.filesize IS NULL);")
-                    mysql_cursor.execute(sql)
-                    media = mysql_cursor.fetchall()
-                    migrate_to_media_information(database=database,
-                                                 media_to_migrate=media,
-                                                 dry_run=False)
-                    fix_all_nfo_files(dry_run=False)
+                    if input_possible:
+                        continue_input = input("Next Step: Migrate to end status 'done' - 'Y' to continue")
+                        if continue_input.lower() == 'y':
+                            migrate_to_status_done(dry_run=False)
+                    if input_possible:
+                        continue_input = input("Next Step: Enrich Media Information - 'Y' to continue")
+                        if continue_input.lower() == 'y':
+                            database = connect_database()
+                            mysql_cursor = database.cursor()
+                            sql = (
+                                "SELECT videos.site, videos.url, videos.original_date, videos.status, videos.save_path "
+                                "FROM videos "
+                                "WHERE (videos.status = 'done') "
+                                "AND (videos.res_height IS NULL "
+                                "OR videos.res_width IS NULL "
+                                "OR videos.codec IS NULL "
+                                "OR videos.filesize IS NULL);")
+                            mysql_cursor.execute(sql)
+                            media = mysql_cursor.fetchall()
+                            migrate_to_media_information(database=database,
+                                                         media_to_migrate=media,
+                                                         dry_run=False)
+                    if input_possible:
+                        continue_input = input("Next Step: Enrich NFO file information - 'Y' to continue")
+                        if continue_input.lower() == 'y':
+                            fix_all_nfo_files(dry_run=False)
                 else:
                     print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: '
                           f'No mode "{args.mode}" exists')
