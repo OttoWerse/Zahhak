@@ -4239,7 +4239,7 @@ if __name__ == "__main__":
                                                          media_to_migrate=media,
                                                          dry_run=False)
                     if input_possible:
-                        continue_input = input("Next Step: Enrich NFO file information - 'Y' to continue: ")
+                        continue_input = input("Next Step: Recreate all NFO files - 'Y' to continue: ")
                         if continue_input.lower() == 'y':
                             fix_all_nfo_files(dry_run=False)
                 else:
