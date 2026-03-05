@@ -3732,6 +3732,8 @@ def migrate_to_media_information(media_to_migrate, database, dry_run=True):
             if json_id != media_id:
                 print(f'{datetime.now()} {Fore.RED}ID MISMATCH{Style.RESET_ALL} {json_id} =|= {media_id} in JSON file '
                       f'"{os.path.basename(path_json)}"')
+                if not dry_run:
+                    update_media_status(media_site=media_site, media_id=media_id, media_status=STATUS.cursed)
                 errors += 1
                 continue
             # Read resolution, codec, size from JSON
@@ -4058,6 +4060,8 @@ def fix_all_nfo_files(dry_run=True):
             if json_id != media_id:
                 print(f'{datetime.now()} {Fore.RED}ID MISMATCH{Style.RESET_ALL} {json_id} =|= {media_id} in JSON file '
                       f'"{os.path.basename(path_json)}"')
+                if not dry_run:
+                    update_media_status(media_site=media_site, media_id=media_id, media_status=STATUS.cursed)
                 errors += 1
                 continue
         nfo_path = regex_mp4.sub('.nfo', media_save_path)
