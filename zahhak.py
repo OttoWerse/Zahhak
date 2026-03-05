@@ -3869,6 +3869,8 @@ def migrate_to_status_done(dry_run=True):
             except Exception as exception:
                 print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} reading site/id in JSON '
                       f'"{os.path.basename(path_json)}": {exception}')
+                if not dry_run:
+                    update_media_status(media_site=media_site, media_id=media_id, media_status=STATUS.cursed)
                 errors += 1
                 continue
             # Check if JSON contains same ID as Database.
@@ -3889,8 +3891,6 @@ def migrate_to_status_done(dry_run=True):
         except Exception as exception:
             print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} forming path for NFO '
                   f'"{os.path.basename(path_nfo)}": {exception}')
-            if not dry_run:
-                update_media_status(media_site=media_site, media_id=media_id, media_status=STATUS.cursed)
             errors += 1
             continue
         # Check NFO exists
