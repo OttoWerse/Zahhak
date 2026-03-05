@@ -4215,11 +4215,11 @@ if __name__ == "__main__":
                     repeat = False
                     print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: Experimental Migration')
                     if input_possible:
-                        continue_input = input("Next Step: Migrate to end status 'done' - 'Y' to continue")
+                        continue_input = input("Next Step: Migrate to end status 'done' - 'Y' to continue: ")
                         if continue_input.lower() == 'y':
                             migrate_to_status_done(dry_run=False)
                     if input_possible:
-                        continue_input = input("Next Step: Enrich Media Information - 'Y' to continue")
+                        continue_input = input("Next Step: Enrich Media Information - 'Y' to continue: ")
                         if continue_input.lower() == 'y':
                             database = connect_database()
                             mysql_cursor = database.cursor()
@@ -4237,7 +4237,7 @@ if __name__ == "__main__":
                                                          media_to_migrate=media,
                                                          dry_run=False)
                     if input_possible:
-                        continue_input = input("Next Step: Enrich NFO file information - 'Y' to continue")
+                        continue_input = input("Next Step: Enrich NFO file information - 'Y' to continue: ")
                         if continue_input.lower() == 'y':
                             fix_all_nfo_files(dry_run=False)
                 else:
