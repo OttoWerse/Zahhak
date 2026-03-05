@@ -3875,6 +3875,8 @@ def migrate_to_status_done(dry_run=True):
             if json_id != media_id:
                 print(f'{datetime.now()} {Fore.RED}ID MISMATCH{Style.RESET_ALL} {json_id} =|= {media_id} in JSON file '
                       f'"{os.path.basename(path_json)}"')
+                if not dry_run:
+                    update_media_status(media_site=media_site, media_id=media_id, media_status=STATUS.cursed)
                 errors += 1
                 continue
         '''NFO Check'''
