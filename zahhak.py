@@ -3738,6 +3738,8 @@ def migrate_to_media_information(media_to_migrate, database, dry_run=True):
             if json_id != media_id:
                 print(f'{datetime.now()} {Fore.RED}ID MISMATCH{Style.RESET_ALL} {json_id} =|= {media_id} in JSON file '
                       f'"{os.path.basename(path_json)}"')
+                if not dry_run:
+                    update_media_status(media_site=media_site, media_id=media_id, media_status=STATUS.cursed)
                 errors += 1
                 continue
             # Read resolution, codec, size from JSON
@@ -3840,6 +3842,8 @@ def migrate_to_status_done(dry_run=True):
         # Check MP4 exists
         if not os.path.exists(path_mp4):
             print(f'{datetime.now()} {Fore.RED}MISSING MP4{Style.RESET_ALL} {os.path.basename(path_mp4)}')
+            if not dry_run:
+                update_media_status(media_site=media_site, media_id=media_id, media_status=STATUS.broken)
             errors += 1
             continue
         '''JSON Check'''
@@ -3857,6 +3861,9 @@ def migrate_to_status_done(dry_run=True):
         # Check JSON exists
         if not os.path.exists(path_json):
             print(f'{datetime.now()} {Fore.RED}MISSING JSON{Style.RESET_ALL} {os.path.basename(path_json)}')
+            if not dry_run:
+                # TODO: wanted?
+                update_media_status(media_site=media_site, media_id=media_id, media_status=STATUS.broken)
             errors += 1
             continue
         # Open JSON
@@ -3870,12 +3877,16 @@ def migrate_to_status_done(dry_run=True):
             except Exception as exception:
                 print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} reading site/id in JSON '
                       f'"{os.path.basename(path_json)}": {exception}')
+                if not dry_run:
+                    update_media_status(media_site=media_site, media_id=media_id, media_status=STATUS.cursed)
                 errors += 1
                 continue
             # Check if JSON contains same ID as Database.
             if json_id != media_id:
                 print(f'{datetime.now()} {Fore.RED}ID MISMATCH{Style.RESET_ALL} {json_id} =|= {media_id} in JSON file '
                       f'"{os.path.basename(path_json)}"')
+                if not dry_run:
+                    update_media_status(media_site=media_site, media_id=media_id, media_status=STATUS.cursed)
                 errors += 1
                 continue
         '''NFO Check'''
@@ -3910,6 +3921,9 @@ def migrate_to_status_done(dry_run=True):
         # Check PNG exists
         if not os.path.exists(path_png):
             print(f'{datetime.now()} {Fore.RED}MISSING PNG{Style.RESET_ALL} {os.path.basename(path_png)}')
+            if not dry_run:
+                # TODO: wanted?
+                update_media_status(media_site=media_site, media_id=media_id, media_status=STATUS.broken)
             errors += 1
             continue
         '''Log'''
@@ -4052,6 +4066,8 @@ def fix_all_nfo_files(dry_run=True):
             if json_id != media_id:
                 print(f'{datetime.now()} {Fore.RED}ID MISMATCH{Style.RESET_ALL} {json_id} =|= {media_id} in JSON file '
                       f'"{os.path.basename(path_json)}"')
+                if not dry_run:
+                    update_media_status(media_site=media_site, media_id=media_id, media_status=STATUS.cursed)
                 errors += 1
                 continue
         nfo_path = regex_mp4.sub('.nfo', media_save_path)
@@ -4204,30 +4220,38 @@ if __name__ == "__main__":
                 elif args.mode == 'J':
                     input_possible = False
                     repeat = True
-                    print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: '
-                          f'Juggle Files')
+                    print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: Juggle Files')
                     juggle_verified_media()
                 elif args.mode == 'X':
-                    input_possible = False
+                    input_possible = True
                     repeat = False
                     print(f'{datetime.now()} {Fore.CYAN}MODE{Style.RESET_ALL}: Experimental Migration')
-                    migrate_to_status_done(dry_run=False)
-                    database = connect_database()
-                    mysql_cursor = database.cursor()
-                    sql = (
-                        "SELECT videos.site, videos.url, videos.original_date, videos.status, videos.save_path "
-                        "FROM videos "
-                        "WHERE (videos.status = 'done') "
-                        "AND (videos.res_height IS NULL "
-                        "OR videos.res_width IS NULL "
-                        "OR videos.codec IS NULL "
-                        "OR videos.filesize IS NULL);")
-                    mysql_cursor.execute(sql)
-                    media = mysql_cursor.fetchall()
-                    migrate_to_media_information(database=database,
-                                                 media_to_migrate=media,
-                                                 dry_run=False)
-                    fix_all_nfo_files(dry_run=False)
+                    if input_possible:
+                        continue_input = input("Next Step: Migrate to end status 'done' - 'Y' to continue: ")
+                        if continue_input.lower() == 'y':
+                            migrate_to_status_done(dry_run=False)
+                    if input_possible:
+                        continue_input = input("Next Step: Enrich Media Information - 'Y' to continue: ")
+                        if continue_input.lower() == 'y':
+                            database = connect_database()
+                            mysql_cursor = database.cursor()
+                            sql = (
+                                "SELECT videos.site, videos.url, videos.original_date, videos.status, videos.save_path "
+                                "FROM videos "
+                                "WHERE (videos.status = 'done') "
+                                "AND (videos.res_height IS NULL "
+                                "OR videos.res_width IS NULL "
+                                "OR videos.codec IS NULL "
+                                "OR videos.filesize IS NULL);")
+                            mysql_cursor.execute(sql)
+                            media = mysql_cursor.fetchall()
+                            migrate_to_media_information(database=database,
+                                                         media_to_migrate=media,
+                                                         dry_run=False)
+                    if input_possible:
+                        continue_input = input("Next Step: Recreate all NFO files - 'Y' to continue: ")
+                        if continue_input.lower() == 'y':
+                            fix_all_nfo_files(dry_run=False)
                 else:
                     print(f'{datetime.now()} {Fore.RED}ERROR{Style.RESET_ALL}: '
                           f'No mode "{args.mode}" exists')
