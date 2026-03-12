@@ -305,6 +305,7 @@ regex_media_format_unavailable = re.compile(r'Requested format is not available'
 regex_media_private = re.compile(r'Private video')
 regex_media_removed = re.compile(r'This video has been removed')
 regex_media_unavailable = re.compile(r'Video unavailable')
+regex_media_unavailable_long = re.compile(r'This video is not available')
 regex_media_unavailable_live = re.compile(r'This live stream recording is not available')
 regex_media_unavailable_geo = re.compile(r'The uploader has not made this video available in your country')
 regex_media_unavailable_geo_fix = re.compile(r'(?<=This video is available in ).*(?<!\.)')
@@ -1282,6 +1283,7 @@ def add_media(media_site, media_id, channel, playlist, media_status, media_avail
         if sql_status == STATUS.done:
             print(f'{datetime.now()} {Fore.RED}DONE{Style.RESET_ALL} media "{media_site} {media_id}" '
                   f'cannot be updated to status {text_color}"{media_status}"{Style.RESET_ALL}')
+            return
     except KeyboardInterrupt:
         sys.exit()
     except Exception as exception:
@@ -1428,7 +1430,9 @@ def process_media(media, channel_site, channel_id, playlist_id, download, archiv
                     return False
 
             elif (regex_media_unavailable.search(str(exception_add_media))
-                  or regex_media_unavailable_live.search(str(exception_add_media))):
+                  or regex_media_unavailable_live.search(str(exception_add_media))
+                  or regex_media_unavailable_long.search(str(exception_add_media))
+            ):
                 print(f'{datetime.now()} {Fore.RED}UNAVAILABLE{Style.RESET_ALL} media {media_site} {media_id}')
                 # Update DB
                 try:
@@ -1922,14 +1926,14 @@ def download_media(media):
     default_media_format = f"bv*{CODEC}{MAX_WIDTH}{MIN_WIDTH}+ba"  # NEVER CHANGE THIS!!!
     media_format = default_media_format
     match media_status:
-        case STATUS.wanted | STATUS.broken:
+        case STATUS.wanted | STATUS.broken | STATUS.private:
             if media_available_date < date(2020, 1, 1):  # 2000-2019
                 media_format = f"bv*{MAX_WIDTH}+ba"
             elif media_available_date < date(2025, 1, 1):  # 2020-2024
                 media_format = f"bv*{MAX_WIDTH}{MIN_WIDTH}+ba"
             else:
                 media_format = default_media_format  # 2020+
-        case STATUS.private | STATUS.unavailable:
+        case STATUS.unavailable:
             # Accept anything for (previously) private/unavailable videos, if we can get these at all we are lucky!
             media_format = f"bv+ba"
         case STATUS.migrate | STATUS.upgrade:
@@ -2074,8 +2078,9 @@ def download_media(media):
         except KeyboardInterrupt:
             sys.exit()
         except Exception as exception_update_db:
-            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} updating {media_site} {media_id}updating {media_site} {media_id}: '
-                  f'{exception_update_db}')
+            print(
+                f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} updating {media_site} {media_id}updating {media_site} {media_id}: '
+                f'{exception_update_db}')
             return False
     except KeyboardInterrupt:
         sys.exit()
@@ -2196,7 +2201,9 @@ def download_media(media):
                       f'{exception_update_db}')
                 return False
         elif (regex_media_unavailable.search(str(exception_download))
-              or regex_media_unavailable_live.search(str(exception_download))):
+              or regex_media_unavailable_live.search(str(exception_download))
+              or regex_media_unavailable_long.search(str(exception_download))
+        ):
             # print(f'{datetime.now()} {Fore.RED}UNAVAILABLE{Style.RESET_ALL} media {media_site} {media_id}')
             # Update DB
             try:
