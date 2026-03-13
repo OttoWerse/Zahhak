@@ -1,4 +1,5 @@
 mysql-connector-python
+deno
 yt-dlp
 yt-dlp-ejs
 colorama

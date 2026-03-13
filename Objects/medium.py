@@ -26,6 +26,9 @@ class Medium:
                 same = False
             return same
 
+    def __str__(self):
+        return f'{self.unique_id} {self.site} was uploaded on {self.available_date}'
+
     def enrich_from_db(self):
         """Enriches media details using local database"""
         pass  # TODO
@@ -37,10 +40,6 @@ class Medium:
         # Date
         json_date = json_data['upload_date'] or json_data['release_date']
         self.available_date = datetime.strptime(json_date, '%Y%m%d').strftime('%Y-%m-%d')
-        # Site
-        self.site = json_data['extractor']
-        # ID
-        self.unique_id = json_data['id']
         # Type (video, livestream, short, ...)
         self.type = json_data['_type']  # TODO: Does this field match our concept of livestreams and shorts?
 
@@ -75,7 +74,3 @@ class Medium:
         done = False
         while not done:
             pass  # TODO: download_media
-
-
-if __name__ == '__main__':
-    pass  # TODO simple test case getting media details using both DB and JSON

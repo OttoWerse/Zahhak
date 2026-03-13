@@ -1,5 +1,6 @@
 from string import Template
 from Objects.site import Site
+from Objects.medium import Medium
 
 youtube = Site(unique_id="youtube",
                channel_playlists_feed_url_format=Template('''https://www.youtube.com/channel/$unique_id/playlists'''),
@@ -9,4 +10,5 @@ youtube = Site(unique_id="youtube",
                )
 
 if __name__ == '__main__':
-    pass  # TODO
+    test_medium = Medium(youtube, 'YE7VzlLtp-4')
+    print(test_medium)
