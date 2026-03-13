@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from Objects import settings, regex
 from colorama import Fore, Style
@@ -27,7 +28,7 @@ class Medium:
             return same
 
     def __str__(self):
-        return f'{self.unique_id} {self.site} was uploaded on {self.available_date}'
+        return f'{self.site} {self.unique_id}'
 
     def enrich_from_db(self):
         """Enriches media details using local database"""
@@ -41,7 +42,15 @@ class Medium:
         json_date = json_data['upload_date'] or json_data['release_date']
         self.available_date = datetime.strptime(json_date, '%Y%m%d').strftime('%Y-%m-%d')
         # Type (video, livestream, short, ...)
-        self.type = json_data['_type']  # TODO: Does this field match our concept of livestreams and shorts?
+        self.type = json_data['media_type']  # TODO: Does this field match our concept of livestreams and shorts?
+
+        # TODO: Remove DEBUG!
+        if settings.DEBUG:
+            user_input = input(f'Save JSON? y/n')
+            if user_input.lower() == 'y':
+                with open('DEBUG.json', 'w', encoding='utf-8') as json_file:
+                    # noinspection PyTypeChecker
+                    json.dump(json_data, json_file, ensure_ascii=False, indent=4)
 
     def get_json_data(self):
         """Gets media details from site using YT-DLP"""

@@ -1,14 +1,3 @@
-import os
-
-'''Directory settings'''
-directory_download_temp = os.getenv('ZAHHAK_DIR_DOWNLOAD_TEMP')
-directory_download_home = os.getenv('ZAHHAK_DIR_DOWNLOAD_HOME')
-directory_final = os.getenv('ZAHHAK_DIR_FINAL')  # TODO: How to handle multiple final directories?
-'''MySQL settings'''
-mysql_host = os.getenv('ZAHHAK_MYSQL_HOSTNAME', 'localhost')
-mysql_database = os.getenv('ZAHHAK_MYSQL_DATABASE', 'zahhak')
-mysql_user = os.getenv('ZAHHAK_MYSQL_USERNAME', 'admin')
-mysql_password = os.getenv('ZAHHAK_MYSQL_PASSWORD', 'admin')
 # Sleep time after failed MySQL requests (in seconds)
 sleep_time_mysql = 3
 '''VPN settings'''
@@ -251,6 +240,7 @@ DEFAULT_ignore_errors_playlist = False
 download_shorts = False
 download_livestreams = False
 '''DEBUG'''
+DEBUG = False
 DEBUG_empty_media = False
 DEBUG_add_media = False
 DEBUG_force_date = False

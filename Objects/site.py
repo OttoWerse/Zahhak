@@ -19,6 +19,9 @@ class Site:
                 same = False
             return same
 
+    def __str__(self):
+        return str(self.unique_id)
+
     def get_channel_playlists_feed_url(self, channel_id):
         return self.channel_playlists_feed_url_format.substitute(unique_id=channel_id)
 
