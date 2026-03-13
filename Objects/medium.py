@@ -10,11 +10,13 @@ logger = logging.getLogger(__name__)
 
 
 class Medium:
-    def __init__(self, site, unique_id):
+    def __init__(self, site, unique_id, json_data=None):
+        """Initialize Medium object
+        optionally including data from existing JSON data (e.g. an existing local JSON file)"""
         self.site = site
         self.unique_id = unique_id
         self.enrich_from_db()
-        self.enrich_from_json()
+        self.enrich_from_json(json_data=json_data)
 
     def __eq__(self, other):
         if not isinstance(other, Medium):
@@ -31,26 +33,27 @@ class Medium:
         return f'{self.site} {self.unique_id}'
 
     def enrich_from_db(self):
-        """Enriches media details using local database"""
+        """Enriches media object details using local database"""
         pass  # TODO
 
-    def enrich_from_json(self):
-        """Enrich media object from YT-DLP JSON data"""
-        json_data = self.get_json_data()
-        '''Handle more difficult parts of JSON first to prevent useless processing being done'''
-        # Date
-        json_date = json_data['upload_date'] or json_data['release_date']
-        self.available_date = datetime.strptime(json_date, '%Y%m%d').strftime('%Y-%m-%d')
-        # Type (video, livestream, short, ...)
-        self.type = json_data['media_type']  # TODO: Does this field match our concept of livestreams and shorts?
+    def enrich_from_json(self, json_data=None):
+        """Enrich media object details from YT-DLP JSON data"""
+        if json_data is None:
+            json_data = self.get_json_data()
 
-        # TODO: Remove DEBUG!
         if settings.DEBUG:
             user_input = input(f'Save JSON? y/n')
             if user_input.lower() == 'y':
                 with open('DEBUG.json', 'w', encoding='utf-8') as json_file:
                     # noinspection PyTypeChecker
                     json.dump(json_data, json_file, ensure_ascii=False, indent=4)
+
+        '''Handle more difficult parts of JSON first to prevent useless processing being done'''
+        # Date
+        json_date = json_data['upload_date'] or json_data['release_date']
+        self.available_date = datetime.strptime(json_date, '%Y%m%d').strftime('%Y-%m-%d')
+        # Type (video, livestream, short, ...)
+        self.type = json_data['media_type']  # TODO: Does this field match our concept of livestreams and shorts?
 
     def get_json_data(self):
         """Gets media details from site using YT-DLP"""
