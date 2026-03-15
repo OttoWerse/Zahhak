@@ -1821,71 +1821,79 @@ def download_all_media(status_values, regex_media_url=fr'^[a-z0-9\-\_]'):
     break_for_loop = False
 
     for current_media in all_media:
-        media_downloaded = False
-        while not media_downloaded:
-            timestamp_now = datetime.now()
-            timestamp_distance = timestamp_now - timestamp_old
-            media_counter += 1
+        try:
+            media_downloaded = False
+            while not media_downloaded:
+                timestamp_now = datetime.now()
+                timestamp_distance = timestamp_now - timestamp_old
+                media_counter += 1
 
-            media_site = current_media[0]
-            media_id = current_media[1]
-            media_available_date = current_media[2]
-            media_status = current_media[3]
-            media_save_path = current_media[4]
-            channel_name = current_media[5]
-            channel_id = current_media[6]
-            playlist_name = current_media[7]
-            playlist_id = current_media[8]
+                media_site = current_media[0]
+                media_id = current_media[1]
+                media_available_date = current_media[2]
+                media_status = current_media[3]
+                media_save_path = current_media[4]
+                channel_name = current_media[5]
+                channel_id = current_media[6]
+                playlist_name = current_media[7]
+                playlist_id = current_media[8]
 
-            if old_media_status != media_status:
-                text_color = get_text_color_for_media_status(media_status=media_status)
-                print(f'{timestamp_now} {Fore.CYAN}SWITCHED{Style.RESET_ALL} '
-                      f'to downloading {text_color}"{media_status}"{Style.RESET_ALL} media!')
-            old_media_status = media_status
+                if old_media_status != media_status:
+                    text_color = get_text_color_for_media_status(media_status=media_status)
+                    print(f'{timestamp_now} {Fore.CYAN}SWITCHED{Style.RESET_ALL} '
+                          f'to downloading {text_color}"{media_status}"{Style.RESET_ALL} media!')
+                old_media_status = media_status
 
-            if timestamp_distance.seconds > select_newest_media_frequency:
-                timestamp_old = timestamp_now
-                if media_status == STATUS.wanted:
-                    new_media = []
-                    database = connect_database()
-                    for current_status in status_values:
-                        # text_color = get_text_color_for_media_status(media_status=current_status)
-                        media = get_media_from_db(database=database,
-                                                  status=current_status,
-                                                  regex_media_url=regex_media_url)
-                        new_media.extend(media)
-                    if len(new_media) > 0:
-                        text_color = get_text_color_for_media_status(media_status=media_status)
-                        print(f'{timestamp_now} {Fore.CYAN}REFRESHING{Style.RESET_ALL} '
-                              f'{text_color}"{media_status}"{Style.RESET_ALL} media list!')
-                        break_for_loop = True
-                        break
+                if timestamp_distance.seconds > select_newest_media_frequency:
+                    timestamp_old = timestamp_now
+                    if media_status == STATUS.wanted:
+                        new_media = []
+                        database = connect_database()
+                        for current_status in status_values:
+                            # text_color = get_text_color_for_media_status(media_status=current_status)
+                            media = get_media_from_db(database=database,
+                                                      status=current_status,
+                                                      regex_media_url=regex_media_url)
+                            new_media.extend(media)
+                        if len(new_media) > 0:
+                            text_color = get_text_color_for_media_status(media_status=media_status)
+                            print(f'{timestamp_now} {Fore.CYAN}REFRESHING{Style.RESET_ALL} '
+                                  f'{text_color}"{media_status}"{Style.RESET_ALL} media list!')
+                            break_for_loop = True
+                            break
 
-            vpn_counter_geo = 0
-            GEO_BLOCKED_vpn_countries = []
-            media_downloaded = download_media(media=current_media)
+                vpn_counter_geo = 0
+                GEO_BLOCKED_vpn_countries = []
+                media_downloaded = download_media(media=current_media)
 
-            # TODO: Rework this spaghetto code pls!!!
-            if media_downloaded is None:
-                print(f'{timestamp_now} {Fore.RED}ERROR{Style.RESET_ALL}: download result is "None"!')
-                return
-            elif media_downloaded:
-                continue
-            else:
-                if GEO_BLOCKED_vpn_countries:
-                    vpn_frequency = GEO_BLOCKED_vpn_frequency
-                    vpn_counter_geo = reconnect_vpn(vpn_counter_geo, GEO_BLOCKED_vpn_countries, vpn_override=True)
-                    # TODO: The Override solution is NOT a good one, no --vpn flag should disable VPN always!
-                    #  For now, this is the quick fix to avoid other issues, should not port this logic to OOP!
-                    # To break endless loop
-                    if vpn_counter_geo == 0:
-                        continue
+                # TODO: Rework this spaghetto code pls!!!
+                if media_downloaded is None:
+                    print(f'{timestamp_now} {Fore.RED}ERROR{Style.RESET_ALL}: download result is "None"!')
+                    return
+                elif media_downloaded:
+                    continue
                 else:
-                    # TODO: This skips media immediately after unsuccessfully download as of 2026-02-11
-                    print(f'{timestamp_now} {Fore.YELLOW}SKIPPING{Style.RESET_ALL} media "{media_site} {media_id}"!')
-                    break
-        if break_for_loop:  # To stop looping over other videos if there are new ones found in refresh
-            break
+                    if GEO_BLOCKED_vpn_countries:
+                        vpn_frequency = GEO_BLOCKED_vpn_frequency
+                        vpn_counter_geo = reconnect_vpn(vpn_counter_geo, GEO_BLOCKED_vpn_countries, vpn_override=True)
+                        # TODO: The Override solution is NOT a good one, no --vpn flag should disable VPN always!
+                        #  For now, this is the quick fix to avoid other issues, should not port this logic to OOP!
+                        # To break endless loop
+                        if vpn_counter_geo == 0:
+                            continue
+                    else:
+                        # TODO: This skips media immediately after unsuccessfully download as of 2026-02-11
+                        print(
+                            f'{timestamp_now} {Fore.YELLOW}SKIPPING{Style.RESET_ALL} media "{media_site} {media_id}"!')
+                        break
+            if break_for_loop:  # To stop looping over other videos if there are new ones found in refresh
+                break
+        except KeyboardInterrupt:
+            sys.exit()
+        except Exception as exception_dowload_loop:
+            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} '
+                  f'in download all lopp: {exception_dowload_loop}')
+        return False
     if not break_for_loop:  # So waiting does not occur when refreshing (obviously a waste of time)
         print(f'{datetime.now()} {Fore.CYAN}DONE{Style.RESET_ALL} waiting {sleep_time_download_done} seconds')
         time.sleep(sleep_time_download_done)
@@ -4262,5 +4270,6 @@ if __name__ == "__main__":
             exc_type, exc_obj, exc_tb = sys.exc_info()
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
             print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} in main loop: {exc_type} '
-                  f'affected file "{fname}" line {exc_tb.tb_lineno}')
+                  f'affected file "{fname}" line {exc_tb.tb_lineno} '
+                  f'{exception_main}')
             # TODO: Write to log file
