@@ -1928,6 +1928,8 @@ def download_media(media):
     media_format = default_media_format
     match media_status:
         case STATUS.wanted | STATUS.broken | STATUS.private:
+            # If private videos are processed here, the date calculation can fail due to the date being none,
+            # this is why I have added this first if statement to prevent the calculation from happening
             if media_available_date is None:
                 media_format = default_media_format  # Fallback no date
             elif media_available_date < date(2020, 1, 1):  # 2000-2019
