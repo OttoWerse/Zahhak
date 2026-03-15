@@ -8,6 +8,7 @@ import re
 import shutil
 import sys
 import time
+import traceback
 import lxml.builder
 import lxml.etree
 import mysql.connector
@@ -4261,6 +4262,6 @@ if __name__ == "__main__":
         except Exception as exception_main:
             exc_type, exc_obj, exc_tb = sys.exc_info()
             fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} in main loop: {exc_type} '
-                  f'affected file "{fname}" line {exc_tb.tb_lineno}')
+            print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} type {exc_type} '
+                  f'in file "{fname}" line {exc_tb.tb_lineno}: {exception_main} {traceback.format_exc()}')
             # TODO: Write to log file
