@@ -1928,7 +1928,9 @@ def download_media(media):
     media_format = default_media_format
     match media_status:
         case STATUS.wanted | STATUS.broken | STATUS.private:
-            if media_available_date < date(2020, 1, 1):  # 2000-2019
+            if media_available_date is None:
+                media_format = default_media_format  # Fallback no date
+            elif media_available_date < date(2020, 1, 1):  # 2000-2019
                 media_format = f"bv*{MAX_WIDTH}+ba"
             elif media_available_date < date(2025, 1, 1):  # 2020-2024
                 media_format = f"bv*{MAX_WIDTH}{MIN_WIDTH}+ba"
