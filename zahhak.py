@@ -32,8 +32,8 @@ mysql_password = os.getenv('ZAHHAK_MYSQL_PASSWORD', 'admin')
 
 '''Variables'''
 # Media format
-MIN_WIDTH = "[width>=900]"
-MAX_WIDTH = "[width<=2000]"
+MIN_WIDTH = 900
+MAX_WIDTH = 2000
 CODEC = "[vcodec~='^(av0?1|vp0?9)']"
 # Frequency to reconnect VPN (in seconds)
 sleep_time_vpn = 10
@@ -1924,7 +1924,7 @@ def download_media(media):
 
     '''Set quality requirement for download'''
     # TODO: is quality and timeline dependent on the site? Probably...
-    default_media_format = f"bv*{CODEC}{MAX_WIDTH}{MIN_WIDTH}+ba"  # NEVER CHANGE THIS!!!
+    default_media_format = f"bv*{CODEC}[width<={MAX_WIDTH}][width>={MIN_WIDTH}]+ba"  # NEVER CHANGE THIS!!!
     media_format = default_media_format
     match media_status:
         case STATUS.wanted | STATUS.broken | STATUS.private:
@@ -1933,9 +1933,9 @@ def download_media(media):
             if media_available_date is None:
                 media_format = default_media_format  # Fallback no date
             elif media_available_date < date(2020, 1, 1):  # 2000-2019
-                media_format = f"bv*{MAX_WIDTH}+ba"
+                media_format = f"bv*[width<={MAX_WIDTH}]+ba"
             elif media_available_date < date(2025, 1, 1):  # 2020-2024
-                media_format = f"bv*{MAX_WIDTH}{MIN_WIDTH}+ba"
+                media_format = f"bv*[width<={MAX_WIDTH}][width>={MIN_WIDTH}]+ba"
             else:
                 media_format = default_media_format  # 2020+
         case STATUS.unavailable:
@@ -2114,9 +2114,8 @@ def download_media(media):
         elif regex_media_format_unavailable.search(str(exception_download)):
             print(f'{datetime.now()} {Fore.RED}UNAVAILABLE FORMAT{Style.RESET_ALL} '
                   f'{media_format} downloading {media_site} {media_id}')
-            # reconnect_vpn()
-            # return False
             # TODO: This was changed to handle videos which legitimately do not exist in requested strict format
+            #  it media format should be changed at this point (or after X retries)
             return True
         elif regex_json_write.search(str(exception_download)):
             print(f'{datetime.now()} {Fore.RED}JSON WRITE ERROR{Style.RESET_ALL} '
@@ -3077,6 +3076,7 @@ def juggle_verified_media():
                                     #  but could be re-added in the future for completeness sake.
                                     continue
 
+                            # TODO: This is logically complicated and should be simplified
                             if sql_status == STATUS.wanted:
                                 print(f'{datetime.now()} {Fore.CYAN}DATABASE MISMATCH{Style.RESET_ALL} '
                                       f'{os.path.basename(path_move)}: Status "{sql_status}"')
@@ -3187,13 +3187,19 @@ def juggle_verified_media():
                                             media_status=STATUS.stuck,
                                             database=database)
                     else:
-                        # TODO: Set status to migrate (or introduce "upgrade") in case of Codec or resoltion mismatch
-                        #  (this will require some work)
-                        # Update DB
-                        update_media_status(media_site=json_site,
-                                            media_id=json_id,
-                                            media_status=STATUS.done,
-                                            database=database)
+                        # TODO: Maybe use status.upgrade instead?
+                        if json_width > MAX_WIDTH or json_width < MIN_WIDTH:
+                            # Update DB
+                            update_media_status(media_site=json_site,
+                                                media_id=json_id,
+                                                media_status=STATUS.migrate,
+                                                database=database)
+                        else:
+                            # Update DB
+                            update_media_status(media_site=json_site,
+                                                media_id=json_id,
+                                                media_status=STATUS.done,
+                                                database=database)
                 except KeyboardInterrupt:
                     sys.exit()
                 except Exception as exception:
