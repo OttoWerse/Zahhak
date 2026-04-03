@@ -314,7 +314,7 @@ regex_media_age_restricted = re.compile(r'Sign in to confirm your age')
 regex_media_members_only = re.compile(r'Join this channel to get access to members-only content like this video')
 regex_media_members_tier = re.compile(r'This video is available to this channel.s members on level')
 regex_media_paid = re.compile(r'This video requires payment to watch')
-regex_media_live_not_started = re.compile(r'This live event will begin in a few moments')
+regex_media_live_not_started = re.compile(r'This live event will begin in')
 # Networking
 regex_bot = re.compile(r"Sign in to confirm you.re not a bot")
 regex_offline = re.compile(r"Offline")
