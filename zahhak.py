@@ -34,7 +34,7 @@ mysql_password = os.getenv('ZAHHAK_MYSQL_PASSWORD', 'admin')
 # Media format
 MIN_WIDTH = 900
 MAX_WIDTH = 2000
-CODEC = "[vcodec~='^(av0?1|vp0?9)']"
+VIDEO_CODEC = '^(av0?1|vp0?9)'
 # Frequency to reconnect VPN (in seconds)
 sleep_time_vpn = 10
 # How often to retry connecting to a VPN country before giving up
@@ -1924,7 +1924,7 @@ def download_media(media):
 
     '''Set quality requirement for download'''
     # TODO: is quality and timeline dependent on the site? Probably...
-    default_media_format = f"bv*{CODEC}[width<={MAX_WIDTH}][width>={MIN_WIDTH}]+ba"  # NEVER CHANGE THIS!!!
+    default_media_format = f"bv*[vcodec~='{VIDEO_CODEC}'][width<={MAX_WIDTH}][width>={MIN_WIDTH}]+ba"
     media_format = default_media_format
     match media_status:
         case STATUS.wanted | STATUS.broken | STATUS.private:
@@ -1932,12 +1932,10 @@ def download_media(media):
             # this is why I have added this first if statement to prevent the calculation from happening
             if media_available_date is None:
                 media_format = default_media_format  # Fallback no date
-            elif media_available_date < date(2020, 1, 1):  # 2000-2019
+            elif media_available_date < date(2024, 1, 1):  # 0000-2023
                 media_format = f"bv*[width<={MAX_WIDTH}]+ba"
-            elif media_available_date < date(2025, 1, 1):  # 2020-2024
-                media_format = f"bv*[width<={MAX_WIDTH}][width>={MIN_WIDTH}]+ba"
             else:
-                media_format = default_media_format  # 2020+
+                media_format = default_media_format  # 2024+
         case STATUS.unavailable:
             # Accept anything for (previously) private/unavailable videos, if we can get these at all we are lucky!
             media_format = f"bv+ba"
@@ -3188,7 +3186,7 @@ def juggle_verified_media():
                                             database=database)
                     else:
                         # TODO: Maybe use status.upgrade instead?
-                        if json_width > MAX_WIDTH or json_width < MIN_WIDTH:
+                        if json_width > MAX_WIDTH or json_width < MIN_WIDTH or not re.search(VIDEO_CODEC, json_vcodec):
                             # Update DB
                             update_media_status(media_site=json_site,
                                                 media_id=json_id,
