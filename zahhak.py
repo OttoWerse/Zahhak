@@ -317,6 +317,8 @@ regex_media_paid = re.compile(r'This video requires payment to watch')
 regex_media_live_not_started = re.compile(r'This live event will begin in')
 # Networking
 regex_bot = re.compile(r"Sign in to confirm you.re not a bot")
+# VPN/Proxy Detected. To continue, turn off your VPN/Proxy. This will allow YouTube to locate the best content.
+regex_vpn_proxy = re.compile(r"Proxy Detected")
 regex_offline = re.compile(r"Offline")
 regex_error_timeout = re.compile(r'The read operation timed out')
 regex_error_get_addr_info = re.compile(r'getaddrinfo failed')
@@ -1099,7 +1101,10 @@ def get_media_details_from_youtube(media_id, ignore_errors, archive_set):
                 print(f'{datetime.now()} {Fore.RED}BOT DETECTED{Style.RESET_ALL}')
                 vpn_frequency = DEFAULT_vpn_frequency
                 local_vpn_counter = reconnect_vpn(counter_country=local_vpn_counter)
-
+            elif regex_vpn_proxy.search(str(e)):
+                print(f'{datetime.now()} {Fore.RED}VPN DETECTED{Style.RESET_ALL}')
+                vpn_frequency = DEFAULT_vpn_frequency
+                local_vpn_counter = reconnect_vpn(counter_country=local_vpn_counter)
             else:
                 # print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} getting details {media_site} {media_id}: {e}')
                 raise
@@ -2096,6 +2101,11 @@ def download_media(media):
             return False
         elif regex_bot.search(str(exception_download)):
             print(f'{datetime.now()} {Fore.RED}BOT DETECTED{Style.RESET_ALL} '
+                  f'downloading {media_site} {media_id}')
+            reconnect_vpn()
+            return False
+        elif regex_vpn_proxy.search(str(exception_download)):
+            print(f'{datetime.now()} {Fore.RED}VPN DETECTED{Style.RESET_ALL} '
                   f'downloading {media_site} {media_id}')
             reconnect_vpn()
             return False
