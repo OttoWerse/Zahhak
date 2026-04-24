@@ -2127,12 +2127,12 @@ def download_media(media):
                 format_vcodec = format['vcodec']
                 format_width = format['width']
                 format_height = format['height']
-                if format_vcodec is not None and format_vcodec is not 'none':
+                if format_vcodec is not None and format_vcodec != 'none':
                     print(f'Available {format_vcodec}@{format_width}x{format_height}', end='\r')
             print()
             for format in media_info['formats']:
                 format_acodec = format['acodec']
-                if format_acodec is not None and format_acodec is not 'none':
+                if format_acodec is not None and format_acodec != 'none':
                     print(f'Available {format_acodec}', end='\r')
             print()
             # TODO: This was changed to handle videos which legitimately do not exist in requested strict format
