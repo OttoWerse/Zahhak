@@ -2122,12 +2122,13 @@ def download_media(media):
         elif regex_media_format_unavailable.search(str(exception_download)):
             print(f'{datetime.now()} {Fore.RED}UNAVAILABLE FORMAT{Style.RESET_ALL} '
                   f'{media_format} downloading {media_site} {media_id}')
+            media_info = get_media_details_from_youtube(media_id=media_id, ignore_errors=False, archive_set=None)
             try:
                 format_vcodec = '?'
                 format_width = '?'
                 format_height = '?'
                 format_acodec = '?'
-                for format in meta['formats']:
+                for format in media_info['formats']:
                     if format['vcodec'] is not None and format['vcodec'] != 'none':
                         format_vcodec = format['vcodec']
                         format_width = format['width']
@@ -2138,9 +2139,9 @@ def download_media(media):
                       f'{format_vcodec}@{format_width}x{format_height}+{format_acodec}', end='\n')
             except KeyboardInterrupt:
                 sys.exit()
-            except Exception as exception_meta_format:
+            except Exception as exception_media_format:
                 print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} getting media format: '
-                      f'{exception_meta_format}')
+                      f'{exception_media_format}')
             # TODO: This was changed to handle videos which legitimately do not exist in requested strict format
             #  at this point media format should be changed (after X retries)
             return True
