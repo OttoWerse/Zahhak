@@ -2123,7 +2123,10 @@ def download_media(media):
             print(f'{datetime.now()} {Fore.RED}UNAVAILABLE FORMAT{Style.RESET_ALL} '
                   f'{media_format} downloading {media_site} {media_id}')
             try:
-                format_vcodec, format_width, format_height, format_acodec = '?', '?', '?', '?'
+                format_vcodec = '?'
+                format_width = '?'
+                format_height = '?'
+                format_acodec = '?'
                 for format in meta['formats']:
                     if format['vcodec'] is not None and format['vcodec'] != 'none':
                         format_vcodec = format['vcodec']
