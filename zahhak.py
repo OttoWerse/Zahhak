@@ -2122,21 +2122,24 @@ def download_media(media):
         elif regex_media_format_unavailable.search(str(exception_download)):
             print(f'{datetime.now()} {Fore.RED}UNAVAILABLE FORMAT{Style.RESET_ALL} '
                   f'{media_format} downloading {media_site} {media_id}')
-            media_info = get_media_details_from_youtube(media_id=media_id, ignore_errors=False, archive_set=None)
-            for format in media_info['formats']:
-                format_vcodec = format['vcodec']
-                format_width = format['width']
-                format_height = format['height']
-                if format_vcodec is not None and format_vcodec != 'none':
-                    print(f'Available {format_vcodec}@{format_width}x{format_height}', end='\r')
-            print()
-            for format in media_info['formats']:
-                format_acodec = format['acodec']
-                if format_acodec is not None and format_acodec != 'none':
-                    print(f'Available {format_acodec}', end='\r')
-            print()
+            try:
+                format_vcodec, format_width, format_height, format_acodec = '?'
+                for format in meta['formats']:
+                    if format['vcodec'] is not None and format['vcodec'] != 'none':
+                        format_vcodec = format['vcodec']
+                        format_width = format['width']
+                        format_height = format['height']
+                    if format['acodec'] is not None and format['vcodec'] != 'none':
+                        format_acodec = format['acodec']
+                print(f'{datetime.now()} {Fore.YELLOW}AVAILABLE{Style.RESET_ALL} '
+                      f'{format_vcodec}@{format_width}x{format_height}+{format_acodec}', end='\n')
+            except KeyboardInterrupt:
+                sys.exit()
+            except Exception as exception_meta_format:
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} getting media format: '
+                      f'{exception_meta_format}')
             # TODO: This was changed to handle videos which legitimately do not exist in requested strict format
-            #  it media format should be changed at this point (or after X retries)
+            #  at this point media format should be changed (after X retries)
             return True
         elif regex_json_write.search(str(exception_download)):
             print(f'{datetime.now()} {Fore.RED}JSON WRITE ERROR{Style.RESET_ALL} '
