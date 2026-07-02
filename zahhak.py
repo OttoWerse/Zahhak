@@ -676,7 +676,7 @@ def get_new_channel_media_from_youtube(channel, ignore_errors, archive_set):
         channel_site = channel[0]
         channel_id = channel[1]
         channel_name = channel[2]
-        print(f'{datetime.now()} Checking download state of channel "{channel_name}" ({channel_url})',
+        print(f'{datetime.now()} Checking download state of channel "{channel_name}" ({channel_site} {channel_id})',
               end='\r')
 
     except KeyboardInterrupt:
@@ -688,7 +688,7 @@ def get_new_channel_media_from_youtube(channel, ignore_errors, archive_set):
 
     if regex_fake_channel.search(channel_id):
         print(f'{datetime.now()} {Fore.YELLOW}WARNING{Style.RESET_ALL}: Channel '
-              f'"{channel_name}" ({channel_url}) is not a real channel')
+              f'"{channel_name}" ({channel_site} {channel_id}) is not a real channel')
         # TODO: Update checked date? Return number etc. and in this case, return special case?
         return ['FAKE']
 
