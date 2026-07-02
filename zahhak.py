@@ -607,47 +607,47 @@ def check_channel_availability(channel):
     except Exception as exception_missing_media_channel:
         if regex_channel_no_media.search(str(exception_missing_media_channel)):
             print(f'{datetime.now()} {Fore.RED}EMPTY{Style.RESET_ALL} channel '
-                  f'"{channel_name}" ({channel_site} {channel_id})')
+                  f'"{channel_name}" ({channel_url})')
             # TODO: return special case?
             return True
         elif regex_error_connection.search(str(exception_missing_media_channel)):
             print(f'{datetime.now()} {Fore.RED}CLOSED CONNECTION{Style.RESET_ALL} while adding channel '
-                  f'"{channel_name}" ({channel_site} {channel_id})')
+                  f'"{channel_name}" ({channel_url})')
             vpn_frequency = DEFAULT_vpn_frequency
             return False
         elif regex_error_timeout.search(str(exception_missing_media_channel)):
             print(f'{datetime.now()} {Fore.RED}TIME OUT{Style.RESET_ALL} while adding channel '
-                  f'"{channel_name}" ({channel_site} {channel_id})')
+                  f'"{channel_name}" ({channel_url})')
             vpn_frequency = DEFAULT_vpn_frequency
             return False
         elif regex_error_get_addr_info.search(str(exception_missing_media_channel)):
             print(f'{datetime.now()} {Fore.RED}GET ADDR INFO FAILED{Style.RESET_ALL} while adding channel '
-                  f'"{channel_name}" ({channel_site} {channel_id})')
+                  f'"{channel_name}" ({channel_url})')
             vpn_frequency = DEFAULT_vpn_frequency
             return False
         elif regex_error_win_10054.search(str(exception_missing_media_channel)):
             print(f'{datetime.now()} {Fore.RED}CONNECTION CLOSED{Style.RESET_ALL} while adding channel '
-                  f'"{channel_name}" ({channel_site} {channel_id})')
+                  f'"{channel_name}" ({channel_url})')
             vpn_frequency = DEFAULT_vpn_frequency
             return False
         elif regex_channel_unavailable.search(str(exception_missing_media_channel)):
             print(f'{datetime.now()} {Fore.RED}GEO BLOCKED{Style.RESET_ALL} while adding channel '
-                  f'"{channel_name}" ({channel_site} {channel_id})')
+                  f'"{channel_name}" ({channel_url})')
             vpn_frequency = GEO_BLOCKED_vpn_frequency
             return False
         elif regex_channel_removed.search(str(exception_missing_media_channel)):
             print(f'{datetime.now()} {Fore.RED}GUIDELINE VIOLATION{Style.RESET_ALL} while adding channel '
-                  f'"{channel_name}" ({channel_site} {channel_id})')
+                  f'"{channel_name}" ({channel_url})')
             vpn_frequency = DEFAULT_vpn_frequency
             return False
         elif regex_channel_deleted.search(str(exception_missing_media_channel)):
             print(f'{datetime.now()} {Fore.RED}NONEXISTENT{Style.RESET_ALL} while adding channel '
-                  f'"{channel_name}" ({channel_site} {channel_id})')
+                  f'"{channel_name}" ({channel_url})')
             vpn_frequency = DEFAULT_vpn_frequency
             return False
         else:
             print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding channel '
-                  f'"{channel_name}" ({channel_site} {channel_id}): {exception_missing_media_channel}')
+                  f'"{channel_name}" ({channel_url}): {exception_missing_media_channel}')
             if DEBUG_error_connection:
                 input(r'continue?')
             return False
@@ -660,11 +660,11 @@ def check_channel_availability(channel):
 
     if info_json is not None:
         print(f'{datetime.now()} {Fore.GREEN}AVAILABLE{Style.RESET_ALL} channel '
-              f'"{channel_name}" ({channel_site} {channel_id})', end='\r')
+              f'"{channel_name}" ({channel_url})', end='\r')
         return True
     else:
         print(f'{datetime.now()} {Fore.RED}UNAVAILABLE{Style.RESET_ALL} channel '
-              f'"{channel_name}" ({channel_site} {channel_id})')
+              f'"{channel_name}" ({channel_url})')
         return False
 
 
@@ -676,7 +676,7 @@ def get_new_channel_media_from_youtube(channel, ignore_errors, archive_set):
         channel_site = channel[0]
         channel_id = channel[1]
         channel_name = channel[2]
-        print(f'{datetime.now()} Checking download state of channel "{channel_name}" ({channel_site} {channel_id})',
+        print(f'{datetime.now()} Checking download state of channel "{channel_name}" ({channel_url})',
               end='\r')
 
     except KeyboardInterrupt:
@@ -688,7 +688,7 @@ def get_new_channel_media_from_youtube(channel, ignore_errors, archive_set):
 
     if regex_fake_channel.search(channel_id):
         print(f'{datetime.now()} {Fore.YELLOW}WARNING{Style.RESET_ALL}: Channel '
-              f'"{channel_name}" ({channel_site} {channel_id}) is not a real channel')
+              f'"{channel_name}" ({channel_url}) is not a real channel')
         # TODO: Update checked date? Return number etc. and in this case, return special case?
         return ['FAKE']
 
@@ -734,57 +734,57 @@ def get_new_channel_media_from_youtube(channel, ignore_errors, archive_set):
     except Exception as exception_missing_media_channel:
         if regex_channel_no_media.search(str(exception_missing_media_channel)):
             print(f'{datetime.now()} {Fore.RED}EMPTY{Style.RESET_ALL} channel '
-                  f'"{channel_name}" ({channel_site} {channel_id})')
+                  f'"{channel_name}" ({channel_url})')
             # TODO: Update checked date? Return number etc. and in this case, return special case?
             return []
         elif regex_playlist_deleted.search(str(exception_missing_media_channel)):
             print(f'{datetime.now()} {Fore.RED}EMPTY{Style.RESET_ALL}'
-                  f' channel "{channel_name}" ({channel_site} {channel_id})')
+                  f' channel "{channel_name}" ({channel_url})')
             vpn_frequency = DEFAULT_vpn_frequency
             return []
         elif regex_error_connection.search(str(exception_missing_media_channel)):
             print(f'{datetime.now()} {Fore.RED}CLOSED CONNECTION{Style.RESET_ALL} while adding channel '
-                  f'"{channel_name}" ({channel_site} {channel_id})')
+                  f'"{channel_name}" ({channel_url})')
             vpn_frequency = DEFAULT_vpn_frequency
             return None
         elif regex_error_timeout.search(str(exception_missing_media_channel)):
             print(f'{datetime.now()} {Fore.RED}TIME OUT{Style.RESET_ALL} while adding channel '
-                  f'"{channel_name}" ({channel_site} {channel_id})')
+                  f'"{channel_name}" ({channel_url})')
             vpn_frequency = DEFAULT_vpn_frequency
             return None
         elif regex_error_get_addr_info.search(str(exception_missing_media_channel)):
             print(f'{datetime.now()} {Fore.RED}GET ADDR INFO FAILED{Style.RESET_ALL} while adding channel '
-                  f'"{channel_name}" ({channel_site} {channel_id})')
+                  f'"{channel_name}" ({channel_url})')
             vpn_frequency = DEFAULT_vpn_frequency
             return None
         elif regex_error_http_404.search(str(exception_missing_media_channel)):
             print(f'{datetime.now()} {Fore.RED}IP BANNED{Style.RESET_ALL} while adding channel '
-                  f'"{channel_name}" ({channel_site} {channel_id})')
+                  f'"{channel_name}" ({channel_url})')
             vpn_frequency = DEFAULT_vpn_frequency
             return None
         elif regex_error_win_10054.search(str(exception_missing_media_channel)):
             print(f'{datetime.now()} {Fore.RED}CONNECTION CLOSED{Style.RESET_ALL} while adding channel '
-                  f'"{channel_name}" ({channel_site} {channel_id})')
+                  f'"{channel_name}" ({channel_url})')
             vpn_frequency = DEFAULT_vpn_frequency
             return None
         elif regex_channel_unavailable.search(str(exception_missing_media_channel)):
             print(f'{datetime.now()} {Fore.RED}GEO BLOCKED{Style.RESET_ALL} while adding channel '
-                  f'"{channel_name}" ({channel_site} {channel_id})')
+                  f'"{channel_name}" ({channel_url})')
             vpn_frequency = GEO_BLOCKED_vpn_frequency
             return None
         elif regex_channel_removed.search(str(exception_missing_media_channel)):
             print(f'{datetime.now()} {Fore.RED}GUIDELINE VIOLATION{Style.RESET_ALL} while adding channel '
-                  f'"{channel_name}" ({channel_site} {channel_id})')
+                  f'"{channel_name}" ({channel_url})')
             vpn_frequency = DEFAULT_vpn_frequency
             return None
         elif regex_channel_deleted.search(str(exception_missing_media_channel)):
             print(f'{datetime.now()} {Fore.RED}NONEXISTENT{Style.RESET_ALL} '
-                  f'channel "{channel_name}" ({channel_site} {channel_id})')
+                  f'channel "{channel_name}" ({channel_url})')
             vpn_frequency = DEFAULT_vpn_frequency
             return None
         else:
             print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding channel '
-                  f'"{channel_name}" ({channel_site} {channel_id}): {exception_missing_media_channel}')
+                  f'"{channel_name}" ({channel_url}): {exception_missing_media_channel}')
             if DEBUG_error_connection:
                 input(r'continue?')
             return False
@@ -804,10 +804,10 @@ def get_new_channel_media_from_youtube(channel, ignore_errors, archive_set):
             media_count = len(media)
             if media_count > 0:
                 print(f'{datetime.now()} {Fore.GREEN}FOUND{Style.RESET_ALL} {media_count} new media for channel '
-                      f'"{channel_name}" ({channel_site} {channel_id})       ')
+                      f'"{channel_name}" ({channel_url})       ')
             else:
                 print(f'{datetime.now()} {Fore.CYAN}NO{Style.RESET_ALL} new media for channel '
-                      f'"{channel_name}" ({channel_site} {channel_id})')
+                      f'"{channel_name}" ({channel_url})')
 
             return media
         else:
