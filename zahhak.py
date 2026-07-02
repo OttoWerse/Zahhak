@@ -324,6 +324,7 @@ regex_error_timeout = re.compile(r'The read operation timed out')
 regex_error_get_addr_info = re.compile(r'getaddrinfo failed')
 regex_error_connection = re.compile(r'Remote end closed connection without response')
 regex_error_http_403 = re.compile(r'HTTP Error 403')
+regex_error_http_404 = re.compile(r'HTTP Error 404')
 regex_error_http_429 = re.compile(r'HTTP Error 429')
 # Storage
 regex_json_write = re.compile(r'Cannot write video metadata to JSON file')
@@ -753,6 +754,11 @@ def get_new_channel_media_from_youtube(channel, ignore_errors, archive_set):
             return None
         elif regex_error_get_addr_info.search(str(exception_missing_media_channel)):
             print(f'{datetime.now()} {Fore.RED}GET ADDR INFO FAILED{Style.RESET_ALL} while adding channel '
+                  f'"{channel_name}" ({channel_site} {channel_id})')
+            vpn_frequency = DEFAULT_vpn_frequency
+            return None
+        elif regex_error_http_404.search(str(exception_missing_media_channel)):
+            print(f'{datetime.now()} {Fore.RED}IP BANNED{Style.RESET_ALL} while adding channel '
                   f'"{channel_name}" ({channel_site} {channel_id})')
             vpn_frequency = DEFAULT_vpn_frequency
             return None
