@@ -702,7 +702,7 @@ def get_new_channel_media_from_youtube(channel, ignore_errors, archive_set):
     # TODO: This will lead to shorts being added regardless of filter! better idea: only use this after n retries.
     #  Better code would be this, but this sometimes leads to 404 errors for certain channels:
     ##  channel_url = f'https://www.youtube.com/playlist?list={upload_playlist}'
-    channel_url = f'https://www.youtube.com/channel/{channel_id}/media'
+    channel_url = f'https://www.youtube.com/channel/{channel_id}/videos'
 
     # Set download options for YT-DLP
     channel_download_options = {
