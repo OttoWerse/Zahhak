@@ -693,7 +693,7 @@ def get_new_channel_media_from_youtube(channel, ignore_errors, archive_set):
         return ['FAKE']
 
     # Filter out members only content on the channel level
-    filter_text = filter_availability
+    filter_text = (filter_availability + filter_livestream_current + filter_shorts)
 
     # Set channel URL
     # TODO: This will lead to shorts being added regardless of filter! better idea: only use this after n retries.
