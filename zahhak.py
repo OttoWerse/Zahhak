@@ -643,8 +643,8 @@ def check_channel_availability(channel):
         elif regex_channel_deleted.search(str(exception_missing_media_channel)):
             print(f'{datetime.now()} {Fore.RED}NONEXISTENT{Style.RESET_ALL} while adding channel '
                   f'"{channel_name}" ({channel_url})')
-            vpn_frequency = DEFAULT_vpn_frequency
-            return False
+            # TODO: return special case? (could this also filter out geobanned channels?)
+            return True
         else:
             print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding channel '
                   f'"{channel_name}" ({channel_url}): {exception_missing_media_channel}')
