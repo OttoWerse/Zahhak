@@ -783,8 +783,8 @@ def get_new_channel_media_from_youtube(channel, ignore_errors, archive_set):
         elif regex_channel_deleted.search(str(exception_missing_media_channel)):
             print(f'{datetime.now()} {Fore.RED}NONEXISTENT{Style.RESET_ALL} '
                   f'channel "{channel_name}" ({channel_url})')
-            vpn_frequency = DEFAULT_vpn_frequency
-            return None
+            # TODO: return special case? (could this also filter out geobanned channels?)
+            return []
         else:
             print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} while adding channel '
                   f'"{channel_name}" ({channel_url}): {exception_missing_media_channel}')
