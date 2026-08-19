@@ -1996,8 +1996,7 @@ def download_media(media):
         'nocheckcertificate': True,
         'restrictfilenames': True,
         'windowsfilenames': True,
-        # 'trim_file_name': True,
-        # TODO: This leads to -o being igonred?
+        # 'trim_file_name': True,  # TODO: This leads to -o being igonred?
         'throttledratelimit': 1000,
         'retries': 0,
         'concurrent_fragment_downloads': 20,
@@ -2008,7 +2007,7 @@ def download_media(media):
         'writeautomaticsub': True,
         'writeinfojson': True,
         'allow_playlist_files': False,
-        # 'check_formats': True,
+        # 'check_formats': True, # TODO: IDK why this was commented out
         'format': media_format,
         'allow_multiple_audio_streams': True,
         'merge_output_format': 'mp4',
@@ -2017,6 +2016,16 @@ def download_media(media):
         'paths': {
             'temp': temp_dir_path,
             'home': directory_download_home,
+        },
+        'extractor_args': { # Fixed order to avoid bot detection
+            'youtube': {
+                'player_client': [
+                    'web_embedded',
+                    'web',
+                    'tv',
+                    'android',
+                ],
+            },
         },
         'postprocessors': [
             {
