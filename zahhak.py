@@ -1269,6 +1269,8 @@ def get_text_color_for_media_status(media_status):
         text_color = Fore.YELLOW
     elif media_status == STATUS.uncertain:
         text_color = Fore.YELLOW
+    elif media_status == STATUS.upgrade:
+        text_color = Fore.YELLOW
     elif media_status == STATUS.migrate:
         text_color = Fore.YELLOW
     elif media_status == STATUS.wanted:
@@ -3233,12 +3235,11 @@ def juggle_verified_media():
                                             media_status=STATUS.stuck,
                                             database=database)
                     else:
-                        # TODO: Maybe use status.upgrade instead?
                         if json_width > MAX_WIDTH or json_width < MIN_WIDTH or not re.search(VIDEO_CODEC, json_vcodec):
                             # Update DB
                             update_media_status(media_site=json_site,
                                                 media_id=json_id,
-                                                media_status=STATUS.migrate,
+                                                media_status=STATUS.upgrade,
                                                 database=database)
                         else:
                             # Update DB
