@@ -1945,7 +1945,7 @@ def download_media(media):
             # If private videos are processed here, the date calculation can fail due to the date being none,
             # this is why I have added this first if statement to prevent the calculation from happening
             if media_available_date is None:
-                media_format = default_media_format  # Fallback no date
+                media_format = f"bv*[width<={MAX_WIDTH}]+ba"  # Fallback no date
             elif media_available_date < date(2024, 1, 1):  # 0000-2023
                 media_format = f"bv*[width<={MAX_WIDTH}]+ba"
             else:
