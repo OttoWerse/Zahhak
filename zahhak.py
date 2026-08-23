@@ -1948,12 +1948,12 @@ def download_media(media):
             # this is why I have added this first if statement to prevent the calculation from happening
             if media_available_date is None:
                 media_format = f"bv*[width<={MAX_WIDTH}]+ba"  # Fallback no date
-            elif media_available_date < date(2024, 1, 1):  # 0000-2023
+            elif media_available_date < date(2025, 3, 1):  # From 0000-00-00 to 2025-03-01
                 media_format = f"bv*[width<={MAX_WIDTH}]+ba"
             else:
-                media_format = default_media_format  # 2024+
+                media_format = default_media_format  # From 2025-03-01 onwards
         case STATUS.unavailable:
-            # Accept anything for (previously) private/unavailable videos, if we can get these at all we are lucky!
+            # Accept anything for (previously) unavailable videos; if we can get these at all, we are lucky!
             media_format = f"bv+ba"
         case STATUS.migrate | STATUS.upgrade:
             # Staying strict in video codec, min resolution and max resolution here is crucial!
