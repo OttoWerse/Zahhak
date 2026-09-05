@@ -592,6 +592,7 @@ def check_channel_availability(channel):
         'extractor_retries': retry_extraction_check_channel,
         'socket_timeout': timeout_check_channel,
         'source_address': external_ip,
+        'cookies': 'cookies.txt',
     }
 
     try:
@@ -721,6 +722,7 @@ def get_new_channel_media_from_youtube(channel, ignore_errors, archive_set):
         'extractor_retries': retry_extraction_channel,
         'socket_timeout': timeout_channel,
         'source_address': external_ip,
+        'cookies': 'cookies.txt',
         'match_filter': yt_dlp.utils.match_filter_func(filter_text)
     }
 
@@ -903,6 +905,7 @@ def get_new_playlist_media_from_youtube(playlist, ignore_errors, counter, archiv
         'extractor_retries': retry_extraction_playlist,
         'socket_timeout': timeout,
         'source_address': external_ip,
+        'cookies': 'cookies.txt',
         'match_filter': yt_dlp.utils.match_filter_func(filter_text)
     }
 
@@ -996,7 +999,7 @@ def get_monitored_channels_from_db(database, regex_channel_url=fr'^UC[a-z0-9\-\_
 
     sql = ("SELECT channels.site, channels.url, channels.name, channels.priority "
            "FROM channels "
-           "WHERE site = %s "
+           "WHERE site IN %s "
            "AND (LOWER(channels.url) REGEXP %s)"
            "AND channels.url IN("
            "SELECT playlists.channel FROM playlists "
@@ -1007,7 +1010,7 @@ def get_monitored_channels_from_db(database, regex_channel_url=fr'^UC[a-z0-9\-\_
            "ORDER BY channels.priority DESC, EXTRACT(year FROM channels.date_checked) ASC, "
            "EXTRACT(month FROM channels.date_checked) ASC, EXTRACT(day FROM channels.date_checked) ASC, "
            "EXTRACT(hour FROM channels.date_checked) ASC, RAND();")
-    val = ('youtube', regex_channel_url)
+    val = (('patreon', 'youtube'), regex_channel_url,)
     mysql_cursor.execute(sql, val)
     mysql_result = mysql_cursor.fetchall()
     return mysql_result
@@ -1045,7 +1048,7 @@ def get_channel_playlists_from_db(channel):
                "FROM playlists "
                "INNER JOIN channels "
                "ON playlists.channel = channels.url "
-               "WHERE playlists.site = %s "
+               "WHERE playlists.site IN %s "
                "AND playlists.channel = %s "
                "AND playlists.done IS NOT TRUE "
                # "AND playlists.download IS TRUE "
@@ -1053,7 +1056,7 @@ def get_channel_playlists_from_db(channel):
                "ORDER BY playlists.priority DESC, EXTRACT(year FROM playlists.date_checked) ASC, "
                "EXTRACT(month FROM playlists.date_checked) ASC, EXTRACT(day FROM playlists.date_checked) ASC, "
                "EXTRACT(hour FROM playlists.date_checked) ASC, RAND();")
-        val = ('youtube', channel_id)
+        val = (('patreon', 'youtube'), channel_id)
         mysql_cursor.execute(sql, val)
         mysql_result = mysql_cursor.fetchall()
         # playlists.append(mysql_result)
@@ -1087,7 +1090,8 @@ def get_media_details_from_youtube(media_id, ignore_errors, archive_set):
                 'extractor_args': {'youtube': {'skip': ['configs', 'webpage', 'js']}},
                 'extractor_retries': retry_extraction_media,
                 'socket_timeout': timeout_media,
-                'source_address': external_ip
+                'source_address': external_ip,
+                'cookies': 'cookies.txt',
             }
 
             # Run YT-DLP
@@ -1134,7 +1138,8 @@ def get_channel_details(channel_url, ignore_errors):
                                 'extractor_args': {'youtube': {'skip': ['configs', 'webpage', 'js']}},
                                 'extractor_retries': retry_extraction_channel,
                                 'socket_timeout': timeout_channel,
-                                'source_address': external_ip
+                                'source_address': external_ip,
+                                'cookies': 'cookies.txt',
                                 }
 
     # Try-Except Block to handle YT-DLP exceptions such as "playlist does not exist"
@@ -1179,7 +1184,7 @@ def get_channel_details(channel_url, ignore_errors):
 
 
 def add_channel(channel_id, channel_name):
-    channel_site = 'youtube'
+    channel_site = 'youtube' # TODO, this needs to be a parameter and passed from outwards!
 
     channel_priority = 100
 
@@ -1214,7 +1219,7 @@ def add_channel(channel_id, channel_name):
 
 
 def add_playlist(playlist_id, playlist_name, channel_id, download, monitor):
-    playlist_site = 'youtube'
+    playlist_site = 'youtube' # TODO: This needs to be a parameter and passed from outside
 
     if channel_id == playlist_id:
         playlist_priority = 0
@@ -1932,6 +1937,8 @@ def download_media(media):
 
     '''Create URL to be used for download based on site'''
     match media_site:
+        case 'patreon':
+            media_url = f'https://www.patreon.com/posts/{media_id}'
         case 'youtube':
             media_url = f'https://www.youtube.com/watch?v={media_id}'
         case _:
@@ -1995,6 +2002,7 @@ def download_media(media):
         'extractor_retries': retry_extraction_download,
         'socket_timeout': timeout_download,
         'source_address': external_ip,
+        'cookies': 'cookies.txt',
         'nocheckcertificate': True,
         'restrictfilenames': True,
         'windowsfilenames': True,
@@ -2019,7 +2027,7 @@ def download_media(media):
             'temp': temp_dir_path,
             'home': directory_download_home,
         },
-        'extractor_args': { # Fixed order to avoid bot detection
+        'extractor_args': {  # Fixed order to avoid bot detection
             'youtube': {
                 'player_client': [
                     'web_embedded',
@@ -2395,12 +2403,12 @@ def get_monitored_playlists_from_db():
                "FROM playlists "
                "INNER JOIN channels "
                "ON playlists.channel = channels.url "
-               "WHERE playlists.site = %s "
+               "WHERE playlists.site IN %s "
                "AND playlists.done IS NOT TRUE "  # TODO: We should either remove or automate the "done" DB field ASAP!
                "AND playlists.monitor IS TRUE "
                "ORDER BY playlists.priority DESC, EXTRACT(year FROM playlists.date_checked) ASC, "
                "EXTRACT(month FROM playlists.date_checked) ASC, EXTRACT(day FROM playlists.date_checked) ASC, RAND();")
-        val = ('youtube',)
+        val = (('patreon', 'youtube'),)
         mysql_cursor.execute(sql, val)
         mysql_result = mysql_cursor.fetchall()
         # playlists.append(mysql_result)
@@ -2439,7 +2447,8 @@ def get_all_channel_playlists_from_youtube(channel_id, ignore_errors):
             'extractor_args': {'youtube': {'skip': ['configs', 'webpage', 'js']}},
             'extractor_retries': retry_extraction_channel,
             'socket_timeout': timeout_channel,
-            'source_address': external_ip
+            'source_address': external_ip,
+            'cookies': 'cookies.txt',
         }
 
         # Try-Except Block to handle YT-DLP exceptions such as "playlist does not exist"
@@ -2771,7 +2780,7 @@ def get_database_channel_names(database):
            "AND playlists.monitor IS TRUE "
            "GROUP BY playlists.channel HAVING count(*) > 0) "
            ";")
-    val = ('youtube',)  # DO NOT REMOVE COMMA, it is necessary for MySQL to work!
+    val = (('patreon', 'youtube'),)  # DO NOT REMOVE COMMA, it is necessary for MySQL to work!
     mysql_cursor.execute(sql, val)
     mysql_result = mysql_cursor.fetchall()
     channel_name_list = dict(mysql_result)
@@ -2790,7 +2799,7 @@ def get_database_playlist_names(database):
     mysql_cursor = database.cursor()
 
     sql = "select playlists.url, playlists.name from playlists WHERE site = %s;"
-    val = ('youtube',)  # DO NOT REMOVE COMMA, it is necessary for MySQL to work!
+    val = (('patreon', 'youtube'),)  # DO NOT REMOVE COMMA, it is necessary for MySQL to work!
     mysql_cursor.execute(sql, val)
     mysql_result = mysql_cursor.fetchall()
 
@@ -3116,6 +3125,7 @@ def juggle_verified_media():
                             except Exception as exception:
                                 print(f'{datetime.now()} {Fore.RED}UNKNOWN MEDIA{Style.RESET_ALL} '
                                       f'{os.path.basename(path_move)}')
+                                # TODO: Add media to DB!
                                 if json_date is None:
                                     # If we have no date, we cannot insert!
                                     continue
