@@ -2167,9 +2167,8 @@ def download_media(media):
                         # TODO: CHeck if formats are actually sorted and guarantee to pick best format
                     except KeyboardInterrupt:
                         sys.exit()
-                    except Exception as exception_media_format:
-                        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} getting media format info: '
-                              f'{exception_media_format} \n {format}')
+                    except Exception:
+                        pass
                 print(f'{datetime.now()} {Fore.YELLOW}AVAILABLE{Style.RESET_ALL} '
                       f'{format_vcodec}@{format_width}x{format_height}+{format_acodec}', end='\n')
             except KeyboardInterrupt:
