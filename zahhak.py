@@ -999,8 +999,7 @@ def get_monitored_channels_from_db(database, regex_channel_url=fr'^UC[a-z0-9\-\_
 
     sql = ("SELECT channels.site, channels.url, channels.name, channels.priority "
            "FROM channels "
-           "WHERE site IN %s "
-           "AND (LOWER(channels.url) REGEXP %s)"
+           "WHERE (LOWER(channels.url) REGEXP %s)"
            "AND channels.url IN("
            "SELECT playlists.channel FROM playlists "
            "WHERE playlists.done IS NOT TRUE "
@@ -1010,7 +1009,7 @@ def get_monitored_channels_from_db(database, regex_channel_url=fr'^UC[a-z0-9\-\_
            "ORDER BY channels.priority DESC, EXTRACT(year FROM channels.date_checked) ASC, "
            "EXTRACT(month FROM channels.date_checked) ASC, EXTRACT(day FROM channels.date_checked) ASC, "
            "EXTRACT(hour FROM channels.date_checked) ASC, RAND();")
-    val = ("('patreon', 'youtube')", regex_channel_url,)
+    val = (regex_channel_url,)
     mysql_cursor.execute(sql, val)
     mysql_result = mysql_cursor.fetchall()
     return mysql_result
@@ -1048,15 +1047,14 @@ def get_channel_playlists_from_db(channel):
                "FROM playlists "
                "INNER JOIN channels "
                "ON playlists.channel = channels.url "
-               "WHERE playlists.site IN %s "
-               "AND playlists.channel = %s "
+               "WHERE playlists.channel = %s "
                "AND playlists.done IS NOT TRUE "
                # "AND playlists.download IS TRUE "
                "AND playlists.monitor IS TRUE "
                "ORDER BY playlists.priority DESC, EXTRACT(year FROM playlists.date_checked) ASC, "
                "EXTRACT(month FROM playlists.date_checked) ASC, EXTRACT(day FROM playlists.date_checked) ASC, "
                "EXTRACT(hour FROM playlists.date_checked) ASC, RAND();")
-        val = ("('patreon', 'youtube')", channel_id)
+        val = (channel_id,)
         mysql_cursor.execute(sql, val)
         mysql_result = mysql_cursor.fetchall()
         # playlists.append(mysql_result)
@@ -2409,13 +2407,11 @@ def get_monitored_playlists_from_db():
                "FROM playlists "
                "INNER JOIN channels "
                "ON playlists.channel = channels.url "
-               "WHERE playlists.site IN %s "
-               "AND playlists.done IS NOT TRUE "  # TODO: We should either remove or automate the "done" DB field ASAP!
+               "WHERE playlists.done IS NOT TRUE "  # TODO: We should either remove or automate the "done" DB field ASAP!
                "AND playlists.monitor IS TRUE "
                "ORDER BY playlists.priority DESC, EXTRACT(year FROM playlists.date_checked) ASC, "
                "EXTRACT(month FROM playlists.date_checked) ASC, EXTRACT(day FROM playlists.date_checked) ASC, RAND();")
-        val = ("('patreon', 'youtube')",)
-        mysql_cursor.execute(sql, val)
+        mysql_cursor.execute(sql)
         mysql_result = mysql_cursor.fetchall()
         # playlists.append(mysql_result)
         for entry in mysql_result:
@@ -2779,15 +2775,14 @@ def get_database_channel_names(database):
     mysql_cursor = database.cursor()
 
     sql = ("select channels.url, channels.name FROM channels "
-           "WHERE site = %s AND url not like '%#%'"
+           "WHERE url not like '%#%'"
            "AND channels.url IN("
            "SELECT playlists.channel FROM playlists "
            "WHERE playlists.done IS NOT TRUE "
            "AND playlists.monitor IS TRUE "
            "GROUP BY playlists.channel HAVING count(*) > 0) "
            ";")
-    val = ("('patreon', 'youtube')",)  # DO NOT REMOVE COMMA, it is necessary for MySQL to work!
-    mysql_cursor.execute(sql, val)
+    mysql_cursor.execute(sql)
     mysql_result = mysql_cursor.fetchall()
     channel_name_list = dict(mysql_result)
     return channel_name_list
@@ -2804,9 +2799,8 @@ def get_database_playlist_names(database):
     print(f'{datetime.now()} Collecting playlists...', end='\r')
     mysql_cursor = database.cursor()
 
-    sql = "select playlists.url, playlists.name from playlists WHERE site = %s;"
-    val = ("('patreon', 'youtube')",)  # DO NOT REMOVE COMMA, it is necessary for MySQL to work!
-    mysql_cursor.execute(sql, val)
+    sql = "select playlists.url, playlists.name from playlists;"
+    mysql_cursor.execute(sql)
     mysql_result = mysql_cursor.fetchall()
 
     return dict(mysql_result)
