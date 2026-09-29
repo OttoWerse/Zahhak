@@ -2147,7 +2147,7 @@ def download_media(media):
             return False
         elif regex_media_format_unavailable.search(str(exception_download)):
             print(f'{datetime.now()} {Fore.RED}UNAVAILABLE FORMAT{Style.RESET_ALL} '
-                  f'{media_format} downloading {media_site} {media_id}')
+                  f'{media_format} downloading {media_site} {media_id}: {str(exception_download)}')
             media_info = get_media_details_from_youtube(media_id=media_id, ignore_errors=False, archive_set=None)
             try:
                 format_vcodec = '?'
