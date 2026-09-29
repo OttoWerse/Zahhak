@@ -2157,21 +2157,26 @@ def download_media(media):
                 format_height = '?'
                 format_acodec = '?'
                 for format in media_info['formats']:
-                    if format['vcodec'] is not None:
-                        if format['vcodec'] != 'none':
-                            format_vcodec = format['vcodec']
-                            format_width = format['width']
-                            format_height = format['height']
-                    if format['acodec'] is not None:
-                        if format['acodec'] != 'none':
-                            format_acodec = format['acodec']
+                    try:
+                        if format['vcodec'] is not None and format['vcodec'] != 'none':
+                                format_vcodec = format['vcodec']
+                                format_width = format['width']
+                                format_height = format['height']
+                        if format['acodec'] is not None and format['acodec'] != 'none':
+                                format_acodec = format['acodec']
+                        # TODO: CHeck if formats are actually sorted and guarantee to pick best format
+                    except KeyboardInterrupt:
+                        sys.exit()
+                    except Exception as exception_media_format:
+                        print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} getting media format info: '
+                              f'{exception_media_format} \n {format}')
                 print(f'{datetime.now()} {Fore.YELLOW}AVAILABLE{Style.RESET_ALL} '
                       f'{format_vcodec}@{format_width}x{format_height}+{format_acodec}', end='\n')
             except KeyboardInterrupt:
                 sys.exit()
-            except Exception as exception_media_format:
-                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} getting media format: '
-                      f'{exception_media_format}')
+            except Exception as exception_media_formats:
+                print(f'{datetime.now()} {Fore.RED}EXCEPTION{Style.RESET_ALL} processing media formats: '
+                      f'{exception_media_formats}')
             # TODO: This was changed to handle videos which legitimately do not exist in requested strict format
             #  at this point media format should be changed (after X retries)
             return True
