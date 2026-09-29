@@ -2157,12 +2157,14 @@ def download_media(media):
                 format_height = '?'
                 format_acodec = '?'
                 for format in media_info['formats']:
-                    if format['vcodec'] is not None and format['vcodec'] != 'none':
-                        format_vcodec = format['vcodec']
-                        format_width = format['width']
-                        format_height = format['height']
-                    if format['acodec'] is not None and format['acodec'] != 'none':
-                        format_acodec = format['acodec']
+                    if format['vcodec'] is not None:
+                        if format['vcodec'] != 'none':
+                            format_vcodec = format['vcodec']
+                            format_width = format['width']
+                            format_height = format['height']
+                    if format['acodec'] is not None:
+                        if format['acodec'] != 'none':
+                            format_acodec = format['acodec']
                 print(f'{datetime.now()} {Fore.YELLOW}AVAILABLE{Style.RESET_ALL} '
                       f'{format_vcodec}@{format_width}x{format_height}+{format_acodec}', end='\n')
             except KeyboardInterrupt:
